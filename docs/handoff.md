@@ -12,6 +12,7 @@ Completed:
 - Product brief, research notes, architecture, AI-native roadmap, and initial decision record added.
 - Supabase initial schema draft added.
 - AI SDK 7 installed as a future provider-agnostic layer.
+- Board meeting brief added with MVP talk track, backend options, and WhatsApp tradeoffs.
 
 ## Current Product Assumption
 
@@ -20,14 +21,15 @@ This is a staff-only PRM for BENMP and Healing Jesus Campaign operations. It sho
 ## Next Actions
 
 1. Confirm unresolved product questions with David/client.
-2. Build Supabase local setup and seed data.
-3. Replace mock dashboard data with typed database queries.
-4. Add auth shell and role-aware navigation.
-5. Build partners module first.
-6. Add giving import/reconciliation second.
-7. Add follow-up/prayer/campaign modules.
-8. Add communication provider adapters.
-9. Introduce AI assistant with read-only tools.
+2. Decide backend path: Supabase fast path, Neon/Clerk portable path, or AWS enterprise path.
+3. Build database local setup and seed data.
+4. Replace mock dashboard data with typed database queries.
+5. Add auth shell and role-aware navigation.
+6. Build partners module first.
+7. Add giving import/reconciliation second.
+8. Add follow-up/prayer/campaign modules.
+9. Add communication provider adapters.
+10. Introduce AI assistant with read-only tools.
 
 ## Open Questions
 

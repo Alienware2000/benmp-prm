@@ -1,4 +1,5 @@
 import { Bot, Sparkles } from "lucide-react";
+import { AiCommandCenter } from "@/components/demo/ai-command-center";
 import {
   DataTable,
   MetricCard,
@@ -106,6 +107,8 @@ export default async function AiPage() {
           <MetricCard key={stat.label} {...stat} />
         ))}
       </section>
+
+      <AiCommandCenter />
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.75fr]">
         <Panel

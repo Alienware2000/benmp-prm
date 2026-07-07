@@ -47,6 +47,7 @@ export function DashboardShell({
 
         <section className="min-w-0">
           <Topbar />
+          <MobileNav navItems={navItems} />
           <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
             {children}
           </div>
@@ -117,6 +118,39 @@ function Sidebar({ navItems }: { navItems: NavItem[] }) {
         </div>
       </div>
     </aside>
+  );
+}
+
+function MobileNav({ navItems }: { navItems: NavItem[] }) {
+  const pathname = usePathname();
+
+  return (
+    <nav className="sticky top-16 z-10 border-b border-border bg-surface/95 px-4 py-2 backdrop-blur lg:hidden">
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {navItems.map((item) => {
+          const active =
+            pathname === item.href ||
+            (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+          const IconComponent = navIcons[item.icon];
+
+          return (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={cn(
+                "inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium ring-1 transition",
+                active
+                  ? "bg-sidebar text-white ring-sidebar"
+                  : "bg-white text-muted-foreground ring-border hover:text-foreground",
+              )}
+            >
+              <IconComponent className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 

@@ -1,4 +1,5 @@
-import { ChevronRight, Sparkles } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { AiCommandCenter } from "@/components/demo/ai-command-center";
 import {
   DataTable,
   Insight,
@@ -44,21 +45,7 @@ export default async function Home() {
         ))}
       </section>
 
-      <section className="rounded-lg border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-950">
-        <div className="flex gap-3">
-          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-primary ring-1 ring-amber-200">
-            <Sparkles className="h-4 w-4" />
-          </div>
-          <div>
-            <p className="font-semibold">AI-native direction</p>
-            <p className="mt-1 leading-6 text-amber-900/80">
-              Start with trustworthy partner and giving data. Then add a
-              supervised assistant for partner briefings, message drafts,
-              payment reconciliation, and follow-up suggestions.
-            </p>
-          </div>
-        </div>
-      </section>
+      <AiCommandCenter />
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.45fr_0.95fr]">
         <Panel

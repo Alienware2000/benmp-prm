@@ -1,4 +1,5 @@
 import { CircleDollarSign, FileUp } from "lucide-react";
+import { GivingReconciliation } from "@/components/demo/giving-reconciliation";
 import {
   DataTable,
   MetricCard,
@@ -112,6 +113,8 @@ export default async function GivingPage() {
           <MetricCard key={stat.label} {...stat} />
         ))}
       </section>
+
+      <GivingReconciliation />
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.3fr_0.7fr]">
         <Panel

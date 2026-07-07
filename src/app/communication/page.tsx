@@ -1,4 +1,5 @@
 import { MessageCircle, Plus } from "lucide-react";
+import { CommunicationStudio } from "@/components/demo/communication-studio";
 import {
   DataTable,
   MetricCard,
@@ -75,6 +76,8 @@ export default async function CommunicationPage() {
           <MetricCard key={stat.label} {...stat} />
         ))}
       </section>
+
+      <CommunicationStudio />
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.75fr]">
         <Panel

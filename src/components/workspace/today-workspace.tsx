@@ -10,6 +10,7 @@ import {
   Search,
   UserRound,
 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type {
   CommunicationChannel,
   CommunicationSegment,
@@ -34,22 +35,12 @@ const channels: CommunicationChannel[] = ["WhatsApp", "SMS", "Email", "Phone"];
 
 const partnerLevels = ["Monthly", "Quarterly", "Annual", "Major", "Prayer"];
 
-function getInitialMode(): WorkspaceMode {
-  if (typeof window === "undefined") {
-    return "partner";
+function getWorkspaceMode(value: string | null): WorkspaceMode | null {
+  if (value === "partner" || value === "task" || value === "message") {
+    return value;
   }
 
-  const requestedMode = new URLSearchParams(window.location.search).get("mode");
-
-  if (
-    requestedMode === "partner" ||
-    requestedMode === "task" ||
-    requestedMode === "message"
-  ) {
-    return requestedMode;
-  }
-
-  return "partner";
+  return null;
 }
 
 function getInitialWorkspace(fallback: StoredWorkspace): StoredWorkspace {
@@ -88,6 +79,10 @@ export function TodayWorkspace({
   initialMessages: MessageBatch[];
   segments: CommunicationSegment[];
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const mode = getWorkspaceMode(searchParams.get("mode")) ?? "partner";
   const fallbackWorkspace = useMemo<StoredWorkspace>(
     () => ({
       partners: initialPartners,
@@ -99,7 +94,9 @@ export function TodayWorkspace({
   const [workspace, setWorkspace] = useState<StoredWorkspace>(() =>
     getInitialWorkspace(fallbackWorkspace),
   );
-  const [mode, setMode] = useState<WorkspaceMode>(() => getInitialMode());
+  const [selectedSegmentId, setSelectedSegmentId] = useState(
+    segments[0]?.id ?? "",
+  );
   const [query, setQuery] = useState("");
   const [selectedPartnerId, setSelectedPartnerId] = useState(
     workspace.partners[0]?.id ?? "",
@@ -109,6 +106,8 @@ export function TodayWorkspace({
   const selectedPartner =
     workspace.partners.find((partner) => partner.id === selectedPartnerId) ??
     workspace.partners[0];
+  const selectedSegment =
+    segments.find((segment) => segment.id === selectedSegmentId) ?? segments[0];
 
   const filteredPartners = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -151,6 +150,14 @@ export function TodayWorkspace({
     setSelectedPartnerId(initialPartners[0]?.id ?? "");
     setNotice("Local changes reset");
     window.localStorage.removeItem(storageKey);
+  }
+
+  function selectMode(nextMode: WorkspaceMode) {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("mode", nextMode);
+    router.replace(`${pathname}?${nextParams.toString()}#workspace`, {
+      scroll: false,
+    });
   }
 
   function addPartner(event: FormEvent<HTMLFormElement>) {
@@ -244,7 +251,7 @@ export function TodayWorkspace({
   function stageMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const segmentId = String(formData.get("segmentId") ?? "");
+    const segmentId = String(formData.get("segmentId") ?? selectedSegmentId);
     const segment =
       segments.find((item) => item.id === segmentId) ?? segments[0];
 
@@ -303,7 +310,7 @@ export function TodayWorkspace({
       id="workspace"
       className="rounded-lg border border-border bg-surface shadow-sm"
     >
-      <div className="grid gap-0 xl:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="grid min-w-0 gap-0 xl:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="border-b border-border p-4 xl:border-b-0 xl:border-r">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -329,131 +336,92 @@ export function TodayWorkspace({
               icon={UserRound}
               label="Capture Partner"
               count={workspace.partners.length}
-              onClick={() => setMode("partner")}
+              onClick={() => selectMode("partner")}
             />
             <ModeButton
               active={mode === "task"}
               icon={ClipboardList}
               label="Assign Follow-up"
               count={openTasks.length}
-              onClick={() => setMode("task")}
+              onClick={() => selectMode("task")}
             />
             <ModeButton
               active={mode === "message"}
               icon={MessageCircle}
               label="Approve Messaging"
               count={reviewMessages.length}
-              onClick={() => setMode("message")}
+              onClick={() => selectMode("message")}
             />
           </div>
 
           <div className="mt-4 rounded-lg border border-border bg-muted/40 p-3">
             <p className="text-xs font-semibold text-foreground">{notice}</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Local changes stay in this browser until a backend adapter is
-              connected.
+              Local workspace. Backend adapter pending.
             </p>
           </div>
         </aside>
 
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
-          <div className="border-b border-border p-4 lg:border-b-0 lg:border-r">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                className="h-10 w-full rounded-lg border border-border bg-muted pl-9 pr-3 text-sm outline-none focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
-                placeholder="Find a partner"
-              />
-            </div>
-
-            <div className="mt-4 max-h-[430px] space-y-2 overflow-y-auto pr-1">
-              {filteredPartners.map((partner) => (
-                <button
-                  key={partner.id}
-                  onClick={() => setSelectedPartnerId(partner.id)}
-                  className={cn(
-                    "w-full rounded-lg border p-3 text-left transition",
-                    selectedPartner?.id === partner.id
-                      ? "border-primary bg-amber-50"
-                      : "border-border bg-white hover:bg-muted/60",
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-foreground">
-                        {partner.fullName}
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        {partner.city || "Unknown city"}, {partner.country}
-                      </p>
-                    </div>
-                    <StatusBadge label={partner.status} />
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                    <span>{partner.preferredCommunication}</span>
-                    <span>{partner.partnershipLevel}</span>
-                    <span>
-                      {minorCurrency(
-                        partner.lifetimeGiving.amountMinor,
-                        partner.lifetimeGiving.currency,
-                      )}
-                    </span>
-                    <span>{partner.owner}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-4">
-            {selectedPartner ? (
-              <div className="mb-4 rounded-lg border border-border bg-muted/30 p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h3 className="text-base font-semibold text-foreground">
-                      {selectedPartner.fullName}
-                    </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {selectedPartner.church || "No church listed"}
-                    </p>
-                  </div>
-                  <StatusBadge label={selectedPartner.status} />
-                </div>
-                <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                  <Info
-                    label="Preferred channel"
-                    value={selectedPartner.preferredCommunication}
-                  />
-                  <Info label="Owner" value={selectedPartner.owner} />
-                  <Info
-                    label="Last gift"
-                    value={selectedPartner.lastContributionDate}
-                  />
-                  <Info
-                    label="Prayer"
-                    value={selectedPartner.prayerSummary || "No prayer note"}
-                  />
-                </div>
+        <div className="min-w-0 p-4 sm:p-5">
+          {mode === "partner" ? (
+            <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="min-w-0">
+                <WorkflowHeader
+                  eyebrow="New intake"
+                  title="Capture Partner"
+                  detail={`${workspace.partners.length.toLocaleString()} records in workspace`}
+                />
+                <PartnerForm onSubmit={addPartner} />
               </div>
-            ) : null}
+              <RecentPartners partners={workspace.partners.slice(0, 5)} />
+            </div>
+          ) : null}
 
-            {mode === "partner" ? <PartnerForm onSubmit={addPartner} /> : null}
-            {mode === "task" ? (
-              <TaskForm
-                onSubmit={createTask}
+          {mode === "task" ? (
+            <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(250px,0.42fr)_minmax(0,1fr)]">
+              <PartnerPicker
+                query={query}
+                onQueryChange={setQuery}
+                partners={filteredPartners}
                 selectedPartner={selectedPartner}
+                onSelect={setSelectedPartnerId}
               />
-            ) : null}
-            {mode === "message" ? (
-              <MessageForm
-                onSubmit={stageMessage}
+              <div className="min-w-0">
+                <SelectedPartnerSummary partner={selectedPartner} />
+                <TaskForm
+                  onSubmit={createTask}
+                  selectedPartner={selectedPartner}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {mode === "message" ? (
+            <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(250px,0.42fr)_minmax(0,1fr)]">
+              <SegmentPicker
                 segments={segments}
-                selectedPartner={selectedPartner}
+                selectedSegment={selectedSegment}
+                onSelect={setSelectedSegmentId}
               />
-            ) : null}
-          </div>
+              <div className="min-w-0">
+                {selectedSegment ? (
+                  <div className="mb-4 rounded-lg border border-border bg-muted/30 p-4">
+                    <WorkflowHeader
+                      eyebrow="Audience"
+                      title={selectedSegment.name}
+                      detail={`${selectedSegment.recipientCount.toLocaleString()} recipients - ${selectedSegment.channel}`}
+                    />
+                  </div>
+                ) : null}
+                <MessageForm
+                  onSubmit={stageMessage}
+                  segments={segments}
+                  selectedSegmentId={selectedSegment?.id ?? ""}
+                  onSegmentChange={setSelectedSegmentId}
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -482,6 +450,236 @@ export function TodayWorkspace({
             onAction: () => approveMessage(message.id),
           }))}
         />
+      </div>
+    </section>
+  );
+}
+
+function WorkflowHeader({
+  eyebrow,
+  title,
+  detail,
+}: {
+  eyebrow: string;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div className="mb-4 min-w-0">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {eyebrow}
+      </p>
+      <div className="mt-1 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <h3 className="truncate text-lg font-semibold text-foreground">
+          {title}
+        </h3>
+        <p className="text-sm font-medium text-muted-foreground">{detail}</p>
+      </div>
+    </div>
+  );
+}
+
+function RecentPartners({ partners }: { partners: PartnerRecord[] }) {
+  return (
+    <section className="min-w-0 rounded-lg border border-border p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-foreground">
+          Recent Partners
+        </h3>
+        <span className="text-xs font-semibold text-muted-foreground">
+          {partners.length}
+        </span>
+      </div>
+      <div className="mt-3 space-y-2">
+        {partners.map((partner) => (
+          <div key={partner.id} className="rounded-lg bg-muted/60 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {partner.fullName}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {partner.city || "Unknown city"}, {partner.country}
+                </p>
+              </div>
+              <StatusBadge label={partner.status} />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+              <span className="truncate">{partner.preferredCommunication}</span>
+              <span className="truncate">{partner.partnershipLevel}</span>
+              <span className="truncate">
+                {minorCurrency(
+                  partner.lifetimeGiving.amountMinor,
+                  partner.lifetimeGiving.currency,
+                )}
+              </span>
+              <span className="truncate">{partner.owner}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PartnerPicker({
+  query,
+  onQueryChange,
+  partners,
+  selectedPartner,
+  onSelect,
+}: {
+  query: string;
+  onQueryChange: (value: string) => void;
+  partners: PartnerRecord[];
+  selectedPartner?: PartnerRecord;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <section className="min-w-0 rounded-lg border border-border p-4">
+      <WorkflowHeader
+        eyebrow="Follow-up"
+        title="Choose Partner"
+        detail={`${partners.length.toLocaleString()} visible`}
+      />
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          className="h-10 w-full min-w-0 rounded-lg border border-border bg-muted pl-9 pr-3 text-sm outline-none focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+          placeholder="Find a partner"
+        />
+      </div>
+
+      <div className="mt-4 max-h-[460px] space-y-2 overflow-y-auto pr-1">
+        {partners.length ? (
+          partners.map((partner) => (
+            <button
+              key={partner.id}
+              onClick={() => onSelect(partner.id)}
+              className={cn(
+                "w-full min-w-0 rounded-lg border p-3 text-left transition",
+                selectedPartner?.id === partner.id
+                  ? "border-primary bg-amber-50"
+                  : "border-border bg-white hover:bg-muted/60",
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {partner.fullName}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {partner.city || "Unknown city"}, {partner.country}
+                  </p>
+                </div>
+                <StatusBadge label={partner.status} />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                <span className="truncate">
+                  {partner.preferredCommunication}
+                </span>
+                <span className="truncate">{partner.partnershipLevel}</span>
+                <span className="truncate">{partner.owner}</span>
+                <span className="truncate">{partner.lastContributionDate}</span>
+              </div>
+            </button>
+          ))
+        ) : (
+          <p className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">
+            No matching partners
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SelectedPartnerSummary({ partner }: { partner?: PartnerRecord }) {
+  if (!partner) {
+    return (
+      <div className="mb-4 rounded-lg border border-border bg-muted/30 p-4">
+        <h3 className="text-base font-semibold text-foreground">
+          No Partner Selected
+        </h3>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-4 min-w-0 rounded-lg border border-border bg-muted/30 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-semibold text-foreground">
+            {partner.fullName}
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {partner.church || "No church listed"}
+          </p>
+        </div>
+        <StatusBadge label={partner.status} />
+      </div>
+      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+        <Info
+          label="Preferred channel"
+          value={partner.preferredCommunication}
+        />
+        <Info label="Owner" value={partner.owner} />
+        <Info label="Last gift" value={partner.lastContributionDate} />
+        <Info
+          label="Prayer"
+          value={partner.prayerSummary || "No prayer note"}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SegmentPicker({
+  segments,
+  selectedSegment,
+  onSelect,
+}: {
+  segments: CommunicationSegment[];
+  selectedSegment?: CommunicationSegment;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <section className="min-w-0 rounded-lg border border-border p-4">
+      <WorkflowHeader
+        eyebrow="Messaging"
+        title="Choose Audience"
+        detail={`${segments.length.toLocaleString()} segments`}
+      />
+      <div className="space-y-2">
+        {segments.map((segment) => (
+          <button
+            key={segment.id}
+            onClick={() => onSelect(segment.id)}
+            className={cn(
+              "w-full min-w-0 rounded-lg border p-3 text-left transition",
+              selectedSegment?.id === segment.id
+                ? "border-primary bg-amber-50"
+                : "border-border bg-white hover:bg-muted/60",
+            )}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {segment.name}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {segment.recipientCount.toLocaleString()} recipients
+                </p>
+              </div>
+              <StatusBadge label={segment.complianceStatus} />
+            </div>
+            <p className="mt-3 text-xs font-medium leading-5 text-muted-foreground">
+              {segment.channel} - {segment.owner}
+            </p>
+          </button>
+        ))}
       </div>
     </section>
   );
@@ -532,7 +730,7 @@ function Info({ label, value }: { label: string; value: string }) {
       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         {label}
       </p>
-      <p className="mt-1 text-sm text-foreground">{value}</p>
+      <p className="mt-1 break-words text-sm text-foreground">{value}</p>
     </div>
   );
 }
@@ -543,9 +741,12 @@ function PartnerForm({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <form onSubmit={onSubmit} className="rounded-lg border border-border p-4">
+    <form
+      onSubmit={onSubmit}
+      className="min-w-0 rounded-lg border border-border p-4"
+    >
       <FormTitle title="Capture Partner" />
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-2">
         <TextField name="fullName" label="Full name" required />
         <TextField name="country" label="Country" required />
         <TextField name="city" label="City" />
@@ -584,14 +785,17 @@ function TaskForm({
   selectedPartner?: PartnerRecord;
 }) {
   return (
-    <form onSubmit={onSubmit} className="rounded-lg border border-border p-4">
+    <form
+      onSubmit={onSubmit}
+      className="min-w-0 rounded-lg border border-border p-4"
+    >
       <FormTitle title="Assign Follow-up" />
       <p className="mt-2 text-sm text-muted-foreground">
         {selectedPartner
           ? selectedPartner.fullName
           : "Select a partner before creating a task"}
       </p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-2">
         <TextField name="reason" label="Reason" required />
         <TextField name="owner" label="Owner" defaultValue="Coordinator" />
         <SelectField name="channel" label="Channel" options={channels} />
@@ -611,27 +815,35 @@ function TaskForm({
 function MessageForm({
   onSubmit,
   segments,
+  selectedSegmentId,
+  onSegmentChange,
 }: {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   segments: CommunicationSegment[];
-  selectedPartner?: PartnerRecord;
+  selectedSegmentId: string;
+  onSegmentChange: (id: string) => void;
 }) {
   return (
-    <form onSubmit={onSubmit} className="rounded-lg border border-border p-4">
+    <form
+      onSubmit={onSubmit}
+      className="min-w-0 rounded-lg border border-border p-4"
+    >
       <FormTitle title="Stage Message Batch" />
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-2">
         <TextField
           name="name"
           label="Batch name"
           defaultValue="Partner update"
         />
-        <label className="grid gap-1">
+        <label className="grid min-w-0 gap-1">
           <span className="text-xs font-semibold text-muted-foreground">
             Segment
           </span>
           <select
             name="segmentId"
-            className="h-10 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            value={selectedSegmentId}
+            onChange={(event) => onSegmentChange(event.target.value)}
+            className="h-10 w-full min-w-0 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
           >
             {segments.map((segment) => (
               <option key={segment.id} value={segment.id}>
@@ -653,7 +865,7 @@ function MessageForm({
 }
 
 function FormTitle({ title }: { title: string }) {
-  return <h3 className="text-sm font-semibold text-foreground">{title}</h3>;
+  return <h3 className="text-base font-semibold text-foreground">{title}</h3>;
 }
 
 function TextField({
@@ -670,7 +882,7 @@ function TextField({
   required?: boolean;
 }) {
   return (
-    <label className="grid gap-1">
+    <label className="grid min-w-0 gap-1">
       <span className="text-xs font-semibold text-muted-foreground">
         {label}
       </span>
@@ -679,7 +891,7 @@ function TextField({
         type={type}
         defaultValue={defaultValue}
         required={required}
-        className="h-10 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+        className="h-10 w-full min-w-0 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
       />
     </label>
   );
@@ -695,13 +907,13 @@ function SelectField({
   options: string[];
 }) {
   return (
-    <label className="grid gap-1">
+    <label className="grid min-w-0 gap-1">
       <span className="text-xs font-semibold text-muted-foreground">
         {label}
       </span>
       <select
         name={name}
-        className="h-10 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+        className="h-10 w-full min-w-0 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
       >
         {options.map((option) => (
           <option key={option} value={option}>
@@ -715,13 +927,13 @@ function SelectField({
 
 function TextAreaField({ name, label }: { name: string; label: string }) {
   return (
-    <label className="mt-3 grid gap-1">
+    <label className="mt-3 grid min-w-0 gap-1">
       <span className="text-xs font-semibold text-muted-foreground">
         {label}
       </span>
       <textarea
         name={name}
-        className="min-h-[78px] resize-y rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+        className="min-h-[78px] w-full min-w-0 resize-y rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
       />
     </label>
   );

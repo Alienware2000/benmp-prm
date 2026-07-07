@@ -59,6 +59,33 @@ Product implication:
 
 - Reuse the back-office visual feel and operational discipline, not the itinerary schema.
 
+## Internal CRM And Workflow UX
+
+Sources:
+
+- https://www.nngroup.com/articles/dashboards-preattentive/
+- https://developer.salesforce.com/docs/platform/lightning-component-reference/guide/lightning-record-form.html
+- https://knowledge.hubspot.com/tasks/create-tasks
+- https://design-system.service.gov.uk/patterns/question-pages/
+- https://carbondesignsystem.com/patterns/forms-pattern/
+- https://carbondesignsystem.com/patterns/empty-states-pattern/
+- https://atlassian.design/foundations/spacing
+
+Findings:
+
+- Operational dashboards should surface at-a-glance signals for immediate action, not become the place where every object, form, and report competes for attention.
+- Mature CRM patterns separate record capture, record review, task queues, and reporting. Salesforce record-form patterns reinforce that staff should see a focused create/edit form instead of manually assembled crowded panels.
+- HubSpot task workflows show why follow-up should be created from selected records and then managed in a queue.
+- GOV.UK question-page patterns support reducing form friction by focusing the user on the current input or task, especially when the user is under time pressure.
+- Carbon form patterns treat dedicated pages, side panels, and dialogs as separate choices based on task complexity; this app's partner capture deserves a full-width surface.
+- Empty-state guidance matters for the production version: first-use pages should explain what comes next without pretending seeded data is real ministry data.
+- Spacing is functional, not decorative. Dense back-office tools still need enough whitespace to show relationships and prevent staff errors.
+
+Product implication:
+
+- The Today workspace should behave like an operations queue: choose one of three jobs, complete that job, and let the rest of the dashboard become supporting context.
+- Seeded data should be minimized in the primary workflow and eventually replaced by empty states, imports, or live records from the selected backend.
+
 ## Payments
 
 Sources:

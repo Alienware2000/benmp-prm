@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import {
   Insight,
   MetricCard,
@@ -32,10 +33,28 @@ export default async function Home() {
       <PageHeader
         eyebrow="Global Crusade Partners Platform"
         title="Today"
-        description="Daily partner capture, follow-up ownership, message approvals, giving review, and campaign readiness for BENMP staff."
+        description="Internal workspace for partner intake, follow-up ownership, messaging, giving review, and campaign readiness."
       />
 
-      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <Suspense
+        fallback={
+          <section
+            id="workspace"
+            className="rounded-lg border border-border bg-surface p-6 text-sm text-muted-foreground shadow-sm"
+          >
+            Loading workspace...
+          </section>
+        }
+      >
+        <TodayWorkspace
+          initialPartners={partnerRows}
+          initialTasks={priorities}
+          initialMessages={communicationView.batches}
+          segments={communicationView.segments}
+        />
+      </Suspense>
+
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
           <MetricCard
             key={metric.label}
@@ -47,13 +66,6 @@ export default async function Home() {
           />
         ))}
       </section>
-
-      <TodayWorkspace
-        initialPartners={partnerRows}
-        initialTasks={priorities}
-        initialMessages={communicationView.batches}
-        segments={communicationView.segments}
-      />
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_0.8fr]">
         <Panel title="Giving Momentum" eyebrow="Last 6 months">

@@ -44,7 +44,7 @@ The app is repository-driven across the core PRM modules. The current adapter is
 Current working surfaces:
 
 - Operational overview with staff queue, giving momentum, country summaries, campaign readiness, and backend readiness.
-- Today operations console with local browser actions for capturing a partner, assigning follow-up, and staging message batches before the backend is connected.
+- Today operations console with focused local browser workflows for capturing a partner, assigning follow-up, and staging message batches before the backend is connected.
 - Partner directory with URL-backed search/filtering and mobile-friendly record cards.
 - Giving ledger with payment import batches, provider references, reconciliation status, and follow-up triggers.
 - Messaging center with segments, approval batches, compliance checks, and provider adapter status.
@@ -52,6 +52,8 @@ Current working surfaces:
 - Responsive mobile navigation and record views across all routes.
 
 The Today console persists temporary actions in browser `localStorage` under `benmp-prm-local-workspace-v1`. This is intentionally a thin client-side bridge for MVP review; production persistence should move behind `PrmRepository` and server-side auth.
+
+The Today workflow is intentionally the front door: capture partner, assign follow-up, or approve messaging. Analytics and portfolio views sit below it so the first screen feels operational instead of seeded-data heavy.
 
 ## Near-term Build Order
 

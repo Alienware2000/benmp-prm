@@ -20,7 +20,8 @@ Completed:
 - Shared responsive record renderer added so all routes work on mobile without page overflow.
 - Toy demo panels removed.
 - Home navigation is now "Today" and includes an operations console.
-- The Today console supports temporary browser-local actions: capture partner, assign follow-up, stage message batch, mark task done, queue message, and reset local changes.
+- The Today console is now the first operational surface and supports temporary browser-local actions: capture partner, assign follow-up, stage message batch, mark task done, queue message, and reset local changes.
+- Today was simplified from a crowded three-column view into focused workflows with URL-backed modes: `?mode=partner`, `?mode=task`, and `?mode=message`.
 
 ## Current Product Assumption
 

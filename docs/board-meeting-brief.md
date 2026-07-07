@@ -16,6 +16,8 @@ It is not a public app for partners. Staff use it to manage:
 - WhatsApp, SMS, email, and later phone workflows
 - AI-assisted drafts, briefings, and reconciliation after the data foundation is stable
 
+The first demo does not need a full production database. It can run from typed mock data while the board confirms the real workflow, fields, roles, and reporting needs.
+
 ## Meeting Talk Track
 
 1. We are not replacing the ministry relationship. We are giving staff a better memory and operating system for it.
@@ -25,6 +27,8 @@ It is not a public app for partners. Staff use it to manage:
 5. AI actions should be supervised. The system may draft or suggest, but staff approves sends and data changes.
 
 ## Backend Options
+
+The app should use a database adapter. That means the MVP can start with mock data and later swap in Supabase, Neon/Postgres, or AWS Aurora/Postgres without rewriting the dashboard and business workflows.
 
 ### Option A - Supabase
 
@@ -52,7 +56,9 @@ Recommendation: not my first choice for this system.
 
 ## My Backend Recommendation
 
-For today: keep Supabase as the fastest path unless the board has a strong enterprise-cloud requirement.
+For today: keep the MVP database-free and adapter-backed. Use mock data for the meeting and workflow validation.
+
+After board alignment: choose Supabase as the fastest production path unless the board has a strong enterprise-cloud requirement.
 
 For long-term: design the app so the database is ordinary Postgres and business logic is not trapped in Supabase-only features. If the board wants maximum robustness, the mature path is AWS Aurora PostgreSQL plus separate auth and services.
 

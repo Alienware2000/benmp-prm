@@ -9,14 +9,7 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
-import {
-  campaigns,
-  followUps,
-  givingTrend,
-  metrics,
-  navItems,
-  partnerRows,
-} from "@/lib/dashboard-data";
+import { getDashboardOverview, type NavItem } from "@/lib/data";
 import { compactNumber, cn } from "@/lib/utils";
 
 type Icon = ComponentType<{ className?: string }>;
@@ -36,13 +29,15 @@ const statusStyles: Record<string, string> = {
   Preparing: "bg-amber-50 text-amber-700 ring-amber-100",
 };
 
-export default function Home() {
+export default async function Home() {
+  const { navItems, metrics, givingTrend, followUps, campaigns, partnerRows } =
+    await getDashboardOverview();
   const maxGiving = Math.max(...givingTrend.map((item) => item.amount));
 
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[244px_1fr]">
-        <Sidebar />
+        <Sidebar navItems={navItems} />
 
         <section className="min-w-0">
           <Topbar />
@@ -282,7 +277,7 @@ export default function Home() {
   );
 }
 
-function Sidebar() {
+function Sidebar({ navItems }: { navItems: NavItem[] }) {
   return (
     <aside className="hidden min-h-screen flex-col bg-sidebar text-white lg:flex">
       <div className="flex h-16 items-center gap-3 border-b border-white/10 px-4">

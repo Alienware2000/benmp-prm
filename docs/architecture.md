@@ -7,7 +7,7 @@ BENMP PRM is a staff-only operational application. The app should complement or 
 ## Proposed Stack
 
 - Frontend: Next.js 16 App Router, React 19, Tailwind CSS 4
-- Backend/data: Supabase Postgres, Auth, Row Level Security, Storage, Edge Functions
+- Backend/data: adapter-first. MVP uses typed mock repositories; production can use Supabase Postgres, Neon/Postgres, or AWS Aurora/Postgres.
 - Integrations: Paystack, PayPal, WhatsApp Business Platform or Twilio, SMS/Voice provider, email provider
 - AI: AI SDK 7 behind a local model registry and tool boundary
 - Deployment: Vercel for web, Supabase for database/functions
@@ -44,6 +44,23 @@ flowchart LR
 - Communication providers remain systems of record for delivery metadata, but normalized send history belongs in the PRM.
 - AI should not bypass RLS or staff approval.
 
+## Data Adapter Strategy
+
+The MVP should not require a full database. It should start with typed mock repositories so the board can validate workflows before the technical team locks in a backend.
+
+Current provider switch:
+
+```txt
+BENMP_DATA_PROVIDER=mock
+```
+
+Future providers:
+
+- `supabase` for the fastest integrated MVP path.
+- `postgres` for Neon, Aurora, or another managed Postgres deployment.
+
+Repository methods should stay business-oriented, for example `getDashboardOverview`, `listPartners`, `recordContribution`, and `createFollowUpTask`. They should not expose provider-specific concepts to UI code.
+
 ## Auth And Roles
 
 Use Supabase Auth for staff accounts. Use Postgres RLS for data authorization.
@@ -69,6 +86,17 @@ Provider adapters should expose stable internal functions, for example:
 - `sendEmailMessage`
 - `createPaymentImport`
 - `reconcilePaymentImport`
+
+Current provider switch:
+
+```txt
+BENMP_MESSAGING_PROVIDER=mock
+```
+
+Future providers:
+
+- `twilio` for faster WhatsApp/SMS/voice pilot work.
+- `meta-cloud-api` for long-term direct WhatsApp Business Platform ownership.
 
 This keeps the application independent from any single provider.
 

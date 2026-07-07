@@ -13,6 +13,7 @@ Completed:
 - Supabase initial schema draft added.
 - AI SDK 7 installed as a future provider-agnostic layer.
 - Board meeting brief added with MVP talk track, backend options, and WhatsApp tradeoffs.
+- Data and messaging adapter contracts added. MVP defaults to mock providers.
 
 ## Current Product Assumption
 
@@ -21,9 +22,9 @@ This is a staff-only PRM for BENMP and Healing Jesus Campaign operations. It sho
 ## Next Actions
 
 1. Confirm unresolved product questions with David/client.
-2. Decide backend path: Supabase fast path, Neon/Clerk portable path, or AWS enterprise path.
-3. Build database local setup and seed data.
-4. Replace mock dashboard data with typed database queries.
+2. Use the mock repository for the first MVP demo instead of wiring a full database immediately.
+3. Decide backend path: Supabase fast path, Neon/Clerk portable path, or AWS enterprise path.
+4. Build the selected database adapter and seed data.
 5. Add auth shell and role-aware navigation.
 6. Build partners module first.
 7. Add giving import/reconciliation second.
@@ -33,7 +34,7 @@ This is a staff-only PRM for BENMP and Healing Jesus Campaign operations. It sho
 
 ## Open Questions
 
-- Should the system sync with the existing BENMP website/database or start as a clean internal database with imports?
+- Should the first real backend sync with the existing BENMP website/database or start as a clean internal database with imports?
 - Which provider should be first for WhatsApp: Twilio or direct Meta Cloud API?
 - Will staff need multi-region data restrictions from day one?
 - What currencies and payment providers must be supported at launch?

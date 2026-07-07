@@ -9,7 +9,8 @@ The app is a staff-only workspace for partner profiles, giving records, campaign
 - Next.js 16 App Router
 - React 19
 - Tailwind CSS 4
-- Supabase planned for Postgres, Auth, RLS, Storage, and Edge Functions
+- Adapter-first data layer, starting with typed mock repositories
+- Supabase, Neon/Postgres, or AWS Aurora/Postgres can be added later
 - AI SDK 7 planned as the model-agnostic AI layer
 
 ## Commands
@@ -32,19 +33,21 @@ npm run format:check
 - `docs/architecture.md` - system architecture
 - `docs/ai-native-roadmap.md` - agentic roadmap after the core PRM is stable
 - `docs/handoff.md` - current status and next actions
-- `supabase/migrations` - database schema drafts
+- `src/lib/data` - data repository adapters
+- `src/lib/messaging` - WhatsApp/SMS/email provider adapters
+- `supabase/migrations` - optional Postgres/Supabase schema drafts
 
 ## Current State
 
-The first screen is a static product foundation using realistic mock data. It validates the dashboard information architecture before real auth, database, imports, or integrations are wired.
+The first screen uses a typed mock data repository. It validates the dashboard information architecture before real auth, database, imports, or integrations are wired.
 
 ## Near-term Build Order
 
-1. Supabase schema and local seed data
+1. Board/client workflow confirmation
 2. Auth and role-based shell
-3. Partners module
-4. Giving records and imports
-5. Follow-up tasks and prayer requests
-6. Campaigns and communication segments
+3. Partners module backed by mock repository
+4. Giving records and imports backed by mock repository
+5. Backend decision: Supabase, Neon/Postgres, or AWS Aurora/Postgres
+6. Real data repository implementation
 7. WhatsApp/SMS/email provider adapters
 8. AI assistant and supervised agent workflows

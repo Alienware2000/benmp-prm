@@ -39,15 +39,23 @@ npm run format:check
 
 ## Current State
 
-The first screen uses a typed mock data repository. It validates the dashboard information architecture before real auth, database, imports, or integrations are wired.
+The app is repository-driven across the core PRM modules. The current adapter is a typed mock seed repository, but every page now reads through the same `PrmRepository` contract that a Supabase/Postgres backend should implement.
+
+Current working surfaces:
+
+- Operational overview with staff queue, giving momentum, country summaries, campaign readiness, and backend readiness.
+- Partner directory with URL-backed search/filtering and mobile-friendly record cards.
+- Giving ledger with payment import batches, provider references, reconciliation status, and follow-up triggers.
+- Messaging center with segments, approval batches, compliance checks, and provider adapter status.
+- Follow-up, campaigns, prayer, AI governance, and admin pages backed by the repository contract.
+- Responsive mobile navigation and record views across all routes.
 
 ## Near-term Build Order
 
-1. Board/client workflow confirmation
-2. Auth and role-based shell
-3. Partners module backed by mock repository
-4. Giving records and imports backed by mock repository
-5. Backend decision: Supabase, Neon/Postgres, or AWS Aurora/Postgres
-6. Real data repository implementation
-7. WhatsApp/SMS/email provider adapters
-8. AI assistant and supervised agent workflows
+1. Confirm hosting/account ownership before Vercel deployment.
+2. Decide backend path: Supabase fast path, Neon/Clerk portable path, or AWS enterprise path.
+3. Implement the selected repository adapter behind `PrmRepository`.
+4. Add staff auth and role-aware access.
+5. Connect partner CSV import and payment import workflows.
+6. Connect WhatsApp/SMS/email provider adapters after board decision.
+7. Add supervised AI tools only after permissions, audit, and approval flows are live.

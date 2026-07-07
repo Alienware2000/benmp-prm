@@ -15,18 +15,40 @@ const metricTones: Record<string, string> = {
 
 const statusStyles: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  Ready: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  Configured: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  Succeeded: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  Matched: "bg-emerald-50 text-emerald-700 ring-emerald-100",
   Approved: "bg-emerald-50 text-emerald-700 ring-emerald-100",
   Sent: "bg-emerald-50 text-emerald-700 ring-emerald-100",
   Live: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  Done: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  Responded: "bg-emerald-50 text-emerald-700 ring-emerald-100",
   Open: "bg-blue-50 text-blue-700 ring-blue-100",
   New: "bg-blue-50 text-blue-700 ring-blue-100",
+  Planning: "bg-blue-50 text-blue-700 ring-blue-100",
+  "In progress": "bg-blue-50 text-blue-700 ring-blue-100",
+  Praying: "bg-blue-50 text-blue-700 ring-blue-100",
   Draft: "bg-slate-100 text-slate-700 ring-slate-200",
+  "Not required": "bg-slate-100 text-slate-700 ring-slate-200",
+  "Not started": "bg-slate-100 text-slate-700 ring-slate-200",
+  Planned: "bg-slate-100 text-slate-700 ring-slate-200",
   Preparing: "bg-amber-50 text-amber-700 ring-amber-100",
   Review: "bg-amber-50 text-amber-700 ring-amber-100",
   Queued: "bg-amber-50 text-amber-700 ring-amber-100",
+  Scheduled: "bg-amber-50 text-amber-700 ring-amber-100",
+  Partial: "bg-amber-50 text-amber-700 ring-amber-100",
+  Probable: "bg-amber-50 text-amber-700 ring-amber-100",
+  "Needs setup": "bg-amber-50 text-amber-700 ring-amber-100",
+  "Needs review": "bg-amber-50 text-amber-700 ring-amber-100",
+  Reporting: "bg-amber-50 text-amber-700 ring-amber-100",
   Missed: "bg-rose-50 text-rose-700 ring-rose-100",
   Failed: "bg-rose-50 text-rose-700 ring-rose-100",
   Sensitive: "bg-rose-50 text-rose-700 ring-rose-100",
+  "Needs follow-up": "bg-rose-50 text-rose-700 ring-rose-100",
+  Blocked: "bg-rose-50 text-rose-700 ring-rose-100",
+  Unmatched: "bg-rose-50 text-rose-700 ring-rose-100",
+  Restricted: "bg-rose-50 text-rose-700 ring-rose-100",
 };
 
 export function MetricCard({
@@ -43,7 +65,7 @@ export function MetricCard({
   tone: string;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
+    <div className="min-w-0 rounded-lg border border-border bg-surface p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-muted-foreground">{label}</p>
         <div
@@ -75,8 +97,8 @@ export function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-border bg-surface p-4 shadow-sm">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <section className="min-w-0 rounded-lg border border-border bg-surface p-4 shadow-sm">
+      <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             {eyebrow}
@@ -121,7 +143,7 @@ export function StatusBadge({ label }: { label: string }) {
   return (
     <span
       className={cn(
-        "inline-flex rounded-md px-2 py-1 text-[11px] font-semibold ring-1",
+        "inline-flex whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-semibold ring-1",
         statusStyles[label] ?? statusStyles.Draft,
       )}
     >
@@ -157,14 +179,121 @@ export function TableCell({
   );
 }
 
-export function DataTable({ children }: { children: React.ReactNode }) {
+export function DataTable({
+  children,
+  className,
+  minWidth = "720px",
+}: {
+  children: React.ReactNode;
+  className?: string;
+  minWidth?: string;
+}) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
+    <div
+      className={cn(
+        "overflow-hidden rounded-lg border border-border",
+        className,
+      )}
+    >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] border-collapse text-left">
+        <table
+          className="w-full border-collapse text-left"
+          style={{ minWidth }}
+        >
           {children}
         </table>
       </div>
     </div>
+  );
+}
+
+export type RecordColumn<T> = {
+  header: string;
+  render: (row: T) => React.ReactNode;
+  primary?: boolean;
+  className?: string;
+  cardLabel?: string;
+};
+
+export function ResponsiveRecordTable<T>({
+  rows,
+  columns,
+  getRowKey,
+  getTitle,
+  getSubtitle,
+  getStatus,
+  minWidth = "760px",
+}: {
+  rows: T[];
+  columns: RecordColumn<T>[];
+  getRowKey: (row: T) => string;
+  getTitle: (row: T) => React.ReactNode;
+  getSubtitle?: (row: T) => React.ReactNode;
+  getStatus?: (row: T) => string;
+  minWidth?: string;
+}) {
+  const detailColumns = columns.filter(
+    (column) => !column.primary && column.header !== "Status",
+  );
+
+  return (
+    <>
+      <div className="space-y-3 md:hidden">
+        {rows.map((row) => (
+          <article
+            key={getRowKey(row)}
+            className="rounded-lg border border-border bg-white p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-foreground">
+                  {getTitle(row)}
+                </h3>
+                {getSubtitle ? (
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {getSubtitle(row)}
+                  </p>
+                ) : null}
+              </div>
+              {getStatus ? <StatusBadge label={getStatus(row)} /> : null}
+            </div>
+
+            <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {detailColumns.map((column) => (
+                <div key={column.header} className="min-w-0">
+                  <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                    {column.cardLabel ?? column.header}
+                  </dt>
+                  <dd className="mt-1 text-sm text-foreground">
+                    {column.render(row)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </article>
+        ))}
+      </div>
+
+      <DataTable className="hidden md:block" minWidth={minWidth}>
+        <thead className="bg-muted/70">
+          <tr>
+            {columns.map((column) => (
+              <TableHeader key={column.header}>{column.header}</TableHeader>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border bg-white">
+          {rows.map((row) => (
+            <tr key={getRowKey(row)} className="hover:bg-muted/40">
+              {columns.map((column) => (
+                <TableCell key={column.header} strong={column.primary}>
+                  <div className={column.className}>{column.render(row)}</div>
+                </TableCell>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </DataTable>
+    </>
   );
 }

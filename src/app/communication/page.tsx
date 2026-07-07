@@ -1,130 +1,143 @@
-import { MessageCircle, Plus } from "lucide-react";
-import { CommunicationStudio } from "@/components/demo/communication-studio";
+import { Plus } from "lucide-react";
 import {
-  DataTable,
   MetricCard,
   Panel,
+  ResponsiveRecordTable,
   StatusBadge,
-  TableCell,
-  TableHeader,
 } from "@/components/dashboard/primitives";
 import { ActionButton, PageHeader } from "@/components/dashboard/header";
 import { DashboardShell } from "@/components/dashboard/shell";
-import { getDashboardOverview } from "@/lib/data";
-
-const stats = [
-  {
-    label: "Queued Drafts",
-    value: "6",
-    detail: "Waiting for approval",
-    tone: "amber",
-    icon: MessageCircle,
-  },
-  {
-    label: "WhatsApp Reach",
-    value: "8,420",
-    detail: "Partners with WhatsApp",
-    tone: "emerald",
-    icon: MessageCircle,
-  },
-  {
-    label: "SMS Fallback",
-    value: "2,180",
-    detail: "Usable mobile numbers",
-    tone: "blue",
-    icon: MessageCircle,
-  },
-  {
-    label: "Email Reach",
-    value: "5,936",
-    detail: "Newsletter capable",
-    tone: "violet",
-    icon: MessageCircle,
-  },
-];
-
-const batches = [
-  ["Monthly Thank-you", "Ghana monthly partners", "WhatsApp", "3,240", "Draft"],
-  ["Banjul Campaign Report", "Major partners", "Email", "94", "Queued"],
-  ["New Partner Welcome", "New partners", "WhatsApp", "326", "Sent"],
-  ["Missed 60 Days", "Lapsed partners", "SMS", "428", "Review"],
-];
-
-const providers = [
-  ["Mock adapter", "Active for MVP", "No real messages sent"],
-  ["Twilio", "Pilot option", "WhatsApp, SMS, voice in one provider"],
-  ["Meta Cloud API", "Long-term option", "Direct WhatsApp Business ownership"],
-];
+import { getCommunicationView } from "@/lib/data";
 
 export default async function CommunicationPage() {
-  const { navItems } = await getDashboardOverview();
+  const { navItems, metrics, segments, batches, providers, approvalChecklist } =
+    await getCommunicationView();
 
   return (
     <DashboardShell navItems={navItems}>
       <PageHeader
         eyebrow="Communication"
         title="Messaging Center"
-        description="Build partner segments, draft messages, approve batches, and send through WhatsApp, SMS, or email provider adapters."
+        description="Build auditable partner segments, approve message batches, and route WhatsApp, SMS, and email through provider adapters without locking the ministry into one vendor."
       >
         <ActionButton icon={Plus} primary>
           New Message
         </ActionButton>
       </PageHeader>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {metrics.map((stat) => (
           <MetricCard key={stat.label} {...stat} />
         ))}
       </section>
 
-      <CommunicationStudio />
-
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.75fr]">
-        <Panel
-          title="Message Batches"
-          eyebrow="Approval required"
-          action="Templates"
-        >
-          <DataTable>
-            <thead className="bg-muted/70">
-              <tr>
-                <TableHeader>Batch</TableHeader>
-                <TableHeader>Segment</TableHeader>
-                <TableHeader>Channel</TableHeader>
-                <TableHeader>Recipients</TableHeader>
-                <TableHeader>Status</TableHeader>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border bg-white">
-              {batches.map(([batch, segment, channel, recipients, status]) => (
-                <tr key={batch} className="hover:bg-muted/40">
-                  <TableCell strong>{batch}</TableCell>
-                  <TableCell>{segment}</TableCell>
-                  <TableCell>{channel}</TableCell>
-                  <TableCell>{recipients}</TableCell>
-                  <TableCell>
-                    <StatusBadge label={status} />
-                  </TableCell>
-                </tr>
-              ))}
-            </tbody>
-          </DataTable>
+      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+        <Panel title="Approval Queue" eyebrow="Outbound batches">
+          <ResponsiveRecordTable
+            rows={batches}
+            getRowKey={(batch) => batch.id}
+            getTitle={(batch) => batch.name}
+            getSubtitle={(batch) => `${batch.segmentName} - ${batch.channel}`}
+            getStatus={(batch) => batch.status}
+            minWidth="900px"
+            columns={[
+              { header: "Batch", primary: true, render: (batch) => batch.name },
+              { header: "Segment", render: (batch) => batch.segmentName },
+              { header: "Channel", render: (batch) => batch.channel },
+              {
+                header: "Recipients",
+                render: (batch) => batch.recipientCount.toLocaleString(),
+              },
+              {
+                header: "Template",
+                render: (batch) => <StatusBadge label={batch.templateStatus} />,
+              },
+              { header: "Owner", render: (batch) => batch.approvalOwner },
+              { header: "Schedule", render: (batch) => batch.scheduledFor },
+              {
+                header: "Status",
+                render: (batch) => <StatusBadge label={batch.status} />,
+              },
+            ]}
+          />
         </Panel>
 
-        <Panel title="Provider Adapter" eyebrow="No lock-in" action="Configure">
+        <Panel title="Approval Controls" eyebrow="Before real sending">
           <div className="space-y-3">
-            {providers.map(([name, status, detail]) => (
-              <div key={name} className="rounded-lg border border-border p-4">
-                <div className="flex items-center justify-between gap-3">
+            {approvalChecklist.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-lg border border-border p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
                   <p className="text-sm font-semibold text-foreground">
-                    {name}
+                    {item.label}
                   </p>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {status}
-                  </span>
+                  <StatusBadge label={item.status} />
                 </div>
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  {detail}
+                  {item.detail}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </section>
+
+      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+        <Panel title="Segments" eyebrow="Targetable audiences">
+          <ResponsiveRecordTable
+            rows={segments}
+            getRowKey={(segment) => segment.id}
+            getTitle={(segment) => segment.name}
+            getSubtitle={(segment) => segment.description}
+            getStatus={(segment) => segment.complianceStatus}
+            columns={[
+              {
+                header: "Segment",
+                primary: true,
+                render: (segment) => segment.name,
+              },
+              { header: "Channel", render: (segment) => segment.channel },
+              {
+                header: "Recipients",
+                render: (segment) => segment.recipientCount.toLocaleString(),
+              },
+              {
+                header: "Criteria",
+                render: (segment) => segment.criteria.join(", "),
+              },
+              { header: "Owner", render: (segment) => segment.owner },
+              {
+                header: "Compliance",
+                render: (segment) => (
+                  <StatusBadge label={segment.complianceStatus} />
+                ),
+              },
+            ]}
+          />
+        </Panel>
+
+        <Panel title="Provider Adapters" eyebrow="No lock-in">
+          <div className="space-y-3">
+            {providers.map((provider) => (
+              <div
+                key={provider.providerKey}
+                className="rounded-lg border border-border p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {provider.name}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-muted-foreground">
+                      {provider.providerKey}
+                    </p>
+                  </div>
+                  <StatusBadge label={provider.status} />
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {provider.detail}
                 </p>
               </div>
             ))}

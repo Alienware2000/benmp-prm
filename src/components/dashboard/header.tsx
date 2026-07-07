@@ -29,7 +29,11 @@ export function PageHeader({
         </p>
       </div>
 
-      {children ? <div className="flex flex-wrap gap-2">{children}</div> : null}
+      {children ? (
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end [&>button]:flex-1 sm:[&>button]:flex-none">
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -58,7 +62,7 @@ export function ActionButton({
   return (
     <button
       className={cn(
-        "inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition",
+        "inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-3 text-sm font-semibold transition",
         primary
           ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
           : "border-border bg-white text-foreground hover:bg-muted",

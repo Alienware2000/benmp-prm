@@ -1,158 +1,104 @@
-import { Bot, Sparkles } from "lucide-react";
-import { AiCommandCenter } from "@/components/demo/ai-command-center";
 import {
-  DataTable,
   MetricCard,
   Panel,
+  ResponsiveRecordTable,
   StatusBadge,
-  TableCell,
-  TableHeader,
 } from "@/components/dashboard/primitives";
 import { PageHeader } from "@/components/dashboard/header";
 import { DashboardShell } from "@/components/dashboard/shell";
-import { getDashboardOverview } from "@/lib/data";
-
-const stats = [
-  {
-    label: "Read-only Tools",
-    value: "4",
-    detail: "Safe first phase",
-    tone: "emerald",
-    icon: Bot,
-  },
-  {
-    label: "Draft Tools",
-    value: "3",
-    detail: "Require staff review",
-    tone: "amber",
-    icon: Sparkles,
-  },
-  {
-    label: "Mutation Tools",
-    value: "0",
-    detail: "Not enabled for MVP",
-    tone: "rose",
-    icon: Bot,
-  },
-  {
-    label: "Default Provider",
-    value: "TBD",
-    detail: "Model-agnostic via AI SDK",
-    tone: "violet",
-    icon: Sparkles,
-  },
-];
-
-const workflows = [
-  [
-    "Partner briefing",
-    "Summarize giving, notes, prayer, and contact history before a call",
-    "Read-only",
-    "Approved",
-  ],
-  [
-    "Segment builder",
-    "Turn plain language into reviewable filters",
-    "Draft",
-    "Draft",
-  ],
-  [
-    "Message drafting",
-    "Create WhatsApp, SMS, and email variants from campaign updates",
-    "Draft",
-    "Draft",
-  ],
-  [
-    "Payment reconciliation",
-    "Match import rows and flag ambiguous donations",
-    "Draft",
-    "Review",
-  ],
-  [
-    "Follow-up suggestions",
-    "Suggest tasks from missed giving and open prayer requests",
-    "Draft",
-    "Review",
-  ],
-];
-
-const guardrails = [
-  [
-    "No unsupervised sends",
-    "AI can draft messages, but staff approves outbound communication.",
-  ],
-  [
-    "No RLS bypass",
-    "AI tools must use the same data access permissions as the staff user.",
-  ],
-  [
-    "Audit every accepted action",
-    "Accepted suggestions become explicit staff-approved actions.",
-  ],
-];
+import { getAiOperationsView } from "@/lib/data";
 
 export default async function AiPage() {
-  const { navItems } = await getDashboardOverview();
+  const { navItems, metrics, workflows, guardrails, providers } =
+    await getAiOperationsView();
 
   return (
     <DashboardShell navItems={navItems}>
       <PageHeader
         eyebrow="Supervised AI"
         title="AI Assist"
-        description="A model-agnostic assistant for partner briefings, message drafts, reconciliation suggestions, and follow-up recommendations after the core data is trustworthy."
+        description="A model-agnostic assistant layer for partner briefing, draft generation, import matching, and recommendations after the core data and permissions are trustworthy."
       />
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {metrics.map((stat) => (
           <MetricCard key={stat.label} {...stat} />
         ))}
       </section>
 
-      <AiCommandCenter />
-
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.75fr]">
-        <Panel
-          title="AI Workflows"
-          eyebrow="Provider-agnostic"
-          action="Configure"
-        >
-          <DataTable>
-            <thead className="bg-muted/70">
-              <tr>
-                <TableHeader>Workflow</TableHeader>
-                <TableHeader>Purpose</TableHeader>
-                <TableHeader>Risk Level</TableHeader>
-                <TableHeader>Status</TableHeader>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border bg-white">
-              {workflows.map(([workflow, purpose, risk, status]) => (
-                <tr key={workflow} className="hover:bg-muted/40">
-                  <TableCell strong>{workflow}</TableCell>
-                  <TableCell>{purpose}</TableCell>
-                  <TableCell>{risk}</TableCell>
-                  <TableCell>
-                    <StatusBadge label={status} />
-                  </TableCell>
-                </tr>
-              ))}
-            </tbody>
-          </DataTable>
+        <Panel title="AI Tool Registry" eyebrow="Model-agnostic workflows">
+          <ResponsiveRecordTable
+            rows={workflows}
+            getRowKey={(workflow) => workflow.name}
+            getTitle={(workflow) => workflow.name}
+            getSubtitle={(workflow) => workflow.purpose}
+            getStatus={(workflow) => workflow.status}
+            minWidth="900px"
+            columns={[
+              {
+                header: "Workflow",
+                primary: true,
+                render: (workflow) => workflow.name,
+              },
+              { header: "Purpose", render: (workflow) => workflow.purpose },
+              { header: "Risk", render: (workflow) => workflow.riskLevel },
+              {
+                header: "Approval Policy",
+                render: (workflow) => workflow.approvalPolicy,
+              },
+              {
+                header: "Status",
+                render: (workflow) => <StatusBadge label={workflow.status} />,
+              },
+            ]}
+          />
         </Panel>
 
-        <Panel title="Guardrails" eyebrow="Human approval" action="Policy">
+        <Panel title="Guardrails" eyebrow="Before autonomy">
           <div className="space-y-3">
-            {guardrails.map(([title, detail]) => (
-              <div key={title} className="rounded-lg border border-border p-4">
-                <p className="text-sm font-semibold text-foreground">{title}</p>
+            {guardrails.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-lg border border-border p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">
+                    {item.label}
+                  </p>
+                  <StatusBadge label={item.status} />
+                </div>
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  {detail}
+                  {item.detail}
                 </p>
               </div>
             ))}
           </div>
         </Panel>
       </section>
+
+      <Panel title="Model Providers" eyebrow="Provider abstraction">
+        <ResponsiveRecordTable
+          rows={providers}
+          getRowKey={(provider) => provider.providerKey}
+          getTitle={(provider) => provider.name}
+          getSubtitle={(provider) => provider.detail}
+          getStatus={(provider) => provider.status}
+          columns={[
+            {
+              header: "Provider",
+              primary: true,
+              render: (provider) => provider.name,
+            },
+            { header: "Key", render: (provider) => provider.providerKey },
+            { header: "Detail", render: (provider) => provider.detail },
+            {
+              header: "Status",
+              render: (provider) => <StatusBadge label={provider.status} />,
+            },
+          ]}
+        />
+      </Panel>
     </DashboardShell>
   );
 }

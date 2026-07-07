@@ -59,7 +59,19 @@ Future providers:
 - `supabase` for the fastest integrated MVP path.
 - `postgres` for Neon, Aurora, or another managed Postgres deployment.
 
-Repository methods should stay business-oriented, for example `getDashboardOverview`, `listPartners`, `recordContribution`, and `createFollowUpTask`. They should not expose provider-specific concepts to UI code.
+Repository methods should stay business-oriented and view-oriented. The current frontend consumes `PrmRepository` methods such as:
+
+- `getOverview`
+- `getPartnersView`
+- `getGivingView`
+- `getCommunicationView`
+- `getFollowUpView`
+- `getCampaignsView`
+- `getPrayerView`
+- `getAiOperationsView`
+- `getAdminView`
+
+Provider-specific concepts should stay inside repository implementations. UI code should not know whether data came from mock seed data, Supabase, Neon, Aurora, or another Postgres service.
 
 ## Auth And Roles
 

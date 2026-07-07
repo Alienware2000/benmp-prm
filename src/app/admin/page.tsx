@@ -1,133 +1,97 @@
-import { ShieldCheck, UsersRound } from "lucide-react";
 import {
-  DataTable,
   MetricCard,
   Panel,
+  ResponsiveRecordTable,
   StatusBadge,
-  TableCell,
-  TableHeader,
 } from "@/components/dashboard/primitives";
 import { PageHeader } from "@/components/dashboard/header";
 import { DashboardShell } from "@/components/dashboard/shell";
-import { getDashboardOverview } from "@/lib/data";
-
-const stats = [
-  {
-    label: "Staff Roles",
-    value: "7",
-    detail: "Planned permission groups",
-    tone: "blue",
-    icon: UsersRound,
-  },
-  {
-    label: "Data Provider",
-    value: "Mock",
-    detail: "No database required for demo",
-    tone: "emerald",
-    icon: ShieldCheck,
-  },
-  {
-    label: "Messaging Provider",
-    value: "Mock",
-    detail: "No real messages sent",
-    tone: "amber",
-    icon: ShieldCheck,
-  },
-  {
-    label: "Audit Policy",
-    value: "Planned",
-    detail: "Before production data",
-    tone: "violet",
-    icon: ShieldCheck,
-  },
-];
-
-const roles = [
-  ["Super admin", "Full access and configuration", "Planned"],
-  ["Finance", "Giving, imports, failed payments", "Planned"],
-  ["Communications", "Segments, templates, message approvals", "Planned"],
-  ["Regional coordinator", "Country-scoped partners and follow-up", "Planned"],
-  ["Prayer team", "Prayer requests and sensitive care queues", "Planned"],
-  ["Viewer", "Read-only dashboards and reports", "Planned"],
-];
-
-const adapterStatus = [
-  ["Data adapter", "mock", "Active"],
-  ["Supabase repository", "supabase", "Draft"],
-  ["Generic Postgres repository", "postgres", "Draft"],
-  ["Messaging adapter", "mock", "Active"],
-  ["Twilio adapter", "twilio", "Draft"],
-  ["Meta Cloud API adapter", "meta-cloud-api", "Draft"],
-];
+import { getAdminView } from "@/lib/data";
 
 export default async function AdminPage() {
-  const { navItems } = await getDashboardOverview();
+  const { navItems, metrics, roles, providers, backendReadiness } =
+    await getAdminView();
 
   return (
     <DashboardShell navItems={navItems}>
       <PageHeader
         eyebrow="System administration"
         title="Admin"
-        description="Configure staff roles, data providers, messaging adapters, audit policies, import rules, and regional access boundaries."
+        description="Configure staff roles, data providers, messaging adapters, audit policies, import rules, and regional access boundaries before production data goes live."
       />
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {metrics.map((stat) => (
           <MetricCard key={stat.label} {...stat} />
         ))}
       </section>
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_1fr]">
-        <Panel
-          title="Role Model"
-          eyebrow="Access planning"
-          action="Invite staff"
-        >
-          <DataTable>
-            <thead className="bg-muted/70">
-              <tr>
-                <TableHeader>Role</TableHeader>
-                <TableHeader>Scope</TableHeader>
-                <TableHeader>Status</TableHeader>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border bg-white">
-              {roles.map(([role, scope, status]) => (
-                <tr key={role} className="hover:bg-muted/40">
-                  <TableCell strong>{role}</TableCell>
-                  <TableCell>{scope}</TableCell>
-                  <TableCell>
-                    <StatusBadge label={status} />
-                  </TableCell>
-                </tr>
-              ))}
-            </tbody>
-          </DataTable>
+        <Panel title="Role Model" eyebrow="Access boundaries">
+          <ResponsiveRecordTable
+            rows={roles}
+            getRowKey={(role) => role.role}
+            getTitle={(role) => role.role}
+            getSubtitle={(role) => role.scope}
+            getStatus={(role) => role.status}
+            columns={[
+              { header: "Role", primary: true, render: (role) => role.role },
+              { header: "Scope", render: (role) => role.scope },
+              {
+                header: "Status",
+                render: (role) => <StatusBadge label={role.status} />,
+              },
+            ]}
+          />
         </Panel>
 
-        <Panel title="Adapter Status" eyebrow="Provider strategy" action="Docs">
-          <DataTable>
-            <thead className="bg-muted/70">
-              <tr>
-                <TableHeader>Adapter</TableHeader>
-                <TableHeader>Provider Key</TableHeader>
-                <TableHeader>Status</TableHeader>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border bg-white">
-              {adapterStatus.map(([adapter, key, status]) => (
-                <tr key={`${adapter}-${key}`} className="hover:bg-muted/40">
-                  <TableCell strong>{adapter}</TableCell>
-                  <TableCell>{key}</TableCell>
-                  <TableCell>
-                    <StatusBadge label={status} />
-                  </TableCell>
-                </tr>
-              ))}
-            </tbody>
-          </DataTable>
+        <Panel title="Backend Readiness" eyebrow="Go-live checklist">
+          <div className="space-y-3">
+            {backendReadiness.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-lg border border-border p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">
+                    {item.label}
+                  </p>
+                  <StatusBadge label={item.status} />
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {item.detail}
+                </p>
+              </div>
+            ))}
+          </div>
         </Panel>
       </section>
+
+      <Panel title="Adapter Status" eyebrow="Provider strategy">
+        <ResponsiveRecordTable
+          rows={providers}
+          getRowKey={(provider) => provider.providerKey}
+          getTitle={(provider) => provider.name}
+          getSubtitle={(provider) => provider.detail}
+          getStatus={(provider) => provider.status}
+          columns={[
+            {
+              header: "Adapter",
+              primary: true,
+              render: (provider) => provider.name,
+            },
+            {
+              header: "Provider Key",
+              render: (provider) => provider.providerKey,
+            },
+            { header: "Detail", render: (provider) => provider.detail },
+            {
+              header: "Status",
+              render: (provider) => <StatusBadge label={provider.status} />,
+            },
+          ]}
+        />
+      </Panel>
     </DashboardShell>
   );
 }

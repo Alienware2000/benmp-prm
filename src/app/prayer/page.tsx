@@ -1,86 +1,16 @@
-import { HeartHandshake, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
-  DataTable,
   MetricCard,
   Panel,
+  ResponsiveRecordTable,
   StatusBadge,
-  TableCell,
-  TableHeader,
 } from "@/components/dashboard/primitives";
 import { ActionButton, PageHeader } from "@/components/dashboard/header";
 import { DashboardShell } from "@/components/dashboard/shell";
-import { getDashboardOverview } from "@/lib/data";
-
-const stats = [
-  {
-    label: "Open Requests",
-    value: "84",
-    detail: "Awaiting prayer team response",
-    tone: "blue",
-    icon: HeartHandshake,
-  },
-  {
-    label: "Sensitive",
-    value: "19",
-    detail: "Restricted visibility",
-    tone: "rose",
-    icon: HeartHandshake,
-  },
-  {
-    label: "Responded",
-    value: "51",
-    detail: "This month",
-    tone: "emerald",
-    icon: HeartHandshake,
-  },
-  {
-    label: "Pastoral Follow-up",
-    value: "12",
-    detail: "Coordinator handoff",
-    tone: "amber",
-    icon: HeartHandshake,
-  },
-];
-
-const requests = [
-  [
-    "Angela Boateng",
-    "United Kingdom",
-    "Family healing and encouragement",
-    "Prayer team",
-    "Open",
-  ],
-  [
-    "Samuel Tetteh",
-    "United States",
-    "New business and ministry direction",
-    "Coordinator",
-    "Open",
-  ],
-  [
-    "Ama Serwaa",
-    "Ghana",
-    "Thanksgiving after answered prayer",
-    "Prayer team",
-    "Responded",
-  ],
-  [
-    "Private partner",
-    "Nigeria",
-    "Sensitive pastoral request",
-    "Senior pastor",
-    "Sensitive",
-  ],
-];
-
-const queues = [
-  ["Needs response", "84", "Prayer team can send approved encouragement"],
-  ["Escalate to coordinator", "12", "Pastoral or personal follow-up"],
-  ["Answered testimonies", "18", "Candidate stories for reports"],
-];
+import { getPrayerView } from "@/lib/data";
 
 export default async function PrayerPage() {
-  const { navItems } = await getDashboardOverview();
+  const { navItems, metrics, requests, queues } = await getPrayerView();
 
   return (
     <DashboardShell navItems={navItems}>
@@ -94,50 +24,65 @@ export default async function PrayerPage() {
         </ActionButton>
       </PageHeader>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {metrics.map((stat) => (
           <MetricCard key={stat.label} {...stat} />
         ))}
       </section>
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.75fr]">
-        <Panel title="Prayer Queue" eyebrow="Partner requests" action="Assign">
-          <DataTable>
-            <thead className="bg-muted/70">
-              <tr>
-                <TableHeader>Partner</TableHeader>
-                <TableHeader>Country</TableHeader>
-                <TableHeader>Request</TableHeader>
-                <TableHeader>Owner</TableHeader>
-                <TableHeader>Status</TableHeader>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border bg-white">
-              {requests.map(([partner, country, request, owner, status]) => (
-                <tr key={`${partner}-${request}`} className="hover:bg-muted/40">
-                  <TableCell strong>{partner}</TableCell>
-                  <TableCell>{country}</TableCell>
-                  <TableCell>{request}</TableCell>
-                  <TableCell>{owner}</TableCell>
-                  <TableCell>
-                    <StatusBadge label={status} />
-                  </TableCell>
-                </tr>
-              ))}
-            </tbody>
-          </DataTable>
+        <Panel title="Prayer Queue" eyebrow="Partner care">
+          <ResponsiveRecordTable
+            rows={requests}
+            getRowKey={(request) => request.id}
+            getTitle={(request) => request.partnerName}
+            getSubtitle={(request) =>
+              `${request.country} - ${request.createdAt}`
+            }
+            getStatus={(request) => request.status}
+            minWidth="900px"
+            columns={[
+              {
+                header: "Partner",
+                primary: true,
+                render: (request) => request.partnerName,
+              },
+              { header: "Country", render: (request) => request.country },
+              { header: "Request", render: (request) => request.request },
+              { header: "Owner", render: (request) => request.owner },
+              {
+                header: "Sensitivity",
+                render: (request) => (
+                  <StatusBadge label={request.sensitivity} />
+                ),
+              },
+              {
+                header: "Next Action",
+                render: (request) => request.nextAction,
+              },
+              {
+                header: "Status",
+                render: (request) => <StatusBadge label={request.status} />,
+              },
+            ]}
+          />
         </Panel>
 
-        <Panel title="Prayer Workflows" eyebrow="Care routing" action="Review">
+        <Panel title="Care Routing" eyebrow="Team workflows">
           <div className="space-y-3">
-            {queues.map(([name, count, detail]) => (
-              <div key={name} className="rounded-lg border border-border p-4">
-                <p className="text-sm font-semibold text-foreground">{name}</p>
-                <p className="mt-2 text-2xl font-semibold tabular-nums">
-                  {count}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {detail}
+            {queues.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-lg border border-border p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">
+                    {item.label}
+                  </p>
+                  <StatusBadge label={item.status} />
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {item.detail}
                 </p>
               </div>
             ))}

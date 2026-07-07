@@ -13,6 +13,10 @@ export function currency(value: number, currencyCode = "USD") {
   }).format(value);
 }
 
+export function minorCurrency(valueMinor: number, currencyCode = "USD") {
+  return currency(valueMinor / 100, currencyCode);
+}
+
 export function compactNumber(value: number) {
   return new Intl.NumberFormat("en-US", {
     notation: "compact",

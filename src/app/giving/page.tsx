@@ -1,187 +1,141 @@
-import { CircleDollarSign, FileUp } from "lucide-react";
-import { GivingReconciliation } from "@/components/demo/giving-reconciliation";
+import { FileUp } from "lucide-react";
 import {
-  DataTable,
   MetricCard,
   Panel,
+  ResponsiveRecordTable,
   StatusBadge,
-  TableCell,
-  TableHeader,
 } from "@/components/dashboard/primitives";
 import { ActionButton, PageHeader } from "@/components/dashboard/header";
 import { DashboardShell } from "@/components/dashboard/shell";
-import { getDashboardOverview } from "@/lib/data";
-
-const givingStats = [
-  {
-    label: "July Giving",
-    value: "$186k",
-    detail: "USD equivalent",
-    tone: "amber",
-    icon: CircleDollarSign,
-  },
-  {
-    label: "Recurring Active",
-    value: "7,316",
-    detail: "Monthly commitments",
-    tone: "emerald",
-    icon: CircleDollarSign,
-  },
-  {
-    label: "Failed Payments",
-    value: "37",
-    detail: "Needs finance review",
-    tone: "rose",
-    icon: CircleDollarSign,
-  },
-  {
-    label: "Unmatched Rows",
-    value: "14",
-    detail: "Import reconciliation",
-    tone: "violet",
-    icon: CircleDollarSign,
-  },
-];
-
-const contributions = [
-  [
-    "Jul 2, 2026",
-    "Ama Serwaa",
-    "$120",
-    "USD",
-    "Paystack card",
-    "Banjul",
-    "Approved",
-  ],
-  [
-    "Jul 1, 2026",
-    "Daniel Okafor",
-    "$5,000",
-    "USD",
-    "Bank transfer",
-    "Banjul",
-    "Approved",
-  ],
-  [
-    "Jun 28, 2026",
-    "Angela Boateng",
-    "GBP 250",
-    "GBP",
-    "PayPal",
-    "General",
-    "Approved",
-  ],
-  [
-    "Jun 20, 2026",
-    "Marie N'Guessan",
-    "XOF 40,000",
-    "XOF",
-    "Mobile money",
-    "Assomada",
-    "Review",
-  ],
-];
-
-const health = [
-  [
-    "Monthly partner due soon",
-    "3,240",
-    "Prepare appreciation and reminder messages",
-  ],
-  ["Missed one month", "311", "Gentle WhatsApp follow-up"],
-  ["Missed two months", "117", "Coordinator call queue"],
-  ["Major partner report due", "21", "Send campaign-specific update"],
-];
+import { getGivingView } from "@/lib/data";
+import { minorCurrency } from "@/lib/utils";
 
 export default async function GivingPage() {
-  const { navItems } = await getDashboardOverview();
+  const { navItems, metrics, contributions, imports, followUpTriggers } =
+    await getGivingView();
 
   return (
     <DashboardShell navItems={navItems}>
       <PageHeader
         eyebrow="Giving records"
         title="Giving"
-        description="Track contributions, recurring commitments, campaign support, failed payments, and import reconciliation without storing payment card data."
+        description="Track contribution history, import batches, recurring commitments, campaign support, failed payments, and finance review without storing payment card data."
       >
         <ActionButton icon={FileUp} primary>
           Import Payments
         </ActionButton>
       </PageHeader>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {givingStats.map((stat) => (
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {metrics.map((stat) => (
           <MetricCard key={stat.label} {...stat} />
         ))}
       </section>
 
-      <GivingReconciliation />
-
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.3fr_0.7fr]">
-        <Panel
-          title="Recent Contributions"
-          eyebrow="Financial history"
-          action="Export"
-        >
-          <DataTable>
-            <thead className="bg-muted/70">
-              <tr>
-                <TableHeader>Date</TableHeader>
-                <TableHeader>Partner</TableHeader>
-                <TableHeader>Amount</TableHeader>
-                <TableHeader>Currency</TableHeader>
-                <TableHeader>Method</TableHeader>
-                <TableHeader>Campaign</TableHeader>
-                <TableHeader>Status</TableHeader>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border bg-white">
-              {contributions.map(
-                ([
-                  date,
-                  partner,
-                  amount,
-                  currency,
-                  method,
-                  campaign,
-                  status,
-                ]) => (
-                  <tr key={`${date}-${partner}`} className="hover:bg-muted/40">
-                    <TableCell>{date}</TableCell>
-                    <TableCell strong>{partner}</TableCell>
-                    <TableCell>{amount}</TableCell>
-                    <TableCell>{currency}</TableCell>
-                    <TableCell>{method}</TableCell>
-                    <TableCell>{campaign}</TableCell>
-                    <TableCell>
-                      <StatusBadge label={status} />
-                    </TableCell>
-                  </tr>
-                ),
-              )}
-            </tbody>
-          </DataTable>
+      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+        <Panel title="Payment Imports" eyebrow="Finance review queue">
+          <ResponsiveRecordTable
+            rows={imports}
+            getRowKey={(batch) => batch.id}
+            getTitle={(batch) => batch.fileName}
+            getSubtitle={(batch) => `${batch.provider} - ${batch.importedAt}`}
+            getStatus={(batch) => batch.status}
+            columns={[
+              {
+                header: "File",
+                primary: true,
+                render: (batch) => batch.fileName,
+              },
+              { header: "Provider", render: (batch) => batch.provider },
+              { header: "Rows", render: (batch) => batch.rowCount },
+              { header: "Matched", render: (batch) => batch.matchedCount },
+              { header: "Ambiguous", render: (batch) => batch.ambiguousCount },
+              { header: "Owner", render: (batch) => batch.owner },
+              {
+                header: "Status",
+                render: (batch) => <StatusBadge label={batch.status} />,
+              },
+            ]}
+          />
         </Panel>
 
-        <Panel
-          title="Giving Health"
-          eyebrow="Follow-up triggers"
-          action="Create tasks"
-        >
+        <Panel title="Follow-up Triggers" eyebrow="Giving health">
           <div className="space-y-3">
-            {health.map(([label, count, action]) => (
-              <div key={label} className="rounded-lg border border-border p-4">
-                <p className="text-sm font-semibold text-foreground">{label}</p>
-                <p className="mt-2 text-2xl font-semibold tabular-nums">
-                  {count}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {action}
+            {followUpTriggers.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-lg border border-border p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">
+                    {item.label}
+                  </p>
+                  <StatusBadge label={item.status} />
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {item.detail}
                 </p>
               </div>
             ))}
           </div>
         </Panel>
       </section>
+
+      <Panel title="Contribution Ledger" eyebrow="Auditable history">
+        <ResponsiveRecordTable
+          rows={contributions}
+          getRowKey={(contribution) => contribution.id}
+          getTitle={(contribution) => contribution.partnerName}
+          getSubtitle={(contribution) =>
+            `${contribution.contributionDate} - ${contribution.paymentMethod}`
+          }
+          getStatus={(contribution) => contribution.status}
+          minWidth="960px"
+          columns={[
+            {
+              header: "Date",
+              render: (contribution) => contribution.contributionDate,
+            },
+            {
+              header: "Partner",
+              primary: true,
+              render: (contribution) => contribution.partnerName,
+            },
+            {
+              header: "Amount",
+              render: (contribution) =>
+                minorCurrency(
+                  contribution.amount.amountMinor,
+                  contribution.amount.currency,
+                ),
+            },
+            {
+              header: "Method",
+              render: (contribution) => contribution.paymentMethod,
+            },
+            {
+              header: "Campaign",
+              render: (contribution) => contribution.campaignName,
+            },
+            {
+              header: "Provider Ref",
+              render: (contribution) => contribution.providerReference,
+            },
+            {
+              header: "Match",
+              render: (contribution) => (
+                <StatusBadge label={contribution.reconciliationStatus} />
+              ),
+            },
+            {
+              header: "Status",
+              render: (contribution) => (
+                <StatusBadge label={contribution.status} />
+              ),
+            },
+          ]}
+        />
+      </Panel>
     </DashboardShell>
   );
 }

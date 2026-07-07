@@ -123,11 +123,24 @@ function Sidebar({ navItems }: { navItems: NavItem[] }) {
 
 function MobileNav({ navItems }: { navItems: NavItem[] }) {
   const pathname = usePathname();
+  const activeIndex = navItems.findIndex(
+    (item) =>
+      pathname === item.href ||
+      (item.href !== "/" && pathname.startsWith(`${item.href}/`)),
+  );
+  const orderedNavItems =
+    activeIndex > 0
+      ? [
+          navItems[activeIndex],
+          ...navItems.slice(0, activeIndex),
+          ...navItems.slice(activeIndex + 1),
+        ]
+      : navItems;
 
   return (
     <nav className="sticky top-16 z-10 border-b border-border bg-surface/95 px-4 py-2 backdrop-blur lg:hidden">
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {navItems.map((item) => {
+        {orderedNavItems.map((item) => {
           const active =
             pathname === item.href ||
             (item.href !== "/" && pathname.startsWith(`${item.href}/`));
@@ -164,13 +177,14 @@ function Topbar() {
         >
           B
         </Link>
-        <div className="relative min-w-0 flex-1">
+        <form action="/partners" className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
+            name="q"
             className="h-10 w-full rounded-lg border border-border bg-muted pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
-            placeholder="Search partners, countries, campaigns, notes"
+            placeholder="Search partners"
           />
-        </div>
+        </form>
         <button className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-white text-muted-foreground transition hover:text-foreground">
           <Bell className="h-4 w-4" />
           <span className="sr-only">Notifications</span>

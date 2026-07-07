@@ -5,15 +5,14 @@ import {
   ResponsiveRecordTable,
   StatusBadge,
 } from "@/components/dashboard/primitives";
-import {
-  DefaultHeaderActions,
-  PageHeader,
-} from "@/components/dashboard/header";
+import { PageHeader } from "@/components/dashboard/header";
 import { DashboardShell } from "@/components/dashboard/shell";
-import { getDashboardOverview } from "@/lib/data";
+import { TodayWorkspace } from "@/components/workspace/today-workspace";
+import { getCommunicationView, getDashboardOverview } from "@/lib/data";
 import { compactNumber, minorCurrency } from "@/lib/utils";
 
 export default async function Home() {
+  const communicationView = await getCommunicationView();
   const {
     navItems,
     metrics,
@@ -22,6 +21,7 @@ export default async function Home() {
     countrySummaries,
     dataReadiness,
     campaigns,
+    partnerRows,
   } = await getDashboardOverview();
   const maxGiving = Math.max(
     ...givingTrend.map((item) => item.amount.amountMinor),
@@ -30,12 +30,10 @@ export default async function Home() {
   return (
     <DashboardShell navItems={navItems}>
       <PageHeader
-        eyebrow="BENMP internal"
-        title="Global Crusade Partners Platform"
-        description="A staff workspace for partner records, giving operations, communication approvals, prayer care, campaign reporting, and follow-up ownership."
-      >
-        <DefaultHeaderActions />
-      </PageHeader>
+        eyebrow="Global Crusade Partners Platform"
+        title="Today"
+        description="Daily partner capture, follow-up ownership, message approvals, giving review, and campaign readiness for BENMP staff."
+      />
 
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {metrics.map((metric) => (
@@ -50,60 +48,12 @@ export default async function Home() {
         ))}
       </section>
 
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.45fr_0.95fr]">
-        <Panel title="Today's Operating Queue" eyebrow="Owned staff work">
-          <div className="divide-y divide-border">
-            {priorities.map((task) => (
-              <article
-                key={task.id}
-                className="grid gap-3 py-4 first:pt-0 last:pb-0 lg:grid-cols-[minmax(0,1fr)_160px]"
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-semibold text-foreground">
-                      {task.partnerName}
-                    </h3>
-                    <StatusBadge label={task.status} />
-                    <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-                      {task.priority}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {task.reason}: {task.nextAction}
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground lg:grid-cols-1">
-                  <span>{task.owner}</span>
-                  <span>{task.dueOn}</span>
-                  <span>{task.channel}</span>
-                  <span>{task.country}</span>
-                </div>
-              </article>
-            ))}
-          </div>
-        </Panel>
-
-        <Panel title="Backend Readiness" eyebrow="Plug-in path">
-          <div className="space-y-3">
-            {dataReadiness.map((item) => (
-              <div
-                key={item.label}
-                className="rounded-lg border border-border p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-semibold text-foreground">
-                    {item.label}
-                  </p>
-                  <StatusBadge label={item.status} />
-                </div>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  {item.detail}
-                </p>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      </section>
+      <TodayWorkspace
+        initialPartners={partnerRows}
+        initialTasks={priorities}
+        initialMessages={communicationView.batches}
+        segments={communicationView.segments}
+      />
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_0.8fr]">
         <Panel title="Giving Momentum" eyebrow="Last 6 months">
@@ -134,22 +84,43 @@ export default async function Home() {
           </div>
         </Panel>
 
-        <Panel title="Country Portfolio" eyebrow="Regional view">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            {countrySummaries.map((country) => (
-              <Insight
-                key={country.country}
-                label={`${country.country} - ${country.primaryChannel}`}
-                value={country.partners.toLocaleString()}
-                detail={`${country.monthlyPartners.toLocaleString()} monthly - ${minorCurrency(
-                  country.giving.amountMinor,
-                  country.giving.currency,
-                )} giving - ${country.openFollowUps} follow-ups`}
-              />
+        <Panel title="Backend Readiness" eyebrow="Plug-in path">
+          <div className="space-y-3">
+            {dataReadiness.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-lg border border-border p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">
+                    {item.label}
+                  </p>
+                  <StatusBadge label={item.status} />
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {item.detail}
+                </p>
+              </div>
             ))}
           </div>
         </Panel>
       </section>
+
+      <Panel title="Country Portfolio" eyebrow="Regional view">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {countrySummaries.map((country) => (
+            <Insight
+              key={country.country}
+              label={`${country.country} - ${country.primaryChannel}`}
+              value={country.partners.toLocaleString()}
+              detail={`${country.monthlyPartners.toLocaleString()} monthly - ${minorCurrency(
+                country.giving.amountMinor,
+                country.giving.currency,
+              )} giving - ${country.openFollowUps} follow-ups`}
+            />
+          ))}
+        </div>
+      </Panel>
 
       <Panel title="Campaign Readiness" eyebrow="Crusades and reports">
         <ResponsiveRecordTable

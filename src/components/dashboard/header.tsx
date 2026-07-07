@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { Download, FileUp, Plus } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 type Icon = ComponentType<{ className?: string }>;
@@ -30,7 +31,7 @@ export function PageHeader({
       </div>
 
       {children ? (
-        <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end [&>button]:flex-1 sm:[&>button]:flex-none">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end [&>*]:flex-1 sm:[&>*]:flex-none">
           {children}
         </div>
       ) : null}
@@ -54,20 +55,31 @@ export function ActionButton({
   children,
   icon: IconComponent,
   primary = false,
+  href,
 }: {
   children: React.ReactNode;
   icon: Icon;
   primary?: boolean;
+  href?: string;
 }) {
+  const className = cn(
+    "inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-3 text-sm font-semibold transition",
+    primary
+      ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+      : "border-border bg-white text-foreground hover:bg-muted",
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        <IconComponent className="h-4 w-4" />
+        {children}
+      </Link>
+    );
+  }
+
   return (
-    <button
-      className={cn(
-        "inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-3 text-sm font-semibold transition",
-        primary
-          ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
-          : "border-border bg-white text-foreground hover:bg-muted",
-      )}
-    >
+    <button className={className}>
       <IconComponent className="h-4 w-4" />
       {children}
     </button>

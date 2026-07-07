@@ -20,7 +20,7 @@ export default async function CommunicationPage() {
         title="Messaging Center"
         description="Build auditable partner segments, approve message batches, and route WhatsApp, SMS, and email through provider adapters without locking the ministry into one vendor."
       >
-        <ActionButton icon={Plus} primary>
+        <ActionButton icon={Plus} href="/?mode=message#workspace" primary>
           New Message
         </ActionButton>
       </PageHeader>

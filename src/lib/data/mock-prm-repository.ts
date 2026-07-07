@@ -39,7 +39,7 @@ import type {
 } from "./types";
 
 const navItems: NavItem[] = [
-  { label: "Overview", href: "/", icon: "overview" },
+  { label: "Today", href: "/", icon: "overview" },
   { label: "Partners", href: "/partners", icon: "partners" },
   { label: "Giving", href: "/giving", icon: "giving" },
   { label: "Communication", href: "/communication", icon: "communication" },

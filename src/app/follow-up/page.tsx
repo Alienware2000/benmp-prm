@@ -19,7 +19,7 @@ export default async function FollowUpPage() {
         title="Follow-up"
         description="Convert missed giving, new partner welcomes, prayer requests, campaign reports, and failed payments into owned staff tasks."
       >
-        <ActionButton icon={Plus} primary>
+        <ActionButton icon={Plus} href="/?mode=task#workspace" primary>
           New Task
         </ActionButton>
       </PageHeader>

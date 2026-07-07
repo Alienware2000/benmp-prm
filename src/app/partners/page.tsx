@@ -60,7 +60,7 @@ export default async function PartnersPage({
         description="Staff records for contact details, church, country, giving relationship, prayer care, notes, ownership, and communication preferences."
       >
         <ActionButton icon={FileUp}>Import CSV</ActionButton>
-        <ActionButton icon={Plus} primary>
+        <ActionButton icon={Plus} href="/?mode=partner#workspace" primary>
           New Partner
         </ActionButton>
       </PageHeader>

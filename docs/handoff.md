@@ -19,6 +19,8 @@ Completed:
 - Partner search/filter is URL-backed and ready to become a backend query.
 - Shared responsive record renderer added so all routes work on mobile without page overflow.
 - Toy demo panels removed.
+- Home navigation is now "Today" and includes an operations console.
+- The Today console supports temporary browser-local actions: capture partner, assign follow-up, stage message batch, mark task done, queue message, and reset local changes.
 
 ## Current Product Assumption
 
@@ -31,9 +33,10 @@ This is a staff-only PRM for BENMP and Healing Jesus Campaign operations. It sho
 3. Decide backend path: Supabase fast path, Neon/Clerk portable path, or AWS enterprise path.
 4. Implement the selected database adapter behind `PrmRepository`.
 5. Add auth shell, staff roles, and role-aware access.
-6. Connect partner CSV import and payment import workflows.
-7. Add communication provider adapters after WhatsApp/SMS/email decision.
-8. Introduce AI assistant with read-only tools, then draft tools with approval.
+6. Replace Today console `localStorage` persistence with server actions/API calls backed by the selected repository.
+7. Connect partner CSV import and payment import workflows.
+8. Add communication provider adapters after WhatsApp/SMS/email decision.
+9. Introduce AI assistant with read-only tools, then draft tools with approval.
 
 ## Open Questions
 

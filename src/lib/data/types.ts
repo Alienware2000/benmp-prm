@@ -4,10 +4,21 @@ export type IconComponent = ComponentType<{ className?: string }>;
 
 export type DataProvider = "mock" | "supabase" | "postgres";
 
+export type NavIconKey =
+  | "overview"
+  | "partners"
+  | "giving"
+  | "communication"
+  | "followUp"
+  | "campaigns"
+  | "prayer"
+  | "ai"
+  | "admin";
+
 export interface NavItem {
   label: string;
   href: string;
-  icon: IconComponent;
+  icon: NavIconKey;
 }
 
 export interface DashboardMetric {

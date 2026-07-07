@@ -35,6 +35,7 @@ export type {
   DataProvider,
   FollowUpItem,
   GivingTrendPoint,
+  NavIconKey,
   NavItem,
   PartnerSnapshotRow,
 } from "./types";

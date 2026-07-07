@@ -14,6 +14,7 @@ Completed:
 - AI SDK 7 installed as a future provider-agnostic layer.
 - Board meeting brief added with MVP talk track, backend options, and WhatsApp tradeoffs.
 - Data and messaging adapter contracts added. MVP defaults to mock providers.
+- Sidebar routes now have working MVP pages: partners, giving, communication, follow-up, campaigns, prayer, AI assist, and admin.
 
 ## Current Product Assumption
 

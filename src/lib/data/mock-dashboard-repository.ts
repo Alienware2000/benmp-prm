@@ -1,29 +1,25 @@
 import {
-  Bot,
   CircleDollarSign,
-  ClipboardList,
   Globe2,
   HeartHandshake,
   Mail,
   MessageCircle,
   Phone,
-  ShieldCheck,
-  TrendingUp,
   UsersRound,
 } from "lucide-react";
 import type { DashboardOverview, DashboardRepository } from "./types";
 
 const overview: DashboardOverview = {
   navItems: [
-    { label: "Overview", href: "/", icon: TrendingUp },
-    { label: "Partners", href: "/partners", icon: UsersRound },
-    { label: "Giving", href: "/giving", icon: CircleDollarSign },
-    { label: "Communication", href: "/communication", icon: MessageCircle },
-    { label: "Follow-up", href: "/follow-up", icon: ClipboardList },
-    { label: "Campaigns", href: "/campaigns", icon: Globe2 },
-    { label: "Prayer", href: "/prayer", icon: HeartHandshake },
-    { label: "AI Assist", href: "/ai", icon: Bot },
-    { label: "Admin", href: "/admin", icon: ShieldCheck },
+    { label: "Overview", href: "/", icon: "overview" },
+    { label: "Partners", href: "/partners", icon: "partners" },
+    { label: "Giving", href: "/giving", icon: "giving" },
+    { label: "Communication", href: "/communication", icon: "communication" },
+    { label: "Follow-up", href: "/follow-up", icon: "followUp" },
+    { label: "Campaigns", href: "/campaigns", icon: "campaigns" },
+    { label: "Prayer", href: "/prayer", icon: "prayer" },
+    { label: "AI Assist", href: "/ai", icon: "ai" },
+    { label: "Admin", href: "/admin", icon: "admin" },
   ],
   metrics: [
     {

@@ -587,7 +587,7 @@ Rule:
 
 - Keep original currency and original amount. USD equivalent is a reporting/rules helper, not a replacement for original money.
 
-## 13. Later Planned Tables
+## 13. Later Planned Tables And Columns
 
 | Table                                                     | Phase | Trigger                                                                      |
 | --------------------------------------------------------- | ----- | ---------------------------------------------------------------------------- |
@@ -595,7 +595,18 @@ Rule:
 | `claims`                                                  | 3     | Only if remittance-app giving is significant enough to build the claim loop. |
 | `monthly_snapshots`                                       | 5     | Needed for frozen month-close reports.                                       |
 | `sequence_definitions`, `sequence_runs`, `sequence_steps` | 5     | Only if manual message batches become the bottleneck.                        |
+| `approval_policies`                                       | 5+    | Only when per-batch approval becomes the bottleneck (srs FR-7.7).            |
 | `webhook_dead_letters`, `webhook_replays`                 | 6     | Needed for production-grade retry/replay tooling.                            |
+
+Planned columns (needed by specific phases; add in that phase's migration):
+
+| Column                                                             | Phase | Why                                                                                                 |
+| ------------------------------------------------------------------ | ----- | ---------------------------------------------------------------------------------------------------- |
+| `partners.normalized_phone text` + index                           | 1B    | E.164 canonical phone is the matching key for MoMo and WhatsApp; text-column scans won't hold at 40k. |
+| `payment_import_rows.row_hash text` + unique index                 | 2B    | Statement re-imports must be inert; webhooks dedupe on `(provider, provider_event_id)`, rows need their own key. |
+| `partners` per-channel consent (`whatsapp_consent`, `sms_consent`, `email_consent` + timestamps/source) | 3     | FR-7.4: every send checks consent; nothing stores it today.                                          |
+| `ai_runs.input_tokens`, `ai_runs.output_tokens`, `ai_runs.cost_usd` | 4     | Design-spec §8 promises per-run token/cost logging; current table has none.                          |
+| `communication_batches.second_approved_by/_at`                      | 5     | FR-7.6: prophet-category content needs two distinct named approvers; one `approved_by` can't express it. |
 
 ## 14. Seed Data
 

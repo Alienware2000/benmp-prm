@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-08. Companion to `docs/design-spec.md`.
 
-> **How to use this file.** Each phase below has a Goal, Prerequisites, Deliverables, an Acceptance test, and a fenced **AI prompt**. To execute a phase, paste the prompt into your coding agent (Claude Code, Codex, etc.) — the prompts assume the agent can read this whole repo, especially `docs/`. Build phases in order; run each acceptance test before starting the next. If implementation must deviate from the plan, record it as an **"As-built notes (Phase N, date)"** section appended to the end of this file. `supabase/migrations/` is the authoritative schema: if code and schema disagree, the schema wins until deliberately changed. "Working over looking nice" is the standing rule — every phase ends with something the BENMP office can actually use.
+> **How to use this file.** Each phase below has a Goal, Prerequisites, Deliverables, an Acceptance test, and a fenced **AI prompt**. To execute a phase, paste the prompt into your coding agent (Claude Code, Codex, etc.) — the prompts assume the agent can read this whole repo, especially `docs/`. **Every prompt's REQUIRED READING implicitly includes `docs/srs.md` (requirement IDs) and `docs/db-schema.md` (schema contract, incl. §13 planned tables/columns for your phase).** Build phases in order; run each acceptance test before starting the next. If implementation must deviate from the plan, record it as an **"As-built notes (Phase N, date)"** section appended to the end of this file. `supabase/migrations/` is the authoritative schema: if code and schema disagree, the schema wins until deliberately changed. "Working over looking nice" is the standing rule — every phase ends with something the BENMP office can actually use.
 
 ## Workstreams
 
@@ -98,6 +98,7 @@ You are implementing Phase 1A (Supabase foundation) of BENMP PRM on top of the e
 
 REQUIRED READING:
 - AGENTS.md — project conventions
+- docs/db-schema.md §12 (the exact 0002_foundation_config.sql contract) and §11's flagged RLS gap — resolve it deliberately per decisions.md 0004
 - docs/design-spec.md §4 (domain concepts), §9 (architecture, data-access rules)
 - docs/decisions.md entry 0004 — Supabase, region blocks, thresholds
 - supabase/migrations/0001_initial_schema.sql — authoritative; extend, do not rewrite

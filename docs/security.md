@@ -103,6 +103,7 @@ Messaging can create reputational and pastoral risk. Rules:
 - STOP/opt-out handling must be honored for SMS/WhatsApp once inbound messaging is live.
 - Prayer broadcasts or messages sent in Bishop Dag's name require a second named approver.
 - AI-generated drafts must pass through the same approval queue as human-created drafts.
+- Approval is per batch or per policy, never per message: a named approver covers an entire batch regardless of size, and later an approved policy (template + segment + cadence) can cover recurring runs — with automatic re-approval on template/category change or unusual segment size, so scale never erodes the human gate.
 
 No implementation may add a "send anyway" path outside the adapter and approval system.
 

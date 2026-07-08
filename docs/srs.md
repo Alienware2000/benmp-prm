@@ -136,6 +136,7 @@ The system exists to turn every verified gift into a reliable partner relationsh
 - FR-7.4 Each send MUST check consent and opt-out rules before dispatch.
 - FR-7.5 WhatsApp production sends MUST respect template category and provider approval requirements.
 - FR-7.6 Prayer broadcasts or messages sent in Bishop Dag's name MUST require an extra named approver.
+- FR-7.7 Approval MUST scale by level, not by message count: one approval covers one batch (any size); recurring batches MAY later be covered by an approved policy (template + segment + cadence approved once, runs proceed automatically) with automatic re-approval triggers (template change, category change, segment size deviating sharply from the approved run, or a paused kill switch). Policy-level approval is trigger-gated: build it only when per-batch approval becomes the operational bottleneck.
 
 ### FR-8 Monthly Cycle And Reports
 

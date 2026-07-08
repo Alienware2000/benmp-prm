@@ -131,6 +131,7 @@ Design rules:
 - **Personalization, not generic blasts**: every template merges name, amount, giving history, campaign context, and tone. AI drafting (Phase 5) makes this scale to 40k without feeling mass-produced.
 - **Message types**: instant thank-yous, monthly reminders, welcome series, crusade updates and reports, testimonies, birthday greetings, prayer messages "from the Prophet" (these get an extra approval step — anything in Bishop Dag's name is sensitive), lapsed-partner gentle follow-up.
 - **Governance**: per-channel consent and opt-out, WhatsApp template categories and approval status, delivery tracking, all sends logged. Bulk sends always require staff approval.
+- **How approval scales to 40k** (it must never mean 40k clicks): approval attaches to *levels*, not messages. Level 1 — one named approval covers one batch, any size (this alone handles the monthly reminder run). Level 2, trigger-gated — an **approved policy** (template + segment + cadence, e.g. "monthly reminder to lapsed partners") lets recurring runs proceed automatically, with automatic re-approval demanded when the template or category changes, the segment size deviates sharply from approved runs, or a kill switch pauses sends. The human gate never disappears; it moves up an altitude as trust accumulates. Prophet-category content never gets policy-level automation — always two named approvers per batch.
 
 ## 8. The AI assistant — an agentic system, staged
 

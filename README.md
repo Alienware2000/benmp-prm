@@ -25,17 +25,22 @@ npm run format:check
 
 ## Workspace Map
 
-- `WORKSPACE.md` - front door for any coding agent
 - `AGENTS.md` - canonical project instructions for Codex, Claude Code, Cursor, and other agents
 - `CLAUDE.md` - imports `AGENTS.md`
-- `docs/product-brief.md` - product definition and MVP scope
-- `docs/research.md` - research notes and sources
-- `docs/architecture.md` - system architecture
-- `docs/ai-native-roadmap.md` - agentic roadmap after the core PRM is stable
-- `docs/handoff.md` - current status and next actions
+- `docs/README.md` - documentation front door and status
+- `docs/srs.md` - requirements lock file
+- `docs/db-schema.md` - human-readable database schema contract
+- `docs/design-spec.md` - product, architecture, payments, AI, and UI reference
+- `docs/delivery-plan.md` - build phases and copy-paste agent prompts
+- `docs/decisions.md` - decision log
+- `docs/security.md` - auth, RLS, webhook, messaging, AI, privacy, and audit controls
+- `docs/deployment.md` - Vercel/Supabase setup, env vars, migrations, backups, release checklist
+- `docs/api-spec.md` - planned API, server-action, and webhook contract
+- `docs/ops-runbook.md` - practical BENMP office workflow guide
+- `docs/archive/` - historical planning context
 - `src/lib/data` - data repository adapters
 - `src/lib/messaging` - WhatsApp/SMS/email provider adapters
-- `supabase/migrations` - optional Postgres/Supabase schema drafts
+- `supabase/migrations` - Postgres/Supabase schema migrations
 
 ## Current State
 

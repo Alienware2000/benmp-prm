@@ -13,7 +13,7 @@ BENMP PRM is an internal Partner Relationship Management system for BENMP and th
 
 ## Working Principles
 
-- Treat `docs/` as the portable source of truth. Read order: `docs/README.md` (front door + status) → `docs/delivery-plan.md` (what to build: parallel tracks + phase prompts) → `docs/design-spec.md` (deep reference — use the § map at its top) → `docs/decisions.md` (why). `docs/archive/` is history, not required reading.
+- Treat `docs/` as the portable source of truth. Read order: `docs/README.md` (front door + status) -> `docs/srs.md` (requirements) -> `docs/db-schema.md` (data contract) -> `docs/delivery-plan.md` (what to build: parallel tracks + phase prompts) -> `docs/design-spec.md` (deep reference - use the section map at its top) -> `docs/decisions.md` (why). Use `docs/security.md`, `docs/deployment.md`, `docs/api-spec.md`, and `docs/ops-runbook.md` when touching those areas. `docs/archive/` is history, not required reading.
 - Not everything belongs in git: engineering docs yes; sensitive client specifics (real account numbers, statements, partner exports, office internals) no — reference them, don't embed them.
 - Nothing gets built without a trigger: deferred features name the condition that un-defers them (conventions in `docs/README.md`).
 - This repo (`Alienware2000/benmp-prm`) is the codebase going forward; the frontend consolidation (design-spec Appendix A) is a pass on it, not a rewrite.

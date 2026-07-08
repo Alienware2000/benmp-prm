@@ -59,6 +59,27 @@ Product implication:
 
 - Reuse the back-office visual feel and operational discipline, not the itinerary schema.
 
+## BENMP Office Prototype
+
+Source:
+
+- https://benmp-app.vercel.app/
+- https://benmp-app.vercel.app/partners
+- https://benmp-app.vercel.app/roster
+- https://benmp-app.vercel.app/join
+
+Findings:
+
+- The office prototype is donation-led. The home page shows live donation activity, totals by currency, source filters, country/city filters, and a test donation action.
+- The visible note says MTN Mobile Money is connected through Flutterwave test mode and other connectors share the same schema.
+- `/join` captures full name, country, city/town, optional email, Mobile Money number, bank name, bank account number, preferred giving method, and monthly pledge.
+- `/roster` models the most important operational idea from the board discussion: paid/not paid status, VIP givers, and generated message previews for thank-you or reminder messages.
+
+Product implication:
+
+- Our MVP should move from generic PRM-first to donation-intake-first: webhook/import event, match donor, acknowledge gift, classify donor, create follow-up.
+- The existing prototype is a useful backend/workflow reference, but this app should keep the broader PRM architecture, roles, audit trail, campaign support, and AI governance.
+
 ## Internal CRM And Workflow UX
 
 Sources:
@@ -92,16 +113,30 @@ Sources:
 
 - https://paystack.com/docs/payments/subscriptions/
 - https://paystack.com/docs/payments/webhooks/
+- https://developer.flutterwave.com/docs/mobile-money
+- https://developer.flutterwave.com/docs/pay-with-bank-transfer
+- https://paystack.com/docs/payments/payment-channels/
+- https://paystack.com/docs/api/dedicated-virtual-account/
+- https://developers.hubtel.com/
 
 Findings:
 
 - Paystack subscriptions support recurring billing through plans and subscriptions.
 - Paystack sends subscription and invoice events including subscription creation, charge success, invoice creation, invoice payment failure, invoice update, subscription not-renewing, and subscription disabled.
 - Paystack notes failed subscription charge handling and card-expiry webhook scenarios.
+- Flutterwave mobile money lets customers pay from mobile wallets and sends a successful webhook notification after authorization.
+- Flutterwave's bank-transfer flow supports static or dynamic virtual accounts and is currently listed for NGN and GHS transactions.
+- Paystack payment channels include cards, mobile money accounts, QR, bank account, and USSD, with non-card channels depending on country support.
+- Paystack dedicated virtual accounts are available for Nigerian and Ghanaian merchants.
+- Hubtel positions its developer platform around Ghana mobile money and bank payments, including receiving mobile money across networks and accepting card payments.
 
 Product implication:
 
 - Payment imports/webhooks should update partner giving status, flag failed recurring gifts, and create finance follow-up tasks.
+- Payment webhooks should first create immutable `payment_events`, then create or match `contributions` after verification and reconciliation.
+- Flutterwave appears to be the best near-term MoMo-led route because the office prototype already uses it in test mode.
+- Hubtel should be evaluated if BENMP wants Ghana-first operations and local MoMo network depth.
+- Paystack remains valuable for card, bank transfer, DVA, and regional payment coverage.
 
 ## WhatsApp, SMS, And Communication
 

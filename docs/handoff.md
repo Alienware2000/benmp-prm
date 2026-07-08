@@ -20,8 +20,10 @@ Completed:
 - Shared responsive record renderer added so all routes work on mobile without page overflow.
 - Toy demo panels removed.
 - Home navigation is now "Today" and includes an operations console.
-- The Today console is now the first operational surface and supports temporary browser-local actions: capture partner, assign follow-up, stage message batch, mark task done, queue message, and reset local changes.
-- Today was simplified from a crowded three-column view into focused workflows with URL-backed modes: `?mode=partner`, `?mode=task`, and `?mode=message`.
+- The Today console is now the first operational surface and supports temporary browser-local actions: record gift, draft acknowledgement, capture partner, assign follow-up, stage message batch, mark acknowledgement sent, mark task done, queue message, and reset local changes.
+- Today was simplified from a crowded three-column view into focused workflows with URL-backed modes: `?mode=gift`, `?mode=partner`, `?mode=task`, and `?mode=message`.
+- Long-form analytics moved from Home into `/reports`, so the dashboard is now a daily command center instead of one long reporting page.
+- Meeting notes from the board discussion are captured: MoMo-led intake, instant thank-you, $60 active-year threshold, $100 high-touch threshold, personalized updates, and provider-adapter architecture.
 
 ## Current Product Assumption
 
@@ -35,14 +37,18 @@ This is a staff-only PRM for BENMP and Healing Jesus Campaign operations. It sho
 4. Implement the selected database adapter behind `PrmRepository`.
 5. Add auth shell, staff roles, and role-aware access.
 6. Replace Today console `localStorage` persistence with server actions/API calls backed by the selected repository.
-7. Connect partner CSV import and payment import workflows.
-8. Add communication provider adapters after WhatsApp/SMS/email decision.
-9. Introduce AI assistant with read-only tools, then draft tools with approval.
+7. Implement payment webhook adapter for Flutterwave/Hubtel/Paystack into `payment_events`.
+8. Replace local Today gift recording with server actions/API calls backed by `contributions`.
+9. Connect partner CSV import and payment import workflows.
+10. Add communication provider adapters after WhatsApp/SMS/email decision.
+11. Introduce AI assistant with read-only tools, then draft tools with approval.
 
 ## Open Questions
 
 - Should the first real backend sync with the existing BENMP website/database or start as a clean internal database with imports?
 - Which provider should be first for WhatsApp: Twilio or direct Meta Cloud API?
+- Which provider should be first for Mobile Money intake: Flutterwave, Hubtel, Paystack, or a combination?
+- What exact local-currency equivalents should define active-year and high-touch thresholds?
 - Will staff need multi-region data restrictions from day one?
 - What currencies and payment providers must be supported at launch?
 - Is the official GitHub repo name `benmp-prm`, `benmp-partners-platform`, or something more branded?

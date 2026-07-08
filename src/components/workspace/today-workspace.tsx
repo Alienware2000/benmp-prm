@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
+  CircleDollarSign,
   ClipboardList,
   MessageCircle,
   Plus,
@@ -14,6 +15,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type {
   CommunicationChannel,
   CommunicationSegment,
+  ContributionRecord,
   FollowUpTask,
   MessageBatch,
   PartnerRecord,
@@ -21,10 +23,11 @@ import type {
 import { minorCurrency, cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/dashboard/primitives";
 
-type WorkspaceMode = "partner" | "task" | "message";
+type WorkspaceMode = "gift" | "partner" | "task" | "message";
 
 type StoredWorkspace = {
   partners: PartnerRecord[];
+  gifts: ContributionRecord[];
   tasks: FollowUpTask[];
   messages: MessageBatch[];
 };
@@ -36,7 +39,12 @@ const channels: CommunicationChannel[] = ["WhatsApp", "SMS", "Email", "Phone"];
 const partnerLevels = ["Monthly", "Quarterly", "Annual", "Major", "Prayer"];
 
 function getWorkspaceMode(value: string | null): WorkspaceMode | null {
-  if (value === "partner" || value === "task" || value === "message") {
+  if (
+    value === "gift" ||
+    value === "partner" ||
+    value === "task" ||
+    value === "message"
+  ) {
     return value;
   }
 
@@ -59,6 +67,7 @@ function getInitialWorkspace(fallback: StoredWorkspace): StoredWorkspace {
 
     return {
       partners: parsed.partners?.length ? parsed.partners : fallback.partners,
+      gifts: parsed.gifts?.length ? parsed.gifts : fallback.gifts,
       tasks: parsed.tasks?.length ? parsed.tasks : fallback.tasks,
       messages: parsed.messages?.length ? parsed.messages : fallback.messages,
     };
@@ -68,13 +77,27 @@ function getInitialWorkspace(fallback: StoredWorkspace): StoredWorkspace {
   }
 }
 
+function estimateUsdForDemo(amount: number, currency: string) {
+  const rates: Record<string, number> = {
+    CAD: 0.73,
+    GBP: 1.25,
+    GHS: 0.08,
+    USD: 1,
+    XOF: 0.0017,
+  };
+
+  return amount * (rates[currency.toUpperCase()] ?? 1);
+}
+
 export function TodayWorkspace({
   initialPartners,
+  initialGifts,
   initialTasks,
   initialMessages,
   segments,
 }: {
   initialPartners: PartnerRecord[];
+  initialGifts: ContributionRecord[];
   initialTasks: FollowUpTask[];
   initialMessages: MessageBatch[];
   segments: CommunicationSegment[];
@@ -82,14 +105,15 @@ export function TodayWorkspace({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const mode = getWorkspaceMode(searchParams.get("mode")) ?? "partner";
+  const mode = getWorkspaceMode(searchParams.get("mode")) ?? "gift";
   const fallbackWorkspace = useMemo<StoredWorkspace>(
     () => ({
       partners: initialPartners,
+      gifts: initialGifts,
       tasks: initialTasks,
       messages: initialMessages,
     }),
-    [initialMessages, initialPartners, initialTasks],
+    [initialGifts, initialMessages, initialPartners, initialTasks],
   );
   const [workspace, setWorkspace] = useState<StoredWorkspace>(() =>
     getInitialWorkspace(fallbackWorkspace),
@@ -132,6 +156,11 @@ export function TodayWorkspace({
   }, [query, workspace.partners]);
 
   const openTasks = workspace.tasks.filter((task) => task.status !== "Done");
+  const pendingGiftAcknowledgements = workspace.gifts.filter(
+    (gift) =>
+      gift.acknowledgementStatus === "Pending" ||
+      gift.acknowledgementStatus === "Drafted",
+  );
   const reviewMessages = workspace.messages.filter(
     (message) => message.status === "Review" || message.status === "Draft",
   );
@@ -143,6 +172,7 @@ export function TodayWorkspace({
   function resetWorkspace() {
     const resetState = {
       partners: initialPartners,
+      gifts: initialGifts,
       tasks: initialTasks,
       messages: initialMessages,
     };
@@ -158,6 +188,87 @@ export function TodayWorkspace({
     router.replace(`${pathname}?${nextParams.toString()}#workspace`, {
       scroll: false,
     });
+  }
+
+  function recordGift(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const donorName = String(formData.get("donorName") ?? "").trim();
+    const amount = Number(formData.get("amount") ?? 0);
+
+    if (!donorName || !amount) {
+      setNotice("Donor name and amount are required");
+      return;
+    }
+
+    const currency = String(formData.get("currency") ?? "USD").trim();
+    const usdEstimate = estimateUsdForDemo(amount, currency);
+    const attentionTier =
+      usdEstimate >= 100
+        ? "High touch"
+        : usdEstimate >= 60
+          ? "Active year covered"
+          : "Standard";
+    const annualCoverageMonths = Math.min(Math.floor(usdEstimate / 5), 12);
+    const id = `local_gift_${Date.now()}`;
+    const paymentMethod = String(
+      formData.get("paymentMethod") ?? "Mobile Money",
+    ).trim();
+    const provider = String(formData.get("provider") ?? "Flutterwave").trim();
+
+    const gift: ContributionRecord = {
+      id,
+      contributionDate: "Today",
+      partnerId: `local_donor_${Date.now()}`,
+      partnerName: donorName,
+      amount: { amountMinor: Math.round(amount * 100), currency },
+      paymentMethod,
+      campaignName: String(formData.get("campaignName") ?? "General").trim(),
+      provider,
+      providerReference:
+        String(formData.get("providerReference") ?? "").trim() ||
+        `LOCAL-${Date.now()}`,
+      status: "Succeeded",
+      reconciliationStatus: "Probable",
+      acknowledgementStatus: "Drafted",
+      attentionTier,
+      annualCoverageMonths,
+      followUpRequired: attentionTier !== "Standard",
+    };
+
+    const followUpTask: FollowUpTask | null =
+      attentionTier === "Standard"
+        ? null
+        : {
+            id: `local_task_${Date.now()}`,
+            partnerName: donorName,
+            country: String(formData.get("country") ?? "Unknown").trim(),
+            reason:
+              attentionTier === "High touch"
+                ? "High-touch donor call"
+                : "Annual BENMP covered",
+            owner:
+              attentionTier === "High touch"
+                ? "Major partners team"
+                : "Regional coordinator",
+            channel: "Phone",
+            priority: attentionTier === "High touch" ? "High" : "Medium",
+            status: "Open",
+            dueOn: "Today",
+            source: `${provider} ${paymentMethod}`,
+            nextAction:
+              attentionTier === "High touch"
+                ? "Call personally and thank them for going above and beyond."
+                : "Send a warm thank-you and mark the donor active for the year.",
+          };
+
+    setWorkspace((current) => ({
+      ...current,
+      gifts: [gift, ...current.gifts],
+      tasks: followUpTask ? [followUpTask, ...current.tasks] : current.tasks,
+    }));
+    setNotice(`${donorName} gift recorded; thank-you drafted`);
+    event.currentTarget.reset();
   }
 
   function addPartner(event: FormEvent<HTMLFormElement>) {
@@ -295,6 +406,16 @@ export function TodayWorkspace({
     setNotice("Task marked done");
   }
 
+  function acknowledgeGift(id: string) {
+    setWorkspace((current) => ({
+      ...current,
+      gifts: current.gifts.map((gift) =>
+        gift.id === id ? { ...gift, acknowledgementStatus: "Sent" } : gift,
+      ),
+    }));
+    setNotice("Gift acknowledgement marked sent");
+  }
+
   function approveMessage(id: string) {
     setWorkspace((current) => ({
       ...current,
@@ -332,6 +453,13 @@ export function TodayWorkspace({
 
           <div className="mt-4 grid gap-2">
             <ModeButton
+              active={mode === "gift"}
+              icon={CircleDollarSign}
+              label="Acknowledge Gift"
+              count={pendingGiftAcknowledgements.length}
+              onClick={() => selectMode("gift")}
+            />
+            <ModeButton
               active={mode === "partner"}
               icon={UserRound}
               label="Capture Partner"
@@ -363,6 +491,20 @@ export function TodayWorkspace({
         </aside>
 
         <div className="min-w-0 p-4 sm:p-5">
+          {mode === "gift" ? (
+            <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="min-w-0">
+                <WorkflowHeader
+                  eyebrow="Money in"
+                  title="Acknowledge Gift"
+                  detail={`${pendingGiftAcknowledgements.length.toLocaleString()} acknowledgements open`}
+                />
+                <GiftForm onSubmit={recordGift} />
+              </div>
+              <RecentGifts gifts={workspace.gifts.slice(0, 5)} />
+            </div>
+          ) : null}
+
           {mode === "partner" ? (
             <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
               <div className="min-w-0">
@@ -425,7 +567,22 @@ export function TodayWorkspace({
         </div>
       </div>
 
-      <div className="grid gap-4 border-t border-border p-4 lg:grid-cols-2">
+      <div className="grid gap-4 border-t border-border p-4 xl:grid-cols-3">
+        <ActivityPanel
+          title="Gift Acknowledgements"
+          emptyLabel="No gift acknowledgements"
+          items={pendingGiftAcknowledgements.slice(0, 4).map((gift) => ({
+            id: gift.id,
+            title: gift.partnerName,
+            detail: `${minorCurrency(
+              gift.amount.amountMinor,
+              gift.amount.currency,
+            )} - ${gift.paymentMethod} - ${gift.attentionTier}`,
+            status: gift.acknowledgementStatus,
+            actionLabel: "Sent",
+            onAction: () => acknowledgeGift(gift.id),
+          }))}
+        />
         <ActivityPanel
           title="Open Follow-ups"
           emptyLabel="No open follow-ups"
@@ -450,6 +607,79 @@ export function TodayWorkspace({
             onAction: () => approveMessage(message.id),
           }))}
         />
+      </div>
+    </section>
+  );
+}
+
+function GiftForm({
+  onSubmit,
+}: {
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <form
+      onSubmit={onSubmit}
+      className="min-w-0 rounded-lg border border-border p-4"
+    >
+      <FormTitle title="Record Gift" />
+      <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-2">
+        <TextField name="donorName" label="Donor name" required />
+        <TextField name="country" label="Country" defaultValue="Ghana" />
+        <TextField name="amount" label="Amount" type="number" required />
+        <SelectField
+          name="currency"
+          label="Currency"
+          options={["GHS", "USD", "GBP", "CAD", "XOF"]}
+        />
+        <SelectField
+          name="paymentMethod"
+          label="Method"
+          options={["Mobile Money", "Card", "Bank transfer"]}
+        />
+        <SelectField
+          name="provider"
+          label="Provider"
+          options={["Flutterwave", "Hubtel", "Paystack", "Manual import"]}
+        />
+        <TextField name="providerReference" label="Provider ref" />
+        <TextField name="campaignName" label="Campaign" defaultValue="Banjul" />
+      </div>
+      <SubmitButton label="Draft Thank-you" icon={CircleDollarSign} />
+    </form>
+  );
+}
+
+function RecentGifts({ gifts }: { gifts: ContributionRecord[] }) {
+  return (
+    <section className="min-w-0 rounded-lg border border-border p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-foreground">Recent Gifts</h3>
+        <span className="text-xs font-semibold text-muted-foreground">
+          {gifts.length}
+        </span>
+      </div>
+      <div className="mt-3 space-y-2">
+        {gifts.map((gift) => (
+          <div key={gift.id} className="rounded-lg bg-muted/60 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {gift.partnerName}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {minorCurrency(gift.amount.amountMinor, gift.amount.currency)}{" "}
+                  via {gift.paymentMethod}
+                </p>
+              </div>
+              <StatusBadge label={gift.acknowledgementStatus} />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <StatusBadge label={gift.attentionTier} />
+              <StatusBadge label={gift.reconciliationStatus} />
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );

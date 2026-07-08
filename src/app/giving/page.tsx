@@ -22,11 +22,11 @@ export default async function GivingPage() {
         description="Track contribution history, import batches, recurring commitments, campaign support, failed payments, and finance review without storing payment card data."
       >
         <ActionButton icon={FileUp} primary>
-          Import Payments
+          Import Gifts
         </ActionButton>
       </PageHeader>
 
-      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((stat) => (
           <MetricCard key={stat.label} {...stat} />
         ))}
@@ -81,7 +81,7 @@ export default async function GivingPage() {
         </Panel>
       </section>
 
-      <Panel title="Contribution Ledger" eyebrow="Auditable history">
+      <Panel title="Gift Ledger" eyebrow="Acknowledgement and care">
         <ResponsiveRecordTable
           rows={contributions}
           getRowKey={(contribution) => contribution.id}
@@ -112,6 +112,18 @@ export default async function GivingPage() {
             {
               header: "Method",
               render: (contribution) => contribution.paymentMethod,
+            },
+            {
+              header: "Acknowledgement",
+              render: (contribution) => (
+                <StatusBadge label={contribution.acknowledgementStatus} />
+              ),
+            },
+            {
+              header: "Attention",
+              render: (contribution) => (
+                <StatusBadge label={contribution.attentionTier} />
+              ),
             },
             {
               header: "Campaign",

@@ -3,6 +3,7 @@
 import type { ComponentType } from "react";
 import {
   Bell,
+  BarChart3,
   Bot,
   CircleDollarSign,
   ClipboardList,
@@ -25,6 +26,7 @@ const navIcons: Record<NavIconKey, Icon> = {
   overview: TrendingUp,
   partners: UsersRound,
   giving: CircleDollarSign,
+  reports: BarChart3,
   communication: MessageCircle,
   followUp: ClipboardList,
   campaigns: Globe2,

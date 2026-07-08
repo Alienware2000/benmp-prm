@@ -45,15 +45,17 @@ Current working surfaces:
 
 - Operational overview with staff queue, giving momentum, country summaries, campaign readiness, and backend readiness.
 - Today operations console with focused local browser workflows for capturing a partner, assigning follow-up, and staging message batches before the backend is connected.
+- Donation-first Today workflow for recording a gift, drafting the thank-you, and flagging active-year or high-touch care based on giving thresholds.
 - Partner directory with URL-backed search/filtering and mobile-friendly record cards.
-- Giving ledger with payment import batches, provider references, reconciliation status, and follow-up triggers.
+- Giving ledger with payment import batches, provider references, acknowledgement status, donor attention tiers, reconciliation status, and follow-up triggers.
+- Reports route for longer giving momentum, country portfolio, campaign readiness, and backend readiness views.
 - Messaging center with segments, approval batches, compliance checks, and provider adapter status.
 - Follow-up, campaigns, prayer, AI governance, and admin pages backed by the repository contract.
 - Responsive mobile navigation and record views across all routes.
 
 The Today console persists temporary actions in browser `localStorage` under `benmp-prm-local-workspace-v1`. This is intentionally a thin client-side bridge for MVP review; production persistence should move behind `PrmRepository` and server-side auth.
 
-The Today workflow is intentionally the front door: capture partner, assign follow-up, or approve messaging. Analytics and portfolio views sit below it so the first screen feels operational instead of seeded-data heavy.
+The Today workflow is intentionally the front door: acknowledge a gift, capture a partner, assign follow-up, or approve messaging. Longer analytics and portfolio views live under Reports so the first screen feels operational instead of seeded-data heavy.
 
 ## Near-term Build Order
 

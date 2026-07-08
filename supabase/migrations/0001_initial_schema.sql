@@ -49,8 +49,12 @@ create type public.communication_channel as enum (
 );
 
 create type public.payment_method as enum (
+  'flutterwave_mobile_money',
+  'hubtel_mobile_money',
   'paystack_card',
   'paystack_mobile_money',
+  'paystack_bank_transfer',
+  'mobile_money',
   'paypal',
   'bank_transfer',
   'cash',
@@ -64,6 +68,19 @@ create type public.contribution_status as enum (
   'failed',
   'refunded',
   'cancelled'
+);
+
+create type public.acknowledgement_status as enum (
+  'pending',
+  'drafted',
+  'sent',
+  'failed'
+);
+
+create type public.attention_tier as enum (
+  'standard',
+  'active_year_covered',
+  'high_touch'
 );
 
 create type public.task_status as enum (
@@ -141,6 +158,8 @@ create table public.partners (
   lifetime_giving_currency text not null default 'USD',
   last_contribution_date date,
   last_contacted_at timestamptz,
+  active_year_covered_until date,
+  attention_tier public.attention_tier not null default 'standard',
   created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -165,7 +184,7 @@ create table public.campaigns (
 
 create table public.contributions (
   id uuid primary key default gen_random_uuid(),
-  partner_id uuid not null references public.partners(id) on delete cascade,
+  partner_id uuid references public.partners(id) on delete set null,
   campaign_id uuid references public.campaigns(id) on delete set null,
   contribution_date date not null,
   amount_minor bigint not null check (amount_minor >= 0),
@@ -173,12 +192,41 @@ create table public.contributions (
   payment_method public.payment_method not null default 'other',
   provider text,
   provider_reference text,
+  donor_display_name text,
+  donor_phone text,
+  donor_email text,
   status public.contribution_status not null default 'succeeded',
+  acknowledgement_status public.acknowledgement_status not null default 'pending',
+  attention_tier public.attention_tier not null default 'standard',
+  annual_coverage_months integer not null default 0,
+  requires_call boolean not null default false,
+  acknowledged_at timestamptz,
   raw_payload jsonb not null default '{}'::jsonb,
   created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (provider, provider_reference)
+);
+
+create table public.payment_events (
+  id uuid primary key default gen_random_uuid(),
+  provider text not null,
+  provider_event_id text,
+  provider_reference text,
+  event_type text not null,
+  status text not null default 'received',
+  amount_minor bigint check (amount_minor is null or amount_minor >= 0),
+  currency text,
+  payment_method public.payment_method not null default 'other',
+  donor_display_name text,
+  donor_phone text,
+  donor_email text,
+  contribution_id uuid references public.contributions(id) on delete set null,
+  raw_payload jsonb not null default '{}'::jsonb,
+  received_at timestamptz not null default now(),
+  processed_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (provider, provider_event_id)
 );
 
 create table public.recurring_commitments (
@@ -356,6 +404,8 @@ create index partners_status_idx on public.partners(status);
 create index partners_assigned_to_idx on public.partners(assigned_to);
 create index contributions_partner_date_idx on public.contributions(partner_id, contribution_date desc);
 create index contributions_campaign_idx on public.contributions(campaign_id);
+create index payment_events_provider_reference_idx on public.payment_events(provider, provider_reference);
+create index payment_events_status_idx on public.payment_events(status, received_at desc);
 create index recurring_commitments_partner_idx on public.recurring_commitments(partner_id);
 create index follow_up_tasks_status_due_idx on public.follow_up_tasks(status, due_on);
 create index prayer_requests_status_idx on public.prayer_requests(status);
@@ -452,6 +502,7 @@ alter table public.staff_country_assignments enable row level security;
 alter table public.partners enable row level security;
 alter table public.campaigns enable row level security;
 alter table public.contributions enable row level security;
+alter table public.payment_events enable row level security;
 alter table public.recurring_commitments enable row level security;
 alter table public.partner_notes enable row level security;
 alter table public.prayer_requests enable row level security;
@@ -512,6 +563,11 @@ using (public.current_staff_role() in ('super_admin', 'admin', 'finance'));
 
 create policy contributions_finance_all
 on public.contributions for all
+using (public.current_staff_role() in ('super_admin', 'admin', 'finance'))
+with check (public.current_staff_role() in ('super_admin', 'admin', 'finance'));
+
+create policy payment_events_finance_all
+on public.payment_events for all
 using (public.current_staff_role() in ('super_admin', 'admin', 'finance'))
 with check (public.current_staff_role() in ('super_admin', 'admin', 'finance'));
 

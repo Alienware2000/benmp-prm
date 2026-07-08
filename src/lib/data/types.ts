@@ -8,6 +8,7 @@ export type NavIconKey =
   | "overview"
   | "partners"
   | "giving"
+  | "reports"
   | "communication"
   | "followUp"
   | "campaigns"
@@ -95,6 +96,10 @@ export interface ContributionRecord {
   providerReference: string;
   status: "Succeeded" | "Pending" | "Failed" | "Review";
   reconciliationStatus: "Matched" | "Probable" | "Unmatched";
+  acknowledgementStatus: "Pending" | "Drafted" | "Sent" | "Failed";
+  attentionTier: "Standard" | "Active year covered" | "High touch";
+  annualCoverageMonths: number;
+  followUpRequired: boolean;
 }
 
 export interface PaymentImportBatch {

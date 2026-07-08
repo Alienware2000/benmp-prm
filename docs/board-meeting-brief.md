@@ -8,6 +8,8 @@ The MVP is a staff-only Global Crusade Partners Platform for BENMP and the Heali
 
 It is not a public app for partners. Staff use it to manage:
 
+- Donation intake from Mobile Money, card, and bank transfer
+- Instant thank-you acknowledgement after a successful gift
 - Partner profiles
 - Giving and recurring partner health
 - Campaign/crusade support
@@ -23,8 +25,31 @@ The first demo does not need a full production database. It can run from typed m
 1. We are not replacing the ministry relationship. We are giving staff a better memory and operating system for it.
 2. Partners do not need to be tech savvy. Staff can still reach them by WhatsApp, SMS, email, or phone.
 3. The first phase is the data foundation: partners, giving, campaigns, follow-up, prayer, audit logs, and roles.
-4. AI comes after that foundation: partner briefings before calls, message drafts, payment reconciliation suggestions, and follow-up recommendations.
-5. AI actions should be supervised. The system may draft or suggest, but staff approves sends and data changes.
+4. Payment intake should trigger stewardship: verify the gift, match the donor, send a personal thank-you, classify the donor, and create any follow-up.
+5. AI comes after that foundation: partner briefings before calls, message drafts, payment reconciliation suggestions, and follow-up recommendations.
+6. AI actions should be supervised. The system may draft or suggest, but staff approves sends and data changes.
+
+## Donation And Care Rules Discussed
+
+- BENMP baseline: $5/month.
+- $60 or local equivalent means the donor has effectively covered the BENMP year and should be marked active.
+- $100 or board-defined local equivalent should trigger high-touch care: faster personal call, special acknowledgement, and future campaign/report attention.
+- Every donor should still be thanked and eligible for a call; the threshold prioritizes limited staff time.
+- Messages should not feel generic. Templates should merge name, amount, campaign, giving history, and appropriate tone.
+
+## Payment Provider Direction
+
+The system should not assume one universal payment provider. Build a payment adapter just like the messaging adapter.
+
+Near-term:
+
+- Start with Flutterwave if the existing office prototype is already using Flutterwave test mode for MTN Mobile Money.
+- Keep Hubtel as a serious Ghana-first MoMo option.
+- Keep Paystack for card, bank transfer, Ghana dedicated virtual accounts, and broader regional coverage.
+
+Architecture rule:
+
+- Provider webhook -> raw payment event -> verification -> partner match -> contribution record -> acknowledgement -> care task if needed.
 
 ## Backend Options
 

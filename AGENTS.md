@@ -13,7 +13,10 @@ BENMP PRM is an internal Partner Relationship Management system for BENMP and th
 
 ## Working Principles
 
-- Treat `WORKSPACE.md`, `docs/handoff.md`, and `docs/decisions/` as the portable source of truth for all coding agents.
+- Treat `docs/` as the portable source of truth. Read order: `docs/README.md` (front door + status) → `docs/delivery-plan.md` (what to build: parallel tracks + phase prompts) → `docs/design-spec.md` (deep reference — use the § map at its top) → `docs/decisions.md` (why). `docs/archive/` is history, not required reading.
+- Not everything belongs in git: engineering docs yes; sensitive client specifics (real account numbers, statements, partner exports, office internals) no — reference them, don't embed them.
+- Nothing gets built without a trigger: deferred features name the condition that un-defers them (conventions in `docs/README.md`).
+- This repo (`Alienware2000/benmp-prm`) is the codebase going forward; the frontend consolidation (design-spec Appendix A) is a pass on it, not a rewrite.
 - Prefer small, verifiable changes. Update docs when product architecture or workflow decisions change.
 - Keep public donor experiences separate from this internal staff workspace unless a task explicitly bridges them.
 - Build the PRM foundation first: partners, giving, campaigns, communication history, follow-up tasks, imports/exports, roles, audit logs.
@@ -39,6 +42,6 @@ npm run format:check
 ## Implementation Notes
 
 - Next.js App Router lives under `src/app`.
-- Shared static demo data currently lives in `src/lib/dashboard-data.ts`.
+- Mock/demo data lives behind the `PrmRepository` contract in `src/lib/data/`.
 - Supabase schema drafts live in `supabase/migrations`.
-- AI architecture notes live in `docs/ai-native-roadmap.md` and `src/lib/ai`.
+- AI architecture lives in `docs/design-spec.md` §8 and `src/lib/ai`.

@@ -77,6 +77,19 @@ Requirements:
 - Rollback or cancellation controls.
 - Observability and cost tracking.
 
+## Agent Architecture (added 2026-07-08 — the agentic consolidation)
+
+The client wants the system agentic. These are the load-bearing design elements across all phases:
+
+- **Agent core**: one loop (AI SDK 7 `generateText`/agent primitives) + one tool registry + one policy layer, reused by three surfaces: interactive chat, scheduled runs (monthly cycle), and event-triggered tasks (e.g. high-touch gift → caller brief). Never fork per-surface agents.
+- **Tool tiers**: every tool declares `read | draft | mutate | send`. The executor — not the prompt — enforces: `read` runs freely within the caller's RLS scope; `draft` writes only to review queues; `mutate`/`send` produce an **approval envelope** (a pending-action record with a human-readable diff/preview) and halt. A staff approval mints the token that lets the executor complete the action. Bulk sends need a named approver; prophet-category needs two.
+- **Identity**: interactive runs execute as the invoking staff user (their role, their RLS). Scheduled/event runs execute as a dedicated `agent` service identity with an explicitly enumerated minimal toolset — never the service-role key.
+- **Untrusted input**: partner-authored text (prayer requests, claims, notes, inbound messages) is delimited as quoted data in prompts. Assume prompt injection; the envelope model is the real defense.
+- **Memory**: the PRM database is the memory. Retrieval = repository queries (partner brief, history, message log). No embeddings/vector store until a concrete retrieval need is demonstrated.
+- **Cost model**: template+merge for bulk personalization; LLM generation reserved for high-touch tiers, briefs, reconciliation, and reports. Per-run token/cost budgets recorded in `ai_runs`; model tier per task via the registry (cheap drafter / strong analyst).
+- **Observability + evals**: `ai_runs` stores messages, tool calls, model, tokens, cost, and outcome. Golden-question eval set (the five headline board questions) runs against seed data in CI. Suggestion-inbox accept/reject decisions are logged for eval/improvement.
+- **Kill-switches**: `app_settings` flags gate auto-send, scheduled runs, and the watchdog independently.
+
 ## Guardrails
 
 - AI may draft; staff decides.

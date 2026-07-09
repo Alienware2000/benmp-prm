@@ -2,6 +2,8 @@
 
 Last updated: 2026-07-08. Companion to `docs/design-spec.md`.
 
+> **⚠️ Superseded as the phase plan by [`docs/phases.md`](./phases.md) (2026-07-09).** The authoritative build spine is now the finer 14-phase, test-driven plan in `phases.md` (Database / Auth / Roles / Importer / Profile / Payments / … each its own phase, every task gated by an executable Vitest/Playwright test). This file is retained for its still-useful **Workstreams**, **one-week MVP sprint**, and **Cross-phase rules** sections — but its phase list (1A/1B/2A/2B/3–6) is renumbered per `phases.md`. Data layer is **just Supabase** (no ORM; `supabase/migrations/` authoritative; RLS is the authz gate — Decision 0006), and AI is Claude on Vertex. When in doubt, `phases.md` + `db-schema.md` win.
+
 > **How to use this file.** Each phase below has a Goal, Prerequisites, Deliverables, an Acceptance test, and a fenced **AI prompt**. To execute a phase, paste the prompt into your coding agent (Claude Code, Codex, etc.) — the prompts assume the agent can read this whole repo, especially `docs/`. **Every prompt's REQUIRED READING implicitly includes `docs/srs.md` (requirement IDs) and `docs/db-schema.md` (schema contract, incl. §13 planned tables/columns for your phase).** Build phases in order; run each acceptance test before starting the next. If implementation must deviate from the plan, record it as an **"As-built notes (Phase N, date)"** section appended to the end of this file. `supabase/migrations/` is the authoritative schema: if code and schema disagree, the schema wins until deliberately changed. "Working over looking nice" is the standing rule — every phase ends with something the BENMP office can actually use.
 
 ## Workstreams
@@ -81,7 +83,7 @@ What exists today: Next.js 16 app, adapter-first architecture, typed mock reposi
 
 **Deliverables**:
 
-- `supabase/migrations/0002_*.sql`: `region_blocks` lookup (seeded: Ghana, Rest of Africa, Europe, UK, America) + `partners.region_block_id` + a country→block default mapping; `app_settings` config table holding editable thresholds (active-year 60 USD, high-touch 100 USD) and feature kill-switches; `contributions.usd_equivalent numeric`.
+- `supabase/migrations/0002_*.sql`: `region_blocks` lookup (seeded: Ghana, Rest of Africa, Europe, UK, America, South America, Australia/Asia) + `partners.region_block_id` + a country→block default mapping; `app_settings` config table holding editable thresholds (active-year 60 USD, high-touch 100 USD) and feature kill-switches; `contributions.usd_equivalent numeric`.
 - `src/lib/data/supabase-prm-repository.ts` implementing `PrmRepository`; factory in `src/lib/data/index.ts` switches on `BENMP_DATA_PROVIDER=mock|supabase`.
 - Supabase Auth (email/password) for staff; `profiles` rows with `staff_role`; login screen; `src/proxy.ts` protecting all app routes; baseline RLS (authenticated staff read; role-gated writes; **no region scoping yet** — Decision 0004).
 - Seed script (staff users + minimal reference data), `npm run db:seed` or documented equivalent.
@@ -106,7 +108,7 @@ REQUIRED READING:
 - node_modules/next/dist/docs/ — Next.js 16 conventions differ from your training data (proxy.ts, not middleware.ts)
 
 SCOPE:
-1. Write supabase/migrations/0002_foundation_config.sql: region_blocks lookup table (uuid id, name, sort order) seeded with the five blocks; country_region_defaults mapping table; partners.region_block_id FK (nullable, backfilled by country default at import time); app_settings key/value table seeded with active_year_threshold_usd=60, high_touch_threshold_usd=100, auto_send_acknowledgements=false; contributions.usd_equivalent numeric NULL.
+1. Write supabase/migrations/0002_foundation_config.sql: region_blocks lookup table (uuid id, name, sort order) seeded with the seven blocks; country_region_defaults mapping table; partners.region_block_id FK (nullable, backfilled by country default at import time); app_settings key/value table seeded with active_year_threshold_usd=60, high_touch_threshold_usd=100, auto_send_acknowledgements=false; contributions.usd_equivalent numeric NULL.
 2. Implement SupabasePrmRepository in src/lib/data/supabase-prm-repository.ts covering every PrmRepository method, using @supabase/ssr server clients. Keep all Supabase specifics inside this file and src/lib/supabase/.
 3. Wire the provider factory in src/lib/data/index.ts to BENMP_DATA_PROVIDER (default mock).
 4. Add Supabase Auth: login page, sign-out, profiles table usage per 0001 schema, src/proxy.ts route protection for all app routes except login and future webhook routes (/api/webhooks/*).

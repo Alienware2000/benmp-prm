@@ -40,7 +40,7 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 
 **Decided**:
 1. The **monthly cycle** is the core product loop: remind → receive → acknowledge → **close on the 1st** with a frozen per-region snapshot.
-2. Reporting groups by **five region blocks** — Ghana, Rest of Africa, Europe, UK, America — as a configurable lookup (pending office confirmation). One block per partner, derived from country, overridable.
+2. Reporting groups by **seven region blocks** — Ghana, Rest of Africa, Europe, UK, America, South America, Australia/Asia — as a configurable lookup (pending office confirmation). One block per partner, derived from country, overridable.
 3. The **AI ships early but read-only first** (the analyst), gaining autonomy per 0001.
 
 **Why**:
@@ -99,6 +99,8 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 - **Consumer wallets have no payment-notification API.** Money landing in a wallet tells no software anything — the only automatic detection is parsing the SMS on the SIM-holding phone, which is hardware-dependent, format-fragile per network/country, unverifiable, and exactly where the office prototype got stuck. Merchant rails exist precisely to notify a server with signed, verifiable webhooks.
 - **The wallet number must still exist** because remittance apps can only deliver to wallet numbers — drop it and the diaspora remittance channel dies. Statement import is its trustworthy ledger; the office is never more than ~24h behind.
 - **Recurring MoMo mandates don't exist anywhere** (verified against provider docs) — so the monthly reminder *is* the recurring mechanism. This validates the monthly-cycle design rather than complicating it.
+
+**Verified recurring mechanism (2026-07-09, confirmed against live Paystack docs)**: Paystack reusable authorizations exist only for **cards (all markets)** and **direct debit (Nigeria only)** — Ghana MoMo authorizations are one-time, and the Subscriptions API supports **card + Nigerian direct debit only**. So MoMo recurring is impossible as an auto-pull. The mechanism we build (the transcript's "invoice database + cron" workaround): a monthly **cron** reads each `recurring_commitments` pledge → writes an `invoices` row → issues a **server-side prefilled** payment (Paystack **Charge API** with `mobile_money {phone, provider}` from the partner record, or a Paystack **Payment Request/Invoice** link) so the partner **only enters OTP+PIN** → the `charge.success`/`paymentrequest.success` webhook marks the invoice paid and promotes a contribution. Cards (Stripe subscriptions / `invoice.paid`) remain the only zero-touch rail. New `invoices` table + reconciled `recurring_commitments` land in Phase 1 (see `db-schema.md` §7); the cron loop is Phase 10. Sources: paystack.com/docs/payments/recurring-charges, /subscriptions, /api/charge, /blog Payment Requests.
 - **Merchant-tier registration is non-negotiable at scale**: 40k × $5/month breaches consumer wallet caps, and ministry money should settle to BENMP's bank with an audit trail, not sit on one person's phone.
 
 **Said no to**: bare wallet number as the main channel (blind + fragile) · SMS parsing (rejected as ledger forever) · one provider for everything (none covers Ghana USSD + pan-Africa MoMo + diaspora cards).
@@ -106,3 +108,25 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 **Deferred with triggers**:
 - **WhatsApp claim loop** (partner messages "I gave" → instant provisional thank-you → claim auto-matches the statement) — build only if the office reports remittance-app giving is a significant share.
 - **pawaPay** — add only if rest-of-Africa in-country volume justifies upgrading those partners from the wallet channel to a true merchant rail.
+
+---
+
+## 0006 — Full tech stack: just Supabase + Claude-on-Vertex
+
+*2026-07-09*
+
+**Decided** (from the Jmills meeting transcript; full detail in `docs/tech-stack.md`):
+1. **Next.js full-stack in TypeScript**, deployed on **Vercel** — the REST API is Next route handlers, **not** a separate Python/FastAPI service.
+2. **Data layer is Supabase directly** — `@supabase/supabase-js` + `@supabase/ssr` behind `PrmRepository`, schema as SQL migrations under `supabase/migrations/`, types via `supabase gen types typescript`. **No ORM** (no Prisma, no Drizzle).
+3. AI model is **Anthropic Claude via GCP Vertex AI**, behind the AI SDK model registry.
+
+**Why**:
+- **Next.js full-stack**: the tech lead explicitly rejected Python/FastAPI — "it will not be in Python… Next.js is both front-end and back-end." One deployable, one language, one type system end-to-end.
+- **Just Supabase (reversed from an interim Prisma decision)**: it's the shipped codebase (zero rework), and — decisively — the Supabase client runs queries under the user's JWT so **RLS works as the authorization gate exactly as `db-schema.md`/`security.md` already designed**. An ORM (Prisma) would connect as one role and bypass RLS, forcing authorization up into the repository layer for no benefit here. `supabase gen types` gives type safety without an ORM; money stays integer minor units + `numeric` (returned as strings, no float). The only thing that had argued for Prisma — a "profile" NPM package said to require it — is **not a hard dependency** (nothing in the repo uses it; the partner profile is built natively on the existing `partners` tables).
+- **Claude on Vertex**: "Vertex already has Claude" — consolidates the AI credential on GCP while the registry keeps a swap to the direct Anthropic API cheap.
+
+**Consequences**: RLS is the primary write gate (per-role policies in the migration that creates each table), restoring 0004's design; server actions still validate but don't replace RLS. `docs/db-schema.md` stays raw-SQL/Supabase; the new `invoices` table + reconciled `recurring_commitments` (the recurring-giving loop) are ordinary Supabase migrations.
+
+**Said no to**: Python/FastAPI backend · Prisma / Drizzle / any ORM (the Supabase client + RLS covers it with less complexity) · direct Anthropic API as the primary path (Vertex chosen; direct stays a config-level fallback).
+
+**Trigger to revisit**: only if the "profile" NPM package (or similar) turns out to be mandatory *and* genuinely Prisma-only.

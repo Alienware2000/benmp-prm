@@ -8,7 +8,7 @@ BENMP PRM handles money records, partner PII, prayer requests, WhatsApp/SMS/emai
 
 - Staff-only access.
 - Least privilege by role.
-- RLS on operational tables.
+- **RLS on operational tables is the authorization gate** — the Supabase client queries under the user's JWT, so per-role policies enforce reads/writes directly (Decision 0006, just-Supabase). Server actions validate input; RLS enforces access.
 - Verified payment evidence before contribution creation.
 - Human approval before bulk send, sensitive send, AI mutation, or AI send.
 - Audit logs for all sensitive operations.
@@ -50,13 +50,15 @@ Phase 1 rule:
 
 ## 4. Row-Level Security
 
-`0001_initial_schema.sql` enables RLS on all operational tables.
+RLS is the authorization gate (Decision 0006, just-Supabase): the Supabase client queries under the logged-in user's JWT, so per-role policies enforce access at the database. `0001_initial_schema.sql` enables RLS on all operational tables.
 
 Implementation requirements:
 
 - Every new table must enable RLS in the same migration that creates it.
 - Every table must have explicit select/insert/update/delete policies or a documented denial.
-- Viewer write attempts must fail.
+- Viewer write attempts must fail (enforced by RLS).
+- Region scoping (Phase 13) is RLS-enforced via `staff_country_assignments`.
+- The service-role key bypasses RLS and is used only in trusted server code that must (e.g. webhook intake, seeds).
 - Finance-only tables must stay finance/admin scoped.
 - Prayer-sensitive data must stay prayer/admin scoped.
 - Regional scoping must be tested before coordinator accounts are enabled.
@@ -153,8 +155,9 @@ Current `.env.example` keys include:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `AI_GATEWAY_API_KEY`
 - `BENMP_DEFAULT_MODEL`
+- `GOOGLE_VERTEX_PROJECT`, `GOOGLE_VERTEX_LOCATION` (Claude on Vertex)
+- `GOOGLE_APPLICATION_CREDENTIALS` (Vertex service-account, server only — never in git)
 - `PAYSTACK_SECRET_KEY`
 - `PAYSTACK_WEBHOOK_SECRET`
 - `TWILIO_ACCOUNT_SID`

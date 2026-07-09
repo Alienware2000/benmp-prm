@@ -1,6 +1,8 @@
 # BENMP PRM — Design Specification
 
-Last updated: 2026-07-08. **This is the deep reference — don't read it cover-to-cover.** For the 5-minute version read `docs/README.md`; for what to build read `docs/delivery-plan.md`. Come here when your work needs the detail, via this map:
+> The deep-reference companion to `srs.md` (the *how* behind the *what*). **Don't read it cover-to-cover** — for the 5-minute version read `docs/README.md`, for what to build read `docs/phases.md`. Come here when your work needs the detail, via the map below. Last updated 2026-07-08.
+
+Use this map:
 
 | Your work | Read |
 | --- | --- |
@@ -51,7 +53,7 @@ Three-sentence version: Money arrives through a small set of universal giving ch
 The schema draft in `supabase/migrations/0001_initial_schema.sql` already covers most of this. New concepts from the latest client requirements are marked **(new)**.
 
 - **Partner** — profile (name, mobile, WhatsApp, email, country, city, church, partner-since date, level, giving frequency, preferred channel, birthday, prayer requests, notes, tags, assigned coordinator) plus computed giving status.
-- **Region block (new)** — the operational blocks the office manages by, seeded as: **Ghana, Rest of Africa, Europe, UK, America** (from board meetings; not publicly documented, pending office confirmation). Implemented as a configurable lookup table, not a hard-coded enum, so the list can change without a migration. Every partner belongs to exactly one block (derived from country, overridable). All headline reporting is per block.
+- **Region block (new)** — the operational blocks the office manages by, seeded as: **Ghana, Rest of Africa, Europe, UK, America, South America, Australia/Asia** (from board meetings; not publicly documented, pending office confirmation). Implemented as a configurable lookup table, not a hard-coded enum, so the list can change without a migration. Every partner belongs to exactly one block (derived from country, overridable). All headline reporting is per block.
 - **Payment event** — immutable raw record from any provider webhook or import, kept before matching so nothing is ever silently lost.
 - **Contribution** — a verified gift matched to a partner: date, amount, currency, method, campaign, provider reference, acknowledgement status, attention tier.
 - **Monthly cycle (new, the heartbeat)** — see §5. Each month has a lifecycle: reminders out → gifts in → acknowledgements out → close. A **monthly snapshot** freezes per-block stats at close so history stays queryable.
@@ -95,7 +97,7 @@ The posture is **merchant-first**: route every gift through a webhook-confirmed 
 | Published channel | Who uses it | How it's known to the system | Freshness |
 | --- | --- | --- | --- |
 | **1. BENMP merchant short code** (Hubtel `*713*NNN#`, all three Ghana networks, works from feature phones; Paystack charge API/pay links as the smartphone/web face of the same rail) | Ghana + anyone with a Ghanaian wallet — the majority of volume | Signed webhook, seconds | Instant thank-you, live dashboard |
-| **2. BENMP giving link** (Stripe payment links, one-time **and** subscription) | Card countries: Europe, UK, America diaspora | Signed webhook, seconds | Instant thank-you, live dashboard |
+| **2. BENMP giving link** (Stripe payment links, one-time **and** subscription) | Card countries: Europe, UK, America, South America, Australia/Asia diaspora | Signed webhook, seconds | Instant thank-you, live dashboard |
 | **3. BENMP wallet number + WhatsApp claim step** (merchant-tier ministry wallet; published as "① send via your money-transfer app ② then message us on WhatsApp") | Remittance-app givers worldwide: Sendwave, WorldRemit, Wise, Western Union, M-Pesa, Airtel Africa — apps that can only pay wallet numbers | **Claim loop + daily statement import**: the WhatsApp message creates a pending claim and triggers an instant provisional thank-you; the daily statement import confirms the claim and finalizes the contribution | Instant *felt* acknowledgement; ledger-confirmed within ~24h |
 
 The claim loop is **deferred with a trigger**: build it only when the office reports remittance-app giving is a significant share — until then channel 3 runs on statement import alone. When built: claims never create contributions on their own (they wait for a statement match; orphans go to the reconciliation queue), they solve remittance's identity problem (statements carry truncated sender names; the claim carries the partner's real identity and WhatsApp number), and they open a WhatsApp relationship at the moment of generosity. An SMS-forwarder early-warning signal may later accelerate provisional matching but is never the ledger.
@@ -212,7 +214,7 @@ Resolved 2026-07-08 with David (recorded in Decision 0004):
 4. ✅ Backend: Supabase (managed Postgres + auth + RLS), behind the existing repository adapter.
 5. ✅ Thresholds: USD baseline with FX conversion at gift date; amounts admin-configurable.
 6. ✅ Data access: all staff see all initially; region scoping schema-ready but deferred.
-7. ✅ Region blocks: configurable lookup, seeded Ghana / Rest of Africa / Europe / UK / America.
+7. ✅ Region blocks: configurable lookup, seeded Ghana / Rest of Africa / Europe / UK / America / South America / Australia/Asia.
 
 Still open (mostly client-side):
 

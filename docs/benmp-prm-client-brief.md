@@ -97,7 +97,7 @@ These are the decisions that affect the first build most directly.
 2. Which giving channels should be represented first in the system?
 3. Can the office export Mobile Money, bank, wallet, or remittance statements regularly?
 4. Who should be included in the first staff login list, and what role should each person have?
-5. Should reporting start with the region blocks Ghana, Rest of Africa, Europe, UK, and America, or should BENMP use a different grouping?
+5. Should reporting start with the region blocks Ghana, Rest of Africa, Europe, UK, America, South America, and Australia/Asia, or should BENMP use a different grouping?
 6. What are the most important dashboard questions leadership wants answered first?
 
 The remaining details can be refined after the first workflow is proven. For example, AI rules, advanced messaging approvals, regional coordinator permissions, and high-volume WhatsApp automation do not need to delay the first build.

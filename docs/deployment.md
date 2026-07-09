@@ -20,6 +20,7 @@ Do not point previews at production Supabase unless branch isolation and permiss
 | ------------------- | --------------------------------------------------------------- |
 | Web app hosting     | Vercel project under the correct account.                       |
 | Database/auth       | Supabase project controlled by BENMP or agreed technical owner. |
+| AI model            | GCP project with **Vertex AI** enabled (Claude in Model Garden) + a service account. |
 | Payment providers   | BENMP legal entity/provider accounts.                           |
 | Messaging providers | BENMP-owned Twilio/Meta/Resend accounts.                        |
 | Secrets             | Vercel environment variables and Supabase secret storage.       |
@@ -62,14 +63,14 @@ Important:
 
 ## 5. Supabase Setup
 
-Phase 1A target:
+Phase 1 target (just Supabase — Decision 0006):
 
 1. Create a Supabase project.
-2. Apply `supabase/migrations/0001_initial_schema.sql`.
-3. Add `0002_foundation_config.sql` with region blocks, settings, `partners.region_block_id`, and `contributions.usd_equivalent`.
-4. Create initial staff users.
+2. Apply the SQL migrations under `supabase/migrations/` (authoritative), then generate types with `supabase gen types typescript`.
+3. Seed via `npm run db:seed` (region blocks, `app_settings` thresholds, staff profiles, minimal templates).
+4. Create initial staff users in Supabase Auth.
 5. Insert matching `profiles` rows with roles.
-6. Enable and verify RLS policies.
+6. Enable and verify RLS policies (the authorization gate).
 7. Configure Supabase Auth redirect URLs for local, preview, and production.
 
 Manual verification:
@@ -89,10 +90,12 @@ Current keys from `.env.example`:
 | `BENMP_DATA_PROVIDER`           | All            | `mock`, `supabase`, or future `postgres`. Default mock. |
 | `BENMP_MESSAGING_PROVIDER`      | All            | `mock`, `twilio`, or future `meta-cloud-api`.           |
 | `NEXT_PUBLIC_SUPABASE_URL`      | Supabase envs  | Public Supabase URL.                                    |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase envs  | Public anon key; RLS still protects data.               |
-| `SUPABASE_SERVICE_ROLE_KEY`     | Server only    | Never expose to client bundles.                         |
-| `AI_GATEWAY_API_KEY`            | AI envs        | Model gateway/API key.                                  |
-| `BENMP_DEFAULT_MODEL`           | AI envs        | Defaults to `gateway:auto` in code.                     |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase envs  | Public anon key; RLS backstops data.                    |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Server only    | Never expose to client bundles. Bypasses RLS — trusted server code only. |
+| `GOOGLE_VERTEX_PROJECT`         | AI envs        | GCP project id for Claude on Vertex.                    |
+| `GOOGLE_VERTEX_LOCATION`        | AI envs        | Vertex region, e.g. `us-east5`.                         |
+| `GOOGLE_APPLICATION_CREDENTIALS`| Server only    | Vertex service-account (path or inline JSON); not in git.|
+| `BENMP_DEFAULT_MODEL`           | AI envs        | Claude model id resolved via the registry.              |
 | `PAYSTACK_SECRET_KEY`           | Payment envs   | Server only.                                            |
 | `PAYSTACK_WEBHOOK_SECRET`       | Payment envs   | Server only.                                            |
 | `TWILIO_ACCOUNT_SID`            | Messaging envs | Server only.                                            |
@@ -133,22 +136,21 @@ Rules:
 
 ## 8. Database Migration Workflow
 
-Current repo has raw SQL migrations under `supabase/migrations`.
+Schema is hand-written SQL migrations under `supabase/migrations/` (Decision 0006, just-Supabase; `db-schema.md` is the contract).
 
 Expected workflow:
 
-1. Write a new migration file.
-2. Apply to local/test Supabase.
+1. Write a new migration file (enable RLS + policies in the same file as any new table).
+2. Apply to local/test Supabase; regenerate types with `supabase gen types typescript`.
 3. Update `docs/db-schema.md` in the same change when domain shape changes.
-4. Run app typecheck/lint/build.
+4. Run app typecheck/lint/test/build.
 5. Apply to preview.
 6. Smoke test.
 7. Apply to production during a planned release window.
 
 Rules:
 
-- Never edit a migration that has already been applied to production.
-- Add a new migration instead.
+- Never edit a migration already applied to production. Add a new one instead.
 - Do not store production database dumps in the repo.
 
 ## 9. Seed And Imports
@@ -181,11 +183,14 @@ Planned jobs:
 
 | Job                            | Phase | Candidate Runtime                                 |
 | ------------------------------ | ----- | ------------------------------------------------- |
-| Statement import reminders     | 2B    | Staff workflow first; automation later.           |
-| Message batch dispatch         | 3     | Vercel cron or Supabase scheduled function.       |
-| Month-close snapshots          | 5     | Vercel cron route or Supabase scheduled function. |
-| Lapsed partner task generation | 5     | Same job as month-close or follow-up worker.      |
-| Webhook replay review          | 6     | Admin-triggered job plus dead-letter queue.       |
+| Statement import reminders     | 7     | Staff workflow first; automation later.           |
+| Message batch dispatch         | 8     | Vercel cron or Supabase scheduled function.       |
+| **Recurring invoice cron**     | 10    | Vercel cron: generate `invoices` from due `recurring_commitments`, issue prefilled Paystack charge/link, reconcile via webhook. |
+| Month-close snapshots          | 12    | Vercel cron route or Supabase scheduled function. |
+| Lapsed partner task generation | 12    | Same job as month-close or follow-up worker.      |
+| Webhook replay review          | 13    | Admin-triggered job plus dead-letter queue.       |
+
+(Phase numbers per `docs/phases.md`.)
 
 Pick one runtime per job and document why when implemented.
 

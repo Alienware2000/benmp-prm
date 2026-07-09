@@ -208,9 +208,11 @@ Rules:
 
 ### `POST /api/webhooks/paystack`
 
-Phase: 2A.
+Phase: 6 (recurring/invoice handling: 10).
 
 Auth: Paystack signature.
+
+Events: `charge.success`, `paymentrequest.success` (Invoices).
 
 Behavior:
 
@@ -220,8 +222,9 @@ Behavior:
 4. Insert idempotent `payment_events` row.
 5. Re-query Paystack transaction with `PAYSTACK_SECRET_KEY`.
 6. Promote verified event to contribution.
-7. Queue acknowledgement draft.
-8. Return 2xx for successfully handled duplicate or new event.
+7. If the event references an open `invoices` row (payment-request/reference), mark it paid and link `payment_event_id` + `contribution_id`.
+8. Queue acknowledgement draft.
+9. Return 2xx for successfully handled duplicate or new event.
 
 Negative behavior:
 
@@ -245,6 +248,15 @@ Behavior:
 - Map one-time and subscription payments into the same payment event shape.
 - Promote only verified successful payments.
 - Use Stripe event id and payment intent/invoice id for idempotency.
+
+### Recurring giving & invoices (Phase 10)
+
+The prefilled-invoice loop (Decision 0005). Recurring MoMo has no auto-debit; the cron issues a prefilled charge and reconciles via the webhooks above.
+
+- `POST /api/cron/recurring-invoices` — cron-triggered (Vercel Cron; protected by a cron secret, not a staff session). For each due `recurring_commitments`, create one `invoices` row for the period (unique `(recurring_commitment_id, period_month)`), issue the prefilled Paystack **Charge API** (`mobile_money {phone, provider}` from the partner) or **Payment Request/Invoice**, store `payment_link`, set status `sent`, and send it via the messaging adapter. Idempotent: re-running a period is inert.
+- `POST /api/recurring-commitments` / `PATCH /api/recurring-commitments/:id` — staff manage a partner's standing pledge (amount, cadence, channel).
+- `POST /api/invoices/:id/resend` — staff re-send an unpaid invoice's prefilled link.
+- Invoices are marked `paid` **only** by a verified `charge.success` / `paymentrequest.success` / Stripe `invoice.paid` webhook (above) — never by the cron.
 
 ### `POST /api/webhooks/hubtel`
 

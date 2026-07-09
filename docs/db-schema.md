@@ -14,6 +14,8 @@ Required next migration from the delivery plan:
 
 This project uses Supabase Postgres first, but the data model should remain ordinary Postgres. Business logic should stay behind `PrmRepository`, payment adapters, messaging adapters, and AI tools so Neon, Aurora Postgres, or Cloud SQL remain possible exits later.
 
+> **Decision 0006 (just Supabase, no ORM).** Data access is the Supabase client (`@supabase/supabase-js` + `@supabase/ssr`); schema is hand-written SQL under `supabase/migrations/` (authoritative — if this doc and migrations disagree, migrations win). Types come from `supabase gen types typescript`. **RLS is the authorization gate** (per-role policies), enforced because the client queries under the user's JWT. Money: original amounts stay **integer minor units** (`amount_minor`), `usd_equivalent` is `numeric` (returned as a string by the client — no JS float). No ORM (Prisma/Drizzle) — a prior interim Prisma decision was reversed.
+
 ## 2. Conventions
 
 | Area              | Convention                                                                                                                                                 |
@@ -41,6 +43,10 @@ erDiagram
   profiles ||--o{ ai_runs : runs
   partners ||--o{ contributions : gives
   partners ||--o{ recurring_commitments : has
+  partners ||--o{ invoices : billed
+  recurring_commitments ||--o{ invoices : generates
+  invoices ||--o| contributions : promotes_to
+  invoices }o--|| payment_events : confirmed_by
   partners ||--o{ partner_notes : has
   partners ||--o{ prayer_requests : has
   partners ||--o{ follow_up_tasks : has
@@ -84,6 +90,7 @@ erDiagram
 | `task_status`            | `open`, `in_progress`, `done`, `cancelled`                                                                                                                                                 |
 | `prayer_request_status`  | `open`, `praying`, `responded`, `closed`                                                                                                                                                   |
 | `message_status`         | `draft`, `queued`, `sent`, `delivered`, `failed`, `cancelled`                                                                                                                              |
+| `invoice_status`         | `pending`, `sent`, `paid`, `failed`, `cancelled`                                                                                                                                          |
 
 Note: `payment_method` still contains `flutterwave_mobile_money` because the initial draft allowed it. Decisions demote Flutterwave to fallback; new implementation should prefer Paystack/Hubtel/Stripe while leaving the enum value harmless for imports or migration history.
 
@@ -256,29 +263,69 @@ Rules:
 
 ### `recurring_commitments`
 
-Purpose: subscription-like giving commitments where a provider supports them, especially Stripe.
+Purpose: the **standing giving instruction** (the "pledge") — the amount a partner has committed to give on a cadence. Source of the amount that prefills each cycle's invoice. Two kinds: **provider-mandated** (Stripe card subscription — truly auto-charged) and **reminder-driven** (Ghana MoMo — no mandate exists, so the monthly cron issues a prefilled invoice; see `invoices`).
 
 Fields:
 
 - `partner_id`
-- `provider`
-- `provider_subscription_code`
+- `provider` (`stripe` | `paystack` | `manual`)
+- `provider_subscription_code` (Stripe subscription id; **null for MoMo/reminder-driven** commitments)
+- `channel communication_channel` — how each cycle's prefilled link is delivered when reminder-driven
+- `payment_method` — expected rail (e.g. `paystack_mobile_money`, `paystack_card`, Stripe card)
 - `amount_minor`
 - `currency`
 - `frequency`
 - `status`
+- `day_of_month int` — when in the cycle the invoice is generated
 - `next_payment_date`
 - `last_payment_date`
 - `failed_payment_count`
 
 Unique:
 
-- `(provider, provider_subscription_code)`
+- `(provider, provider_subscription_code)` where the code is present.
 
 Rules:
 
-- Do not assume MoMo recurring mandates exist.
-- Stripe subscriptions can use this table once webhook handling lands.
+- **MoMo recurring mandates do not exist** (verified against Paystack docs — Decision 0005). MoMo commitments are reminder-driven: the cron generates an `invoices` row each cycle and issues a prefilled Charge/Payment-Request; the partner authorizes with OTP+PIN. No stored authorization.
+- Stripe card subscriptions carry `provider_subscription_code` and are auto-charged; their `invoice.paid` webhook confirms each cycle.
+- `amount_minor` is the pledge the cron reads to populate the next invoice.
+
+### `invoices`
+
+Purpose: the **per-cycle bill** the transcript asked for ("we need an invoice database… a cron that runs every month to generate a bill… mark our invoice as paid"). One row per commitment per period, tracking generate → send → paid/unpaid. It is the internal ledger that makes MoMo's push-based giving behave like a subscription, and it mirrors provider invoices for card money.
+
+Fields:
+
+- `id uuid primary key`
+- `partner_id uuid references partners(id)`
+- `recurring_commitment_id uuid references recurring_commitments(id)` — null for a one-off manual invoice
+- `campaign_id uuid references campaigns(id)` — nullable attribution
+- `period_month date` — first day of the billed month
+- `amount_minor bigint`, `currency text`
+- `payment_method`, `channel communication_channel` — the rail + how the prefilled link is delivered
+- `status invoice_status`
+- `provider text` (`paystack` | `stripe`)
+- `provider_invoice_id text` — Paystack Payment-Request/Invoice id or Stripe invoice id
+- `provider_reference text` — the charge/transaction reference once attempted
+- `payment_link text` — the server-generated **prefilled** Charge/Payment-Request URL (amount, and for MoMo the phone/provider, pre-populated from the partner record so the partner only enters OTP+PIN)
+- `payment_event_id uuid references payment_events(id)` — the confirming verified event
+- `contribution_id uuid references contributions(id)` — the ledger row it promoted to when paid
+- `due_on date`, `sent_at timestamptz`, `paid_at timestamptz`, `reminder_count int not null default 0`
+- `created_by`, timestamps
+- Unique `(recurring_commitment_id, period_month)` — never double-bill a cycle.
+
+Indexes:
+
+- `invoices_partner_idx`
+- `invoices_status_due_idx`
+
+Rules:
+
+- The monthly cron generates **one** invoice per due commitment per period (unique constraint enforces it); regenerating is inert.
+- An invoice is marked `paid` **only** via a verified `payment_events` row (webhook `charge.success` / `paymentrequest.success`, or Stripe `invoice.paid`) — never by the cron optimistically. Promotion writes a `contributions` row through the normal pipeline.
+- MoMo: no mandate — invoice stays `sent` until confirmed; unpaid after N `reminder_count` → a `follow_up_task`.
+- `payment_link` prefill uses partner profile data; never store card/PIN/OTP.
 
 ### `payment_imports`
 
@@ -533,6 +580,8 @@ Seed values:
 3. Europe
 4. UK
 5. America
+6. South America
+7. Australia/Asia
 
 ### `country_region_defaults`
 
@@ -588,6 +637,8 @@ Rule:
 - Keep original currency and original amount. USD equivalent is a reporting/rules helper, not a replacement for original money.
 
 ## 13. Later Planned Tables And Columns
+
+> **Phase numbers in this section follow the OLD `delivery-plan.md` scheme (1B, 2A, 2B, 3, 4, 5, 6).** The new finer spine lives in `docs/phases.md`; mapping — 1B→Phase 4 (importer), 2A→Phase 6 (webhook intake), 2B→Phase 7 (statements/reconciliation), messaging→Phase 8, recurring/invoices→Phase 10, AI→Phase 11, snapshots→Phase 12, scale/RLS→Phase 13. `invoices` and `recurring_commitments` (§7) are now **core** (modeled in Phase 1's schema), not "later planned".
 
 | Table                                                     | Phase | Trigger                                                                      |
 | --------------------------------------------------------- | ----- | ---------------------------------------------------------------------------- |

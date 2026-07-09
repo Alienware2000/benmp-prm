@@ -598,6 +598,7 @@ Rule:
 | `monthly_snapshots`                                       | 5     | Needed for frozen month-close reports.                                       |
 | `sequence_definitions`, `sequence_runs`, `sequence_steps` | 5     | Only if manual message batches become the bottleneck.                        |
 | `approval_policies`                                       | 5+    | Only when per-batch approval becomes the bottleneck (srs FR-7.7).            |
+| `ingestion_sources`                                       | 2B    | Registry of statement sources: label, method (manual/email/api), expected cadence, parser key, masked account ref, `last_ingested_at` — powers the freshness monitor (design-spec §6 addendum). |
 | `webhook_dead_letters`, `webhook_replays`                 | 6     | Needed for production-grade retry/replay tooling.                            |
 
 Planned columns (needed by specific phases; add in that phase's migration):

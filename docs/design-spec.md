@@ -111,6 +111,25 @@ Design rules:
 - Never store card data; store provider references only.
 - **No SMS parsing.** The office prototype's SMS-forwarder intake path (parsing the MoMo received-payment SMS on the receiving phone) is explicitly rejected as an ingestion mechanism: it is per-network fragile, hardware-dependent, and unverifiable. All intake is provider-webhook or staff-reviewed import.
 
+### Statement ingestion — the automation ladder (0006 addendum)
+
+The import pipeline never changes; only the **fetcher** in front of it does. Each source (MTN merchant wallet, each regional bank account, each council wallet if federated) climbs independently:
+
+| Level | Fetcher | When |
+| --- | --- | --- |
+| 0 | Manual upload of a downloaded CSV | Day one, every source |
+| 1 | **Scheduled email ingestion**: the bank/MTN emails the daily statement to a dedicated inbox; the system reads and parses the attachment | As soon as the office confirms the account can schedule statement emails (most can) |
+| 2 | API pull: nightly fetch — MTN MoMo collections API (Ghana, once production access granted); **open banking** (TrueLayer/GoCardless-class, PSD2-regulated read-only feeds) for UK/EU bank accounts | Per-account trigger |
+| 3 | True webhooks (MTN API callbacks) — instant thank-yous return | When granted |
+| ✗ | Portal scraping / RPA — **rejected**, same disease family as SMS parsing (credential risk, breaks on redesign) | Never |
+
+Two structural pieces make statements trustworthy as the backbone:
+
+- **Source registry** (`ingestion_sources`): every account is registered with label, method, expected cadence, parser, and `last_ingested_at`; every payment event records its source.
+- **Freshness monitor**: staleness is the failure mode of a statement-backbone system. Each source has an expected cadence; overdue sources flag on the Today dashboard and alert staff. The system must know when it is blind.
+
+**Discovery method** (how each account's level gets determined — empirical, not desk-designed): enumerate the accounts → run a six-question audit per account (portal? export format? scheduled statement emails? API/open-banking? credential owner + 2FA? history depth?) → **collect one real sample statement per account immediately** (redacted fine; parsers are built against real formats and samples prove the matching columns exist) → assign ladder level per account, upgrade independently. Office-facing checklist: `ops-runbook.md` §5.
+
 ## 7. Messaging
 
 - **Channels**: WhatsApp (primary — it's where the partners are), SMS (fallback/preference), email (newsletters, receipts). Phone calls are a staff workflow (call queue + scripts + outcome logging), not telephony integration, until Phase 6+.

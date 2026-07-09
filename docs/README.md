@@ -44,7 +44,7 @@ Older deep-context docs (product brief, architecture, research, board brief, AI 
 
 - **Team to decide**: the 5 UI questions at the end of design-spec Appendix A.
 - **Leadership to decide**: council flows — central, federated, or hybrid (Decision 0006 recommends hybrid).
-- **Office to provide**: **submit the MTN MoMoPay merchant application (new longest pole)**, partner Excel export, statement access for each wallet/bank account, business registration docs, per-region bank account details, remittance share of current giving, **take down the public prototype page exposing partner PII**.
+- **Office to provide**: **submit the MTN MoMoPay merchant application (new longest pole)**, partner Excel export, the per-account statement audit + one sample statement per account (ops-runbook §5 checklist), business registration docs, per-region bank account details, remittance share of current giving, **take down the public prototype page exposing partner PII**.
 
 ## Conventions
 

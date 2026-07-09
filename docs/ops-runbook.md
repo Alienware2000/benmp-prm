@@ -108,6 +108,17 @@ Workflow:
 8. Review matched, duplicate, ambiguous, and unmatched rows.
 9. Resolve reconciliation queue.
 
+Source discovery checklist (run once per account — MTN merchant wallet, each bank account, each council wallet; ~10 minutes each):
+
+1. What portal or app shows this account's incoming payments?
+2. Can it export the list as a file? What format (CSV/Excel/PDF), and what columns (sender name? sender number? reference?)
+3. Can the provider **email statements automatically on a schedule** (daily/weekly)? To any address?
+4. Is there an API, or is the bank covered by open banking (UK/EU accounts usually are)?
+5. Who holds the login, and how does 2FA work?
+6. How far back does history go, and can we get one **sample statement now** (redact amounts/names if needed)?
+
+Send answers + sample files to the engineering team; each account then gets its automation level assigned (manual upload → scheduled email → API).
+
 Rules:
 
 - Statement import is the ledger for webhook-less money.

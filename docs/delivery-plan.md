@@ -239,6 +239,7 @@ Output a PR-style summary with webhook test instructions (curl fixtures included
 **Deliverables**:
 
 - Statement import at `/giving/imports`: MoMo-wallet CSV and bank CSV mappings → `payment_events` (source `statement_import`), row-hash dedup, reference-word extraction for bank rows.
+- **Source registry + freshness monitor**: `ingestion_sources` table (label, method, expected cadence, parser, last_ingested_at); every import updates its source; overdue sources surface on Today (design-spec §6 addendum). Email/API fetchers are later ladder levels — the registry ships now so freshness is visible from day one.
 - Reconciliation queue at `/giving/reconciliation`: unmatched events with actions — match to partner (search), create partner, dismiss (reason required) — all audited.
 - Manual gift entry writing through the same pipeline.
 
@@ -247,6 +248,7 @@ Output a PR-style summary with webhook test instructions (curl fixtures included
 1. Fixture wallet statement imports: recognizable rows become contributions + ack drafts; strangers land in the queue.
 2. Re-importing the same statement adds nothing (row-hash dedup).
 3. Queue actions work and write audit_log; dismissal requires a reason.
+5. A source with no import inside its expected cadence shows as overdue on Today.
 4. Negative: a manual gift for a nonexistent partner cannot bypass the queue.
 
 ```text
@@ -488,6 +490,6 @@ Output a PR-style summary with measured performance numbers.
 ## Standing decisions needed from BENMP (blockers by phase)
 
 - Phase 1: the office's partner Excel sheets + a benmp.com export for the clean import; who are the initial staff users and roles; office confirmation of the region-block list.
-- Phase 2: BENMP registered-business documents for the **MTN MoMoPay merchant application (submit Day 0 — longest pole)**; per-region bank accounts + reference-word convention; which legal entity/bank Stripe settles to; daily statement access (CSV/API) for the merchant wallet, council wallets (if federated), and bank accounts.
+- Phase 2: BENMP registered-business documents for the **MTN MoMoPay merchant application (submit Day 0 — longest pole)**; per-region bank accounts + reference-word convention; which legal entity/bank Stripe settles to; **the per-account statement audit + one real sample statement per account (redacted fine)** — parsers are built against real formats (ops-runbook §5 checklist); whether each account can schedule daily statement emails (unlocks ladder Level 1).
 - Phase 3: WhatsApp Business account ownership and Meta Business verification (weeks — start at Phase 1); sender identity ("BENMP Office"); what share of current giving arrives via remittance apps (decides the wallet channel's marketing weight).
 - Phase 5: sign-off on message tone/templates, especially anything sent in Bishop Dag's name, and who the second approver for prophet-category messages is.

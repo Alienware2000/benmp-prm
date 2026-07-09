@@ -51,7 +51,7 @@ Three-sentence version: Money arrives through a small set of universal giving ch
 The schema draft in `supabase/migrations/0001_initial_schema.sql` already covers most of this. New concepts from the latest client requirements are marked **(new)**.
 
 - **Partner** — profile (name, mobile, WhatsApp, email, country, city, church, partner-since date, level, giving frequency, preferred channel, birthday, prayer requests, notes, tags, assigned coordinator) plus computed giving status.
-- **Region block (new)** — the operational blocks the office manages by, seeded as: **Ghana, Rest of Africa, Europe, UK, America** (from board meetings; not publicly documented, pending office confirmation). Implemented as a configurable lookup table, not a hard-coded enum, so the list can change without a migration. Every partner belongs to exactly one block (derived from country, overridable). All headline reporting is per block.
+- **Region block (new)** — the operational blocks the office manages by, seeded as: **Ghana, Rest of Africa, Europe, UK, Australia/Asia, South America, North America** (clarified with the client 2026-07-09). Implemented as a configurable lookup table, not a hard-coded enum, so the list can change without a migration. Every partner belongs to exactly one block (derived from country, overridable). All headline reporting is per block.
 - **Payment event** — immutable raw record from any provider webhook or import, kept before matching so nothing is ever silently lost.
 - **Contribution** — a verified gift matched to a partner: date, amount, currency, method, campaign, provider reference, acknowledgement status, attention tier.
 - **Monthly cycle (new, the heartbeat)** — see §5. Each month has a lifecycle: reminders out → gifts in → acknowledgements out → close. A **monthly snapshot** freezes per-block stats at close so history stays queryable.
@@ -86,38 +86,25 @@ Month end ─► Close: per-block snapshot (paid / unpaid / % active /
 - **Acknowledgement**: every successful gift produces a personal thank-you from the BENMP office within a minute — the single most important relational moment in the whole system.
 - **Close**: on the 1st, the previous month is frozen. The office (and the AI assistant) can answer instantly: how many partners per block, who paid, % active vs inactive, contributions per block, who needs a call. Lapsed partners flow into gentle follow-up, not shame.
 
-## 6. Payments — one identity, two faces (Decision 0005)
+## 6. Payments — custody-first rails (Decision 0006)
 
-The board wants partners worldwide to know **one or two Ghanaian MoMo numbers**, not a menu of providers. The channel model honors that. Core fact driving the design: a **bare wallet number** can receive money from anywhere (including remittance apps like Sendwave/WorldRemit/Wise/M-Pesa cross-border) but *nothing notifies software when money lands* — the only traces are an SMS on the SIM-holding phone and the wallet statement. A **merchant rail** (Hubtel/Paystack/MTN merchant account) notifies our server instantly with a signed webhook, but remittance apps cannot pay a merchant code. Hence two published faces:
+Admin direction (2026-07-09): prioritize MoMo, keep custody and visibility with BENMP, minimize percentages. The physics are unchanged — a bare consumer wallet notifies no software (its statement is the trustworthy record), processors notify instantly but hold custody briefly. The posture that resolves this: **custody-first** — money lands in BENMP-owned accounts, **statement imports are the backbone**, webhooks are upgrades where they're free, never requirements. The only price is latency: next-morning thank-yous on statement channels instead of same-minute.
 
-The posture is **merchant-first**: route every gift through a webhook-confirmed rail wherever one can exist; where none can (remittance apps), wrap the wallet in a claim loop so the partner experience is still instant while the ledger stays statement-verified.
-
-| Published channel | Who uses it | How it's known to the system | Freshness |
+| Region | Published channel | Custody | How the system knows |
 | --- | --- | --- | --- |
-| **1. BENMP merchant short code** (Hubtel `*713*NNN#`, all three Ghana networks, works from feature phones; Paystack charge API/pay links as the smartphone/web face of the same rail) | Ghana + anyone with a Ghanaian wallet — the majority of volume | Signed webhook, seconds | Instant thank-you, live dashboard |
-| **2. BENMP giving link** (Stripe payment links, one-time **and** subscription) | Card countries: Europe, UK, America diaspora | Signed webhook, seconds | Instant thank-you, live dashboard |
-| **3. BENMP wallet number + WhatsApp claim step** (merchant-tier ministry wallet; published as "① send via your money-transfer app ② then message us on WhatsApp") | Remittance-app givers worldwide: Sendwave, WorldRemit, Wise, Western Union, M-Pesa, Airtel Africa — apps that can only pay wallet numbers | **Claim loop + daily statement import**: the WhatsApp message creates a pending claim and triggers an instant provisional thank-you; the daily statement import confirms the claim and finalizes the contribution | Instant *felt* acknowledgement; ledger-confirmed within ~24h |
+| Ghana | **MTN MoMoPay merchant account** — `*170#` → Pay → BENMP merchant ID (this is Ghana's "text to give") | BENMP's merchant wallet, instantly; ~1–2% negotiable with MTN | Daily statement import from day one; MTN API webhooks once production access is granted |
+| Europe / UK / Australia-Asia | BENMP's own bank account per region + published reference word | BENMP, fully; ~0% | Statement import |
+| North America | **Text-to-give** (partner texts a Twilio number, gets a payment link back) + bank/Zelle with reference word | Link payments settle via processor; bank direct | Webhook (links) + statement import (bank) |
+| Rest of Africa / South America | Remittance apps (Sendwave, WorldRemit, Wise, M-Pesa…) to the BENMP Ghana wallet | BENMP wallet | Statement import |
 
-The claim loop is **deferred with a trigger**: build it only when the office reports remittance-app giving is a significant share — until then channel 3 runs on statement import alone. When built: claims never create contributions on their own (they wait for a statement match; orphans go to the reconciliation queue), they solve remittance's identity problem (statements carry truncated sender names; the claim carries the partner's real identity and WhatsApp number), and they open a WhatsApp relationship at the moment of generosity. An SMS-forwarder early-warning signal may later accelerate provisional matching but is never the ledger.
+Bench (behind the adapter, trigger-gated): **Hubtel** ← Telecel/AT volume demands cross-network USSD · **pawaPay** ← rest-of-Africa in-country MoMo volume · **Paystack** ← dropped from the Ghana plan after admin review (custody/trust; its webhook spec in `api-spec.md` remains the reference pattern) · **Stripe** ← convenience card option only (text-to-give links, benmp.com), since cards cannot be taken custody-first. The remittance **claim loop** stays trigger-gated per Decision 0005.
 
-Quiet background channels (available, not headline): regional bank accounts with a published reference-word convention (statement import), and manual/CSV entry. pawaPay (20-country in-country MoMo collections, webhook-confirmed) is **deferred but earmarked**: if rest-of-Africa volume grows, it upgrades those partners from channel 3 to a true merchant rail.
-
-Provider notes: Paystack over Flutterwave as the API rail (Bank of Ghana suspended Flutterwave's remittance partnerships Sept 2025, Kenya licensing unconfirmed; Paystack matches Ghana coverage at 1.95% with explicit nonprofit support and Stripe-family engineering — Flutterwave remains a viable adapter swap). Direct MTN MoMo API deferred: manual per-country KYC, MTN-only, no fee advantage at current volume. The wallet number must be upgraded from any personal SIM to a registered merchant-tier account: consumer wallets carry KYC-tier transaction/balance caps that ~$200k/month would breach, and ministry money should settle to BENMP's bank with an audit trail, not sit on one person's phone.
-
-### The FLOW reference model (poster received 2026-07-08)
-
-First Love Church's FLOW "Ways to Give" poster is the client's mental model and refines ours:
-
-- **One obvious way per region, presented as a menu.** FLOW publishes ~8 channels, but each partner only ever uses the one for their region: Ghana MoMo + bank, "Give Worldwide" (the same MoMo number reached via remittance apps — Wise, WorldRemit, Remitly, Sendwave, Western Union, M-Pesa, Airtel Africa), a Swiss IBAN for Europe, a UK account + sort code (with a required reference word), **text-to-give in the USA** (text amount + keyword to a phone number), PayPal, cards via the website. The same MoMo number serves both "Ghana" and "Worldwide" — one memorable number.
-- **Remittance-to-MoMo is a P2P transfer, not a merchant payment — no webhook fires.** This is the intake gap that drove the office prototype to SMS parsing. The correct handling is **statement ingestion as a first-class workflow**: regular MoMo-wallet and bank-statement imports (CSV/API) into `payment_events`, flowing through the same match → contribution → acknowledgement pipeline, with the reconciliation queue absorbing ambiguity. Statement import is a weekly staff ritual in the app, not an afterthought.
-- **Text-to-give, our way**: a Twilio inbound number per card region; partner texts an amount, the system replies with a prefilled Stripe payment link, the Stripe webhook closes the loop already matched to the partner's phone. Uses only vendors already chosen (Twilio + Stripe); candidate for Phase 3–5, pending board interest.
-- **Reference words on bank transfers** (FLOW's UK box requires reference "FLOW"): we should publish a reference convention (e.g. the partner's phone number or "BENMP") to make statement matching mostly automatic.
-- PayPal is a possible later adapter if the board wants parity with FLOW.
+**Council flows** (leadership decision — the system supports all three): *central* (partners give to BENMP channels), *federated* (each council wallet's statement imported weekly — custody stays local, blindness ends), or **hybrid, the recommended default** — central for new/direct partners, federated for existing council relationships.
 
 Design rules:
 
 - **Adapter-first** (Decision 0002): every provider implements the same `receivePaymentWebhook → payment_event → verify → match → contribution` contract. Adding/swapping providers never touches product logic.
-- **Two intake doors, equal citizens**: webhook events (Paystack, Hubtel, pawaPay, Stripe) and statement imports (MoMo wallet, bank accounts, remittance arrivals). Every channel lands in `payment_events` either way; the FLOW model guarantees a meaningful share of money will always arrive webhook-less.
+- **Two intake doors**: statement imports (MoMo merchant wallet, bank accounts, remittance arrivals — the backbone per Decision 0006) and webhook events (Stripe links, future MTN API/pawaPay). Every channel lands in `payment_events` either way.
 - **No recurring MoMo mandates exist** (verified 2026: Paystack explicitly does not support recurring on mobile money; no aggregator offers cross-network MoMo direct debit). So monthly giving in African blocks is *prompt-driven by design*: the PRM sends the reminder, the partner approves a PIN prompt or dials the USSD code. This validates the monthly-cycle architecture — the reminder loop IS the recurring mechanism. Stripe subscribers are pull-payments; for them, failed-payment recovery matters instead.
 - **Webhook discipline**: treat webhooks as at-least-once (dedupe on provider transaction reference), verify signatures, and re-query the provider's verify endpoint before confirming a contribution.
 - **Matching keys**: canonicalized phone/MoMo number first, then provider customer ID, then email, then manual reconciliation. Phone normalization (E.164) is foundational — it is also the WhatsApp key.
@@ -212,7 +199,8 @@ Resolved 2026-07-08 with David (recorded in Decision 0004):
 4. ✅ Backend: Supabase (managed Postgres + auth + RLS), behind the existing repository adapter.
 5. ✅ Thresholds: USD baseline with FX conversion at gift date; amounts admin-configurable.
 6. ✅ Data access: all staff see all initially; region scoping schema-ready but deferred.
-7. ✅ Region blocks: configurable lookup, seeded Ghana / Rest of Africa / Europe / UK / America.
+7. ✅ Region blocks: configurable lookup, seeded with seven blocks (Ghana, Rest of Africa, Europe, UK, Australia/Asia, South America, North America).
+8. ✅ Rails revised custody-first by Decision 0006 (2026-07-09): MTN merchant for Ghana, bank accounts + reference words for card-world regions, statement backbone; Paystack dropped, Stripe demoted to convenience.
 
 Still open (mostly client-side):
 

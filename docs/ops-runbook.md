@@ -69,7 +69,7 @@ Rules:
 
 Trigger:
 
-- Paystack, Stripe, or Hubtel sends a signed webhook.
+- Stripe (or a future MTN API / pawaPay rail) sends a signed webhook; Ghana MoMo arrives via daily statement import.
 
 Expected system behavior:
 

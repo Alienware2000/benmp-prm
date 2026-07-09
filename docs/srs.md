@@ -55,7 +55,7 @@ The system exists to turn every verified gift into a reliable partner relationsh
 | Acknowledgement       | Thank-you message or call task created after a gift.                                                                             |
 | High-touch            | Donor attention tier for gifts above threshold or above normal giving pattern.                                                   |
 | Active yearly partner | Partner whose annual USD-equivalent giving covers the configured yearly threshold.                                               |
-| Region block          | Configurable reporting group: Ghana, Rest of Africa, Europe, UK, America, pending office confirmation.                           |
+| Region block          | Configurable reporting group: Ghana, Rest of Africa, Europe, UK, Australia/Asia, South America, North America, pending office confirmation.                           |
 | Monthly cycle         | Remind, receive, acknowledge, close, and report for a given month.                                                               |
 | Claim loop            | Deferred WhatsApp/SMS flow where a partner says "I gave"; it helps identity matching but never creates a contribution by itself. |
 | Provider adapter      | Isolated integration boundary for data, payments, messaging, or AI models.                                                       |
@@ -219,9 +219,9 @@ The system exists to turn every verified gift into a reliable partner relationsh
 
 - Supabase is the first live backend, behind the repository adapter.
 - Vercel is the first web host.
-- Paystack and/or Hubtel cover Ghana merchant rails, with Stripe for diaspora card rails.
+- Ghana's merchant rail is the MTN MoMoPay merchant account (Decision 0006); regional BENMP bank accounts + reference words cover card-world regions; Stripe is a convenience card option (text-to-give links); Hubtel/pawaPay/Paystack sit behind triggers.
 - Twilio is the pilot messaging provider; Meta Cloud API remains the long-term direct WhatsApp path.
-- Region blocks are Ghana, Rest of Africa, Europe, UK, America until the office confirms otherwise.
+- Region blocks are Ghana, Rest of Africa, Europe, UK, Australia/Asia, South America, North America until the office confirms otherwise.
 - The office can provide partner exports and statement exports for import testing.
 - The first live MVP can run on test provider credentials while merchant onboarding proceeds.
 

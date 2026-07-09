@@ -13,6 +13,8 @@ Current implemented route surface:
 
 This document defines the target contract so backend work can start without each agent inventing route names and response shapes.
 
+Decision 0006 (2026-07-09): statement-import endpoints are the backbone; Paystack is dropped from the Ghana plan and §6's Paystack webhook spec is retained only as the reference webhook pattern.
+
 ## 2. Conventions
 
 ### Response Envelope

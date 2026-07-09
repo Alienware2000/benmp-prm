@@ -9,10 +9,10 @@ A staff-only console + AI assistant for the BENMP office (~40,000 partners world
 ## The system in 60 seconds
 
 - **Pipeline**: gift -> `payment_event` (immutable) -> verify -> match by phone -> contribution -> thank-you -> high-touch flag if big. Two intake doors: provider webhooks (instant) and statement imports (daily).
-- **Channels** (merchant-first): Ghana USSD short code (webhook), Stripe giving link (webhook), wallet number for remittance apps, statement-confirmed. **No SMS parsing, ever.**
+- **Channels** (custody-first, Decision 0006): Ghana = MTN MoMoPay merchant account (*170# pay); Europe/UK/Australia-Asia = BENMP bank accounts + reference words; North America = text-to-give; Rest of Africa/S. America = remittance apps to the Ghana wallet. **Statement imports are the backbone; webhooks upgrade where free. No SMS parsing, ever.**
 - **Monthly cycle**: reminders -> gifts -> acknowledgements -> close on the 1st (frozen per-region snapshot). Reminders ARE the recurring mechanism (recurring MoMo mandates don't exist).
 - **Rules**: $5/mo baseline, $60/yr USD-equivalent = active, $100+ or above-usual = high-touch priority call. Thresholds are admin-config, not code.
-- **Regions**: Ghana, Rest of Africa, Europe, UK, America (configurable lookup, pending office confirmation).
+- **Regions**: Ghana, Rest of Africa, Europe, UK, Australia/Asia, South America, North America (configurable lookup, clarified 2026-07-09).
 - **AI**: agentic in stages: answers (week 1) -> drafts -> acts -> runs workflows. Send/mutate always behind human approval tokens.
 - **Architecture**: Next.js 16 + Supabase Postgres; every provider (payments, messaging, AI model, database) behind a swappable adapter.
 
@@ -43,7 +43,8 @@ Older deep-context docs (product brief, architecture, research, board brief, AI 
 ## Open items
 
 - **Team to decide**: the 5 UI questions at the end of design-spec Appendix A.
-- **Office to provide**: partner Excel export, whether the MoMo number is personal or merchant-tier + statement access, business docs for Paystack/Hubtel, Stripe settlement entity, region-block confirmation, remittance share of current giving, **take down the public prototype page exposing partner PII**.
+- **Leadership to decide**: council flows — central, federated, or hybrid (Decision 0006 recommends hybrid).
+- **Office to provide**: **submit the MTN MoMoPay merchant application (new longest pole)**, partner Excel export, statement access for each wallet/bank account, business registration docs, per-region bank account details, remittance share of current giving, **take down the public prototype page exposing partner PII**.
 
 ## Conventions
 

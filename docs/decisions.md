@@ -106,3 +106,29 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 **Deferred with triggers**:
 - **WhatsApp claim loop** (partner messages "I gave" → instant provisional thank-you → claim auto-matches the statement) — build only if the office reports remittance-app giving is a significant share.
 - **pawaPay** — add only if rest-of-Africa in-country volume justifies upgrading those partners from the wallet channel to a true merchant rail.
+
+## 0006 — Custody-first rails: MTN-direct Ghana, bank accounts + statements elsewhere (2026-07-09)
+
+**Decided** (revises the rail choices in 0004/0005 after admin review; region list expanded):
+
+| Region | Published channel | Custody | Intake |
+| --- | --- | --- | --- |
+| Ghana | **MTN MoMoPay merchant account** (`*170#` → Pay → merchant ID) | BENMP's own merchant wallet, instantly | Statement import from day one; MTN API webhooks pursued in background |
+| Europe / UK / Australia-Asia | BENMP's own bank accounts + published reference word | BENMP, fully | Statement import |
+| North America | Text-to-give (Twilio inbound → payment-link reply) + bank/Zelle with reference | Link payments via processor; bank direct | Webhook + statement import |
+| Rest of Africa / South America | Remittance apps to the Ghana wallet | BENMP wallet | Statement import |
+
+- **Region blocks are now seven**: Ghana, Rest of Africa, Europe, UK, Australia/Asia, South America, North America.
+- **The statement-import pipeline is the backbone**; webhooks are upgrades where free, not requirements.
+- **Paystack is dropped from the Ghana plan** (retained in api-spec as the webhook reference pattern and behind the adapter if ever needed). Hubtel trigger-gated: only if Telecel/AT volume demands cross-network coverage. Stripe demoted to a convenience card option (text-to-give links, benmp.com) — cards can't be taken custody-first.
+- **Council flows**: the system supports central, federated (import each council wallet's statement), and hybrid. **Recommended default: hybrid** — new/direct partners on central channels; existing council wallets federated via weekly statement import. Final call belongs to leadership.
+
+**Why**:
+- **Admin's three real concerns are custody, visibility, and cost.** Telco-direct merchant + own bank accounts score best on all three: money is BENMP's the second it's sent, statements are first-party evidence, fees are lowest (~1–2% negotiable with MTN; ~0 for bank transfers).
+- **The aggregator worry was part misconception** (dashboards itemize fees; failed MoMo request-to-pay means money never left the partner's wallet) **but the custody kernel is legitimate** — settlement-lag custody and third-party ledgers are a real governance cost for a ministry.
+- **The only price of custody-first is latency**: next-morning thank-yous on statement channels instead of same-minute. That trade is admin's to make, and they made it.
+- **Federated council imports end the blindness without rerouting anyone's money** — the politically viable first step.
+
+**Said no to**: building an own fintech (BoG PSP licensing: capital on the order of GHS 2m, compliance staffing, 6–18 months — rent payments, own the relationship layer instead) · Paystack as Ghana anchor (admin trust, custody) · SMS parsing (still permanently rejected — statements are the wallet's trustworthy record).
+
+**Deferred with triggers**: Hubtel ← Telecel/AT volume · pawaPay ← rest-of-Africa in-country volume · MTN API webhooks ← production access granted (application is the sprint's longest pole, submit Day 0).

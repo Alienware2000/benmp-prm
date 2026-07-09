@@ -526,13 +526,15 @@ Recommended fields:
 - `created_at timestamptz not null default now()`
 - `updated_at timestamptz not null default now()`
 
-Seed values:
+Seed values (Decision 0006):
 
 1. Ghana
 2. Rest of Africa
 3. Europe
 4. UK
-5. America
+5. Australia/Asia
+6. South America
+7. North America
 
 ### `country_region_defaults`
 

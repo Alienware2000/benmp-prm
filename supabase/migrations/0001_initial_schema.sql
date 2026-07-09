@@ -229,21 +229,24 @@ create table public.payment_events (
   unique (provider, provider_event_id)
 );
 
+-- Pledge records only: the amount a partner has committed to give on a cadence.
+-- Used to flag who has not yet paid this period and to drive reminders.
+-- No charging: there is no payment provider (Decision 0007).
 create table public.recurring_commitments (
   id uuid primary key default gen_random_uuid(),
   partner_id uuid not null references public.partners(id) on delete cascade,
-  provider text,
-  provider_subscription_code text,
   amount_minor bigint not null check (amount_minor >= 0),
   currency text not null,
   frequency public.giving_frequency not null default 'monthly',
   status text not null default 'active',
-  next_payment_date date,
-  last_payment_date date,
-  failed_payment_count integer not null default 0,
+  day_of_month integer check (day_of_month between 1 and 31),
+  next_expected_date date,
+  last_fulfilled_date date,
+  channel public.communication_channel not null default 'whatsapp',
+  notes text,
+  created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (provider, provider_subscription_code)
+  updated_at timestamptz not null default now()
 );
 
 create table public.partner_notes (

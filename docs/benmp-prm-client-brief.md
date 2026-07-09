@@ -56,7 +56,7 @@ The first serious demo should prove the full relationship loop with real or test
 
 1. Staff can log in securely.
 2. Existing partner records can be imported.
-3. A test gift can be recorded, imported, or received from a payment provider.
+3. A test gift can be recorded manually or imported from a payment CSV and matched to a partner.
 4. The gift can be matched to a partner, or sent to review if the giver is unclear.
 5. A thank-you draft can be created.
 6. Active-year and high-attention flags can be applied.
@@ -106,4 +106,4 @@ The remaining details can be refined after the first workflow is proven. For exa
 
 The first version should not try to become everything at once.
 
-Later phases can add stronger payment integrations, live WhatsApp and SMS sending, automated reminder sequences, regional coordinator access, deeper month-end reports, testimony and crusade update workflows, remittance claim flows, and more advanced AI support. The first priority is the foundation: trusted partner records, trusted giving records, timely acknowledgement, clear follow-up, useful reporting, and a workflow the BENMP office can actually use.
+Later phases can add live WhatsApp and SMS sending, automated reminder sequences, regional coordinator access, deeper month-end reports, testimony and crusade update workflows, and more advanced AI support. (Money is reconciled from a periodic payment CSV; a live payment integration is only added if the office later asks for in-app instant confirmation.) The first priority is the foundation: trusted partner records, trusted giving records, timely acknowledgement, clear follow-up, useful reporting, and a workflow the BENMP office can actually use.

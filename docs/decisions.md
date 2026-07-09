@@ -57,6 +57,8 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 
 *2026-07-08*
 
+> **Partially superseded by [0007](#0007--csv-only-payment-intake-no-live-payment-rails) (2026-07-09).** The Ghana rail (Paystack/Hubtel) and diaspora rail (Stripe) below are **removed** — the system takes no live payments. Supabase, clean CSV partner import, USD thresholds, messaging, and data-access rows still stand.
+
 **Decided**:
 
 | Area | Choice |
@@ -84,6 +86,8 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 ## 0005 — Merchant-first channels + remittance handling
 
 *2026-07-08, amended same day*
+
+> **Superseded by [0007](#0007--csv-only-payment-intake-no-live-payment-rails) (2026-07-09).** The three published giving channels, all webhook/merchant machinery, and the prefilled-invoice recurring loop below are **removed**. The one durable idea that survives — a CSV/statement import as the trustworthy ledger — is now the *sole* intake. Kept for the reasoning (why SMS parsing and consumer-wallet detection were rejected), which still holds.
 
 **Decided**: publish **three giving channels**, everything webhook-confirmed where physics allows:
 
@@ -130,3 +134,27 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 **Said no to**: Python/FastAPI backend · Prisma / Drizzle / any ORM (the Supabase client + RLS covers it with less complexity) · direct Anthropic API as the primary path (Vertex chosen; direct stays a config-level fallback).
 
 **Trigger to revisit**: only if the "profile" NPM package (or similar) turns out to be mandatory *and* genuinely Prisma-only.
+
+---
+
+## 0007 — CSV-only payment intake, no live payment rails
+
+*2026-07-09*
+
+**Decided**: the system takes **no live payments and integrates no payment provider.** There are no payment-provider webhooks, no signature verification, no hosted charges, and no recurring-charge/prefilled-invoice loop. Instead:
+
+1. **The sole money-intake path is a CSV upload.** Staff upload, on the backend, a CSV of payments for a period. Each row becomes an immutable `payment_events` row (source `csv_import`), exactly as manual finance entry already does.
+2. **Matching is unchanged and is now the whole job.** Rows match against the partner database by normalized phone (then email/reference); matched rows promote to `contributions`; unmatched/ambiguous rows go to reconciliation for a human to match, create-partner, or dismiss.
+3. **"Paid" means a contribution exists for the period.** Once a row is matched, the partner is ticked as having paid for that period; the monthly cycle, region reports, active-year and high-touch classification all read from those contributions as before.
+4. **`recurring_commitments` stays as pledge records** (each partner's expected monthly amount/cadence) — the thing that powers "who hasn't paid this month" and the reminder list. But the **`invoices` table and the cron that issued prefilled charges are removed** — there is nothing to charge.
+
+This amends **0004** (removes the Ghana/diaspora payment rails) and supersedes **0005** (removes the three channels and the recurring-charge loop; keeps only its statement-import idea, now promoted to the only intake). The **adapter-first** principle (0002) still holds for **data, messaging, and AI**; the *payment* adapter is retired rather than swapped.
+
+**Why**:
+- **It matches how the office actually reconciles.** Money lands wherever it lands (wallets, bank, remittance apps); the office already exports a statement/CSV per period. Turning that CSV into matched, ticked contributions *is* the operational win — the same "who paid, per region, without asking any church" answer, with none of the merchant-onboarding, KYC, or webhook-security surface.
+- **It removes the biggest cost and risk centre.** No merchant-tier registration, no Paystack/Stripe/Hubtel business docs, no signature/replay security, no provider outages, no PCI-adjacent surface. The one-week path to value stops depending on calendar-time provider approvals.
+- **Nothing important is lost.** Contributions still carry amount/currency/date/method, so all reporting, thresholds, thank-yous, and follow-up work unchanged. Reconciliation — already built for the remittance channel — becomes the primary workflow rather than the exception.
+
+**Said no to**: Paystack / Hubtel / Stripe / any payment provider · payment webhooks and signature verification · hosted/prefilled charges and the `invoices` cron loop · SMS parsing (still rejected, 0005) · a boolean "paid" flag with no amount (would break amount-based reporting, thresholds, and high-touch).
+
+**Trigger to revisit**: the office decides it wants money to land *inside* the app with instant confirmation (a real merchant rail) rather than reconciled from a periodic CSV — at which point re-introduce a payment adapter behind the retained `payment_events` pipeline.

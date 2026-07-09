@@ -22,7 +22,7 @@ The system exists to turn every verified gift into a reliable partner relationsh
 
 - Staff authentication and role-aware access.
 - Partner records and clean CSV imports.
-- Payment event intake through provider webhooks, statement imports, and manual finance entry.
+- Payment event intake through backend CSV payment imports and manual finance entry (no live payment provider — Decision 0007).
 - Contribution creation only from verified `payment_events`.
 - Reconciliation for unmatched or ambiguous money.
 - Acknowledgement drafts and follow-up tasks.
@@ -37,19 +37,20 @@ The system exists to turn every verified gift into a reliable partner relationsh
 
 - Public partner login.
 - A replacement for the public BENMP website.
+- Live payment provider integration — webhooks, hosted/prefilled charges, recurring auto-debit (removed; CSV import is the sole money intake — Decision 0007).
 - Payment card storage.
 - SMS parsing as a money ledger.
 - Fully autonomous AI messaging.
 - High-volume WhatsApp production sending before sender verification, templates, and consent controls are in place.
 - Regional coordinator row-level scoping before coordinators are actually onboarded.
-- pawaPay or PayPal adapters before volume or board decisions trigger them.
+- Reintroducing any live payment rail before the office asks for in-app instant confirmation over CSV reconciliation.
 
 ## 2. Glossary
 
 | Term                  | Meaning                                                                                                                          |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | Partner               | A person or organization connected to BENMP through giving, prayer, communication, or crusade support.                           |
-| Payment event         | Immutable intake record for money-like input from webhook, statement import, or manual entry.                                    |
+| Payment event         | Immutable intake record for money-like input from a CSV payment import or manual finance entry.                                  |
 | Contribution          | Verified gift record promoted from a payment event.                                                                              |
 | Reconciliation        | Staff workflow for matching unknown or ambiguous payment events to partners.                                                     |
 | Acknowledgement       | Thank-you message or call task created after a gift.                                                                             |
@@ -96,12 +97,14 @@ The system exists to turn every verified gift into a reliable partner relationsh
 
 ### FR-3 Payment Event Intake
 
-- FR-3.1 Every giving signal MUST create or reference a `payment_events` row before a contribution is created.
-- FR-3.2 Webhooks MUST verify provider signatures before writing promoted contribution state.
-- FR-3.3 Provider transactions SHOULD be re-queried before promotion when the provider supports verification.
-- FR-3.4 Statement imports MUST create payment events with source metadata and row dedupe keys.
-- FR-3.5 Manual finance entry MUST route through the same payment event promotion path as webhooks and imports.
-- FR-3.6 Replayed webhooks and re-imported statement rows MUST be idempotent.
+Intake is CSV-only; there is no live payment provider (Decision 0007).
+
+- FR-3.1 Every giving signal MUST create or reference a `payment_events` row (source `csv_import` or `manual`) before a contribution is created.
+- FR-3.2 A CSV payment import MUST be validated (parsed, typed, currency/amount checked) before any row is written.
+- FR-3.3 CSV imports MUST create payment events with source metadata (import id, provider/account label, statement period) and a per-row dedupe key.
+- FR-3.4 A two-step preview → commit MUST show matched, ambiguous, duplicate, and invalid row counts before the operator commits.
+- FR-3.5 Manual finance entry MUST route through the same payment event promotion path as CSV imports.
+- FR-3.6 Re-importing the same CSV row MUST be idempotent (no duplicate payment event or contribution).
 
 ### FR-4 Matching And Reconciliation
 
@@ -115,7 +118,7 @@ The system exists to turn every verified gift into a reliable partner relationsh
 
 - FR-5.1 Contributions MUST only be created from verified payment events.
 - FR-5.2 Contributions MUST store original amount, original currency, payment method, provider, provider reference, donor display fields, status, acknowledgement status, attention tier, and campaign where known.
-- FR-5.3 The system MUST calculate or store USD-equivalent values for threshold rules once Phase 1A/2A lands.
+- FR-5.3 The system MUST calculate or store USD-equivalent values for threshold rules once USD-equivalent computation lands (Phase 2).
 - FR-5.4 The active yearly threshold MUST be configurable and currently defaults to USD 60.
 - FR-5.5 The high-touch threshold MUST be configurable and currently defaults to USD 100.
 - FR-5.6 A gift that crosses active-year or high-touch thresholds MUST update visible status and/or create follow-up work.
@@ -178,7 +181,7 @@ The system exists to turn every verified gift into a reliable partner relationsh
 | NFR-3  | No payment card data, API keys, provider tokens, real partner exports, statements, or private account numbers may be committed.     |
 | NFR-4  | Staff actions touching money, messages, prayer, AI approvals, imports, reconciliation, or roles MUST be auditable.                  |
 | NFR-5  | Phase 6 MUST support 40,000 partners with pagination, indexing, and no massive unbounded list rendering.                            |
-| NFR-6  | Webhook processing MUST be idempotent and replay-safe.                                                                              |
+| NFR-6  | CSV import processing MUST be idempotent and replay-safe — re-importing the same row is inert.                                      |
 | NFR-7  | Money MUST avoid JavaScript floating-point arithmetic for rule decisions.                                                           |
 | NFR-8  | Partner-supplied text MUST be treated as untrusted input in AI prompts and message drafts.                                          |
 | NFR-9  | Staff pages SHOULD be usable on laptop and tablet/mobile widths, with operational workflows prioritized over decorative dashboards. |
@@ -192,8 +195,8 @@ The system exists to turn every verified gift into a reliable partner relationsh
 | BR-2  | Contributions only come from verified `payment_events`.                                   |
 | BR-3  | SMS parsing is permanently rejected as the money ledger.                                  |
 | BR-4  | Statement imports are first-class intake for wallet, remittance, and bank-transfer money. |
-| BR-5  | The monthly reminder loop is the recurring mechanism for MoMo partners.                   |
-| BR-6  | Stripe subscriptions may provide true recurring card payments where available.            |
+| BR-5  | The monthly reminder loop — never an auto-debit — is the recurring mechanism; partners give and the office reconciles by CSV. |
+| BR-6  | `recurring_commitments` are pledge records (expected monthly amount) used to flag who has not yet paid; they do not charge anyone. |
 | BR-7  | USD 60 annual giving marks active-year coverage unless changed in settings.               |
 | BR-8  | USD 100 or above-usual giving triggers high-touch attention unless changed in settings.   |
 | BR-9  | Region blocks are configurable lookup records, not hard-coded enum values.                |
@@ -219,20 +222,18 @@ The system exists to turn every verified gift into a reliable partner relationsh
 
 - Supabase is the first live backend, behind the repository adapter.
 - Vercel is the first web host.
-- Paystack and/or Hubtel cover Ghana merchant rails, with Stripe for diaspora card rails.
+- No live payment provider is integrated; money is reconciled from a periodic CSV the office already exports per period (Decision 0007).
 - Twilio is the pilot messaging provider; Meta Cloud API remains the long-term direct WhatsApp path.
 - Region blocks are Ghana, Rest of Africa, Europe, UK, America, South America, Australia/Asia until the office confirms otherwise.
-- The office can provide partner exports and statement exports for import testing.
-- The first live MVP can run on test provider credentials while merchant onboarding proceeds.
+- The office can provide partner exports and periodic payment CSVs for import testing.
 
 ## 9. Deferred Triggers
 
 | Feature                       | Trigger                                                                                                 |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Remittance claim loop         | Office confirms remittance-app giving is significant enough to justify identity capture at giving time. |
-| pawaPay                       | Rest-of-Africa in-country MoMo volume justifies moving from wallet/import to merchant webhooks.         |
+| Live payment rail             | Office wants money to land in-app with instant confirmation instead of periodic CSV reconciliation (Decision 0007). |
+| WhatsApp claim loop           | Office confirms partners messaging "I gave" would meaningfully speed CSV-row identity matching.         |
 | Sequence engine               | Manually-approved message batches become the bottleneck.                                                |
 | Month-close snapshots         | Phase 5 starts or reports need frozen historical answers.                                               |
 | Regional row-level scoping    | Regional coordinators are onboarded with real ownership boundaries.                                     |
 | Meta Cloud API direct adapter | Meta Business verification and WhatsApp templates are approved.                                         |
-| PayPal adapter                | Board wants parity with FLOW-style worldwide channels.                                                  |

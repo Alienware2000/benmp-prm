@@ -4,11 +4,15 @@ info:
   version: 0.1.0
   description: |
     Machine-readable companion to `docs/api-spec.md`. This is a **representative
-    subset**, not a full mirror: it covers the intake/reconciliation/acknowledgement
-    spine, the provider webhooks, and the AI chat route — the surfaces backend
+    subset**, not a full mirror: it covers the CSV-import/reconciliation/acknowledgement
+    spine, the messaging status callbacks, and the AI chat route — the surfaces backend
     phases build first. The staff read views (`PrmRepository`, `api-spec.md §4`) and
     the full messaging/campaign/prayer surfaces are intentionally omitted here; see
     `api-spec.md` for the prose contract and `srs.md` for the requirements (FR-N).
+
+    Money enters only through the CSV payment import (Decision 0007) — there are no
+    payment-provider webhooks, no signature-verified charge callbacks, and no
+    recurring-invoice cron.
 
     Most staff mutations MAY ship as Next.js server actions rather than JSON routes
     (`api-spec.md §5`); the request/response shapes below still describe the contract.
@@ -16,8 +20,7 @@ info:
 
     Auth (`api-spec.md §2`):
     - Staff routes: Supabase staff session cookie + role check.
-    - Payment/messaging webhooks: provider signature or verify token (no session).
-    - Cron routes: a cron secret (no session).
+    - Messaging webhooks: provider signature or verify token (no session).
 
 servers:
   - url: https://benmp-prm.vercel.app
@@ -25,17 +28,15 @@ servers:
 
 tags:
   - name: Imports
-    description: Partner and statement CSV import (preview/commit).
+    description: Partner and payment CSV import (preview/commit).
   - name: Reconciliation
     description: Match, create, or dismiss unmatched payment events.
   - name: Acknowledgements
     description: Approve, send, and mark-failed thank-you messages.
-  - name: Webhooks.Payment
-    description: Signed provider payment callbacks (Paystack, Stripe, Hubtel).
+  - name: Pledges
+    description: Manage recurring_commitments (pledge records; no charging).
   - name: Webhooks.Messaging
     description: Messaging provider status/inbound callbacks (Twilio, Meta).
-  - name: Cron
-    description: Scheduled jobs (recurring invoices) — cron-secret protected.
   - name: AI
     description: Read-only staff AI assistant.
 
@@ -50,11 +51,7 @@ components:
       type: apiKey
       in: header
       name: X-Provider-Signature
-      description: Provider-specific signature header (e.g. `x-paystack-signature`, `Stripe-Signature`). Verified against the provider webhook secret before any promoted write.
-    cronSecret:
-      type: http
-      scheme: bearer
-      description: Shared secret for Vercel Cron-triggered routes.
+      description: Messaging-provider signature/verify header (e.g. Twilio `X-Twilio-Signature`). Verified before the callback is processed.
 
   schemas:
     Error:
@@ -311,45 +308,43 @@ paths:
         '200': { description: Marked failed., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /api/webhooks/paystack:
+  /api/recurring-commitments:
     post:
-      tags: [Webhooks.Payment]
-      summary: Paystack payment webhook (Phase 6; invoices Phase 10)
+      tags: [Pledges]
+      summary: Create a partner pledge record (Phase 6)
       description: |
-        Verifies `x-paystack-signature`, inserts an idempotent payment_events row,
-        re-queries the transaction, promotes to a contribution on match, links any
-        open invoice, and queues an acknowledgement (FR-3.2–3.6, api-spec.md §6).
-      security:
-        - providerSignature: []
+        A pledge (expected monthly amount/cadence) — used to flag who has not paid
+        and to drive reminders. It charges no one; there is no payment provider
+        (Decision 0007).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [partnerId, amountMinor, currency]
+              properties:
+                partnerId: { type: string, format: uuid }
+                amountMinor: { type: integer }
+                currency: { type: string }
+                frequency: { type: string, enum: [monthly, quarterly, annually] }
+                dayOfMonth: { type: integer, minimum: 1, maximum: 31 }
+                channel: { type: string, enum: [whatsapp, sms, email, phone] }
       responses:
-        '200':
-          description: Handled — new event promoted, or duplicate accepted idempotently (DUPLICATE_EVENT).
-          content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } }
-        '400': { $ref: '#/components/responses/BadSignature' }
+        '200': { description: Pledge created., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
-  /api/webhooks/stripe:
-    post:
-      tags: [Webhooks.Payment]
-      summary: Stripe payment webhook (Phase 2A)
-      description: Handles `checkout.session.completed` and `invoice.paid`; maps one-time and subscription payments into the same payment-event shape. Idempotent per Stripe event id.
-      security:
-        - providerSignature: []
+  /api/recurring-commitments/{id}:
+    patch:
+      tags: [Pledges]
+      summary: Update a partner pledge record (Phase 6)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
       responses:
-        '200':
-          description: Handled or idempotent duplicate.
-          content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } }
-        '400': { $ref: '#/components/responses/BadSignature' }
-
-  /api/webhooks/hubtel:
-    post:
-      tags: [Webhooks.Payment]
-      summary: Hubtel payment webhook (after account approval)
-      description: Ghana USSD merchant rail; same payment-event pipeline.
-      security:
-        - providerSignature: []
-      responses:
-        '200': { description: Handled., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
-        '400': { $ref: '#/components/responses/BadSignature' }
+        '200': { description: Pledge updated., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/webhooks/twilio/status:
     post:
@@ -372,20 +367,6 @@ paths:
       responses:
         '200': { description: Processed., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
         '400': { $ref: '#/components/responses/BadSignature' }
-
-  /api/cron/recurring-invoices:
-    post:
-      tags: [Cron]
-      summary: Issue prefilled recurring invoices (Phase 10)
-      description: |
-        For each due recurring_commitment, creates one idempotent invoices row per
-        period and dispatches a prefilled charge/link. Invoices are marked paid only
-        by a verified payment webhook, never by this cron (api-spec.md §6).
-      security:
-        - cronSecret: []
-      responses:
-        '200': { description: Due invoices issued (re-running a period is inert)., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
-        '401': { $ref: '#/components/responses/Unauthorized' }
 
   /api/ai/chat:
     post:

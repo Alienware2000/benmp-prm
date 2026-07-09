@@ -9,9 +9,9 @@ Completion is proven by tests, never asserted. No task or phase is "done" on ins
 - **A task is done when its named test is green.** Work test-first: write the task's test from its `VERIFY` line, watch it **fail** (red — the code doesn't exist yet), then implement until it **passes** (green). Green test = task complete.
 - **A phase is done when the full gate is green**: `npm run typecheck && npm run lint && npm test && npm run build`, plus `npm run test:e2e` for the flows that phase delivers. A later task cannot be called done if it turned an earlier task's test red — the whole suite must stay green at the phase boundary.
 - **Tests must exercise real behaviour, including the negative cases.** A test that always passes proves nothing. Assert the actual outcome and its failure modes (e.g. "bad signature → 4xx + audit row, *no writes*"; "re-import → *no* duplicate"; "1234 minor units round-trips exactly").
-- **Green ≠ shipped for human-in-the-loop rails.** Live sends and real-money charges are tested against **sandbox/test credentials**; the green test proves the code path and reconciliation are correct. A final real-money/real-delivery smoke check belongs in the demo/hardening step (Phase 13), not in place of the gate.
+- **Green ≠ shipped for human-in-the-loop rails.** Live message sends are tested against **sandbox/test credentials**; the green test proves the code path is correct. A final real-delivery smoke check (and a reconciliation dry-run against a real office CSV) belongs in the demo/hardening step (Phase 10), not in place of the gate. (There are no real-money charges — money is reconciled from CSV, Decision 0007.)
 
-> **Status of this doc**: all phases **0–13 drafted**. This file supersedes the coarse phase list in `docs/delivery-plan.md`; that doc's Workstreams, one-week sprint, and Cross-phase rules remain a useful companion until folded in. The schema every phase relies on is `docs/db-schema.md` (incl. the `invoices` + `recurring_commitments` model behind the recurring-giving loop).
+> **Status of this doc**: all phases **0–10 drafted**. This file supersedes the coarse phase list in `docs/delivery-plan.md`; that doc's Workstreams, one-week sprint, and Cross-phase rules remain a useful companion until folded in. The schema every phase relies on is `docs/db-schema.md`. **Decision 0007**: money enters only via CSV import — there are no payment-provider webhooks, no hosted charges, and no recurring-charge cron; `recurring_commitments` are pledge records and there is no `invoices` table.
 
 ## Phase summary
 
@@ -21,16 +21,13 @@ Completion is proven by tests, never asserted. No task or phase is "done" on ins
 | 1 | Database (Supabase schema, migrations, core tables) | 0 | — |
 | 2 | Authentication (Supabase Auth, invite → verify) | 1 | — |
 | 3 | Roles & audit log | 2 | — |
-| 4 | Importer pipeline (CSV, phone E.164, dedup) | 3 | — |
+| 4 | Partner importer pipeline (CSV, phone E.164, dedup) | 3 | — |
 | 5 | Partner profile (create/view, native profile) | 4 | — |
-| 6 | Payments intake (Paystack + Stripe webhooks) | 5 | — |
-| 7 | Statement imports & reconciliation | 6 | — |
-| 8 | Messaging (Twilio + Resend, consent, ack) | 6 | with 7,9 |
-| 9 | New-partner signup & payment setup | 6 | with 7,8 |
-| 10 | Recurring giving (Stripe subs + MoMo cron) | 6,8 | — |
-| 11 | AI assistant (Claude on Vertex, read-only) | 6 | from 6 |
-| 12 | Monthly cycle & reports (snapshots, close) | 8,11 | — |
-| 13 | Scale & hardening (regional RLS, 40k, call queue) | 12 | — |
+| 6 | Payment CSV import, matching & reconciliation | 5 | — |
+| 7 | Messaging (Twilio + Resend, consent, ack) | 6 | with 8 |
+| 8 | AI assistant (Claude on Vertex, read-only) | 6 | from 6 |
+| 9 | Monthly cycle, reports & pledge tracking (snapshots, close) | 7,8 | — |
+| 10 | Scale & hardening (regional RLS, 40k, call queue) | 9 | — |
 
 ---
 
@@ -90,8 +87,8 @@ RLS is the gate), docs/tech-stack.md §Data layer, and src/lib/data/types.ts (Pr
    - Partner care: partners (all §6 fields incl. region_block_id FK, normalized_phone,
      per-channel consent), partner_notes, prayer_requests, follow_up_tasks
    - Giving: payment_events (raw jsonb, UNIQUE (provider, provider_event_id)),
-     contributions, recurring_commitments (the pledge — channel-aware per §7),
-     invoices (per-cycle bill — §7), payment_imports, payment_import_rows, fx_rates
+     contributions, recurring_commitments (pledge records only — no charging, §7),
+     payment_imports, payment_import_rows, fx_rates
    - Campaigns: campaigns
    - Communication: communication_segments, segment_members, message_templates,
      communication_batches, communication_messages
@@ -115,8 +112,8 @@ VERIFY:
 - Integration (Vitest, test Supabase project / DATABASE_URL_TEST): migrations + seed
   succeed; 7 region blocks + country→block lookup; contribution stores 1234 minor units and
   reads back exactly; usd_equivalent numeric preserved; duplicate payment_events reference →
-  unique violation; invoices unique (recurring_commitment_id, period_month) blocks a
-  double-bill; app_settings seeded with the three keys.
+  unique violation; a recurring_commitments pledge stores its expected amount + cadence;
+  app_settings seeded with the three keys.
 - Contract: the Phase 0 PrmRepository contract suite passes against the Supabase repository.
 - RLS: a viewer-role client cannot insert/update a partner (fails at the DB).
 - Unit: factory returns the Supabase impl when BENMP_DATA_PROVIDER=supabase, mock otherwise.
@@ -140,7 +137,8 @@ src/proxy.ts, docs/decisions.md 0004.
 
 1. src/lib/supabase/{server,browser}.ts via @supabase/ssr — all Supabase specifics here.
 2. /login (email/password) + sign-out server action; on success route into the app.
-3. src/proxy.ts: protect every app route; allow-list /login and /api/webhooks/*.
+3. src/proxy.ts: protect every app route; allow-list /login and /api/webhooks/* (messaging
+   delivery callbacks only — there are no payment webhooks, Decision 0007).
 4. Invite flow: an admin-only action taking { name, email, staff_role } → Supabase admin
    invite; create/link a profiles row (status invited). The verify link opens a
    set-password page that activates the profile.
@@ -150,7 +148,7 @@ vs not — RBAC is Phase 3.
 
 VERIFY:
 - E2E (Playwright): valid creds → into app; invalid → error, stays on /login;
-  unauthenticated GET /partners → redirect to login; /api/webhooks/paystack reachable
+  unauthenticated GET /partners → redirect to login; /api/webhooks/twilio/status reachable
   without a session; invite token → set password → login succeeds.
 - Integration (Vitest): invite creates a profiles row with the chosen role + pending
   status and records a (mocked) email send.
@@ -268,93 +266,62 @@ VERIFY:
 
 ---
 
-## Phase 6 — Payments intake (Paystack + Stripe webhooks)
+## Phase 6 — Payment CSV import, matching & reconciliation
 
-**Prereq**: Phase 5. Paystack + Stripe test credentials.
+**Prereq**: Phase 5.
 
-**Deliverable**: a gift through a webhook rail becomes a verified, matched `contribution` with an acknowledgement draft — and, when it answers an open `invoice`, marks that invoice paid. The §5 pipeline live for the two instant channels.
+**Deliverable**: the product spine (Decision 0007). Staff upload a period's payment CSV; each row is matched against the partner DB, matched rows become verified `contributions` (ticking the partner as paid) with an acknowledgement draft, and everything ambiguous lands in one reconciliation queue. Manual/cash entry routes through the same pipeline. No payment provider, no webhooks.
 
 **Prompt**:
 
 ```
-Implement webhook intake on top of Phase 5.
-Read docs/design-spec.md §5 (the gift pipeline — implement exactly this) + §6 (channel
-model), docs/decisions.md 0004/0005, db-schema.md (payment_events, contributions, invoices).
+Implement CSV payment intake + matching + reconciliation on top of Phase 5.
+Read docs/design-spec.md §5 (the gift pipeline — implement exactly this) + §6 (CSV-only
+intake), docs/decisions.md 0007, db-schema.md (payment_events, contributions,
+payment_imports, payment_import_rows (row_hash), fx_rates). There is NO payment provider.
 
-1. src/lib/payments/types.ts: PaymentAdapter { verifyAndParseWebhook(request) ->
-   RawPaymentEvent, verifyTransaction(ref) }, provider registry on BENMP_PAYMENT_PROVIDER
-   (mock default preserved). Provider SDKs confined to src/lib/payments/<provider>/.
-2. Paystack: /api/webhooks/paystack verifies x-paystack-signature (HMAC-SHA512 of raw
-   body), inserts payment_events (dedupe on (provider, provider_event_id) — tolerate
-   23505), re-queries the verify endpoint before promotion. Handle charge.success and
-   paymentrequest.success (Invoices).
-3. Stripe: /api/webhooks/stripe verifies the Stripe signature; handle
-   checkout.session.completed, invoice.paid (subscriptions).
-4. Matching (src/lib/payments/match.ts): E.164 phone (via src/lib/phone.ts) → provider
-   customer → email → status 'unmatched'. Matched events promote to contributions with
-   currency + usd_equivalent (fx_rates gift-date lookup, fallback flag when missing).
-5. Invoice reconciliation: if a verified event carries an invoice/payment-request/
-   subscription-invoice reference, find the open invoices row and mark it paid, linking
-   payment_event_id + contribution_id (unpaid→paid transition audited).
-6. Status rules (src/lib/giving/status.ts, pure + unit-tested): active-year, high-touch
+1. Parsers in src/lib/payments/csv/: config-driven column mappings for the office's payment
+   CSV(s) (momo-wallet / bank / remittance layouts). Each row → payment_events
+   source='csv_import', dedup key = sha256(source, date, amount, reference/narration) stored
+   on payment_import_rows.row_hash; UNIQUE (provider, provider_event_id) on payment_events.
+2. Matching (src/lib/payments/match.ts): E.164 phone (via src/lib/phone.ts) → email →
+   published reference word → status 'unmatched'. Matched rows promote to contributions with
+   currency + usd_equivalent (fx_rates gift-date lookup, fallback flag when missing), set the
+   partner's paid state for the period, and set last_fulfilled_date on any covered
+   recurring_commitments pledge.
+3. /giving/imports: upload (papaparse) → mapping preview showing matched / ambiguous /
+   duplicate / invalid counts → commit; payment_imports batch + per-row outcomes. Finance/
+   admin role only; every import writes audit_log.
+4. /giving/reconciliation: unmatched payment_events with raw detail; actions —
+   search-and-match partner (promote to contribution + ack draft), create-partner-and-match,
+   dismiss (mandatory reason). Everything writes audit_log.
+5. Status rules (src/lib/giving/status.ts, pure + unit-tested): active-year, high-touch
    (single gift ≥ setting OR ≥3× trailing median), missed-month; thresholds from app_settings.
-7. Acknowledgement queue: every matched contribution creates a personalized draft; high-
+6. Acknowledgement queue: every matched contribution creates a personalized draft; high-
    touch also creates a priority follow_up_task.
+7. Manual gift entry (source='manual') routes through the SAME promotion path.
 
-CONSTRAINTS: contributions created ONLY from verified payment_events. Webhook routes skip
-auth but MUST verify signatures. At-least-once mindset — every step idempotent.
+CONSTRAINTS: contributions created ONLY from verified payment_events. One pipeline — CSV
+rows and manual entry both promote through match.ts/status.ts/ack. Re-importing a row is
+inert (row_hash + payment_events unique). Never mutate/delete a payment_event; corrections
+happen at contribution level. No provider SDKs, no webhook routes.
 
 VERIFY:
-- Integration/E2E: signed Paystack charge.success → payment_event + matched contribution
-  + ack draft; replay → no dup; bad signature → 4xx + audit row, no writes.
-- Integration: a paymentrequest.success referencing an open invoice flips it to paid and
-  writes the contribution; Stripe one-time + subscription invoice.paid both land.
+- Integration: fixture CSV → matched rows become contributions + ack drafts and tick the
+  partner paid; unknowns queue; re-import inert (row_hash); malformed row → reject with reason.
+- Integration: a matched gift in a pledge's period sets last_fulfilled_date; usd_equivalent
+  numeric preserved; 1234 minor units round-trip exactly.
+- E2E: queue match/create/dismiss function + audit; dismissal without reason blocked; manual
+  gift for a nonexistent partner cannot bypass the queue.
 - Unit: match.ts + status.ts; threshold-crossing gift creates the priority task.
 - Gate: typecheck && lint && test && build green.
 ```
 
 ---
 
-## Phase 7 — Statement imports & reconciliation
+## Phase 7 — Messaging (Twilio + Resend, consent, ack)
 
-**Prereq**: Phase 6.
-
-**Deliverable**: webhook-less money (remittance-to-wallet, bank transfer, manual/cash) enters the same pipeline via imports, and finance has one queue to resolve everything ambiguous.
-
-**Prompt**:
-
-```
-Implement statement imports + reconciliation on top of Phase 6.
-Read docs/design-spec.md §6 channel 3, docs/decisions.md 0005, and Phase 6 match.ts (reuse,
-do not fork). db-schema.md: payment_imports, payment_import_rows (row_hash), payment_events.
-
-1. Parsers in src/lib/payments/statements/: momo-wallet CSV + bank CSV, config-driven
-   column mappings. Each row → payment_events source='statement_import', dedup key =
-   sha256(account, date, amount, reference/narration) stored on payment_import_rows.row_hash.
-2. /giving/imports: upload (papaparse) → mapping preview → commit; payment_imports batch +
-   per-row outcomes (matched / queued / duplicate / rejected).
-3. Bank narration parsing: extract published reference word / phone, feed match.ts.
-4. /giving/reconciliation: unmatched payment_events with raw detail; actions —
-   search-and-match partner (promote to contribution + ack draft), create-partner-and-match,
-   dismiss (mandatory reason). Everything writes audit_log.
-5. Manual gift entry (source='manual') routes through the SAME promotion path.
-
-CONSTRAINTS: one pipeline — statements + manual promote through match.ts/status.ts/ack like
-webhooks. Never mutate/delete a payment_event; corrections happen at contribution level.
-
-VERIFY:
-- Integration: fixture statement → matched rows become contributions, unknowns queue,
-  re-import inert (row_hash).
-- E2E: queue match/create/dismiss function + audit; dismissal without reason blocked;
-  manual gift for a nonexistent partner cannot bypass the queue.
-- Gate: typecheck && lint && test && build green.
-```
-
----
-
-## Phase 8 — Messaging (Twilio + Resend, consent, ack)
-
-**Prereq**: Phase 6. **Parallel with 7, 9.** Twilio sandbox + Resend creds.
+**Prereq**: Phase 6. **Parallel with 8.** Twilio sandbox + Resend creds.
 
 **Deliverable**: the system sends — thank-yous automatically (kill-switch governed) and reminder batches with approval — over WhatsApp/SMS/email, with per-channel consent honored.
 
@@ -377,7 +344,7 @@ Read docs/design-spec.md §7, src/lib/messaging/types.ts + mock-adapter.ts, db-s
 
 CONSTRAINTS: no send without a consent check; no bulk send without a recorded approver.
 Provider specifics in src/lib/messaging/<provider>/. Bishop-Dag'-name templates out of scope
-until Phase 12.
+until Phase 9.
 
 VERIFY:
 - E2E: sandbox thank-you delivered + status tracked; kill-switch off stops auto-send;
@@ -387,81 +354,7 @@ VERIFY:
 
 ---
 
-## Phase 9 — New-partner signup & payment setup
-
-**Prereq**: Phase 6. **Parallel with 7, 8.**
-
-**Deliverable**: the "how do new people sign up" flow — a basic public page where a new giver creates a partner profile and sets up their giving (one-time or a recurring commitment), feeding the same partner + payments tables. (Transcript: "make our own website, very basic UI, basic front end.")
-
-**Prompt**:
-
-```
-Build the public new-partner signup + giving-setup on top of Phase 6.
-Read docs/design-spec.md (public vs staff separation), db-schema.md (partners,
-recurring_commitments, invoices, contributions). Keep this public surface isolated from the
-internal staff workspace.
-
-1. A minimal public route (separate layout) — no staff auth: capture name, email, phone
-   (E.164 via src/lib/phone.ts), country → region block default.
-2. Giving setup: one-time gift (Paystack MoMo/card or Stripe) OR a recurring commitment
-   (writes recurring_commitments; Stripe card → subscription; MoMo → reminder-driven, no
-   mandate). First payment runs through the Phase 6 webhook pipeline.
-3. Dedup against existing partners on E.164/email (flag, don't silently merge).
-4. Basic UI only — this is a proof-of-concept giver front end, not the staff app.
-
-CONSTRAINTS: public data never bypasses the payment_events pipeline; no card/PIN stored;
-new partners are ordinary partners rows (source='signup').
-
-VERIFY:
-- E2E: a new giver signs up → partner row created with normalized phone + region block;
-  one-time test gift lands as a contribution; choosing recurring writes a
-  recurring_commitments row; duplicate email/phone flagged.
-- Gate: typecheck && lint && test && build green.
-```
-
----
-
-## Phase 10 — Recurring giving (Stripe subs + MoMo prefilled-invoice cron)
-
-**Prereq**: Phases 6 and 8.
-
-**Deliverable**: giving recurs. Card commitments auto-charge via Stripe; MoMo commitments run the **prefilled-invoice loop** (the transcript's workaround, verified against Paystack — Decision 0005): a monthly cron bills each pledge with a prefilled link so the partner only enters OTP+PIN.
-
-**Prompt**:
-
-```
-Implement recurring giving on top of Phases 6 + 8.
-Read docs/decisions.md 0005 (verified mechanism), db-schema.md §7 (recurring_commitments,
-invoices), Phase 6 pipeline (promotion + invoice reconciliation).
-
-1. Monthly cron (Vercel Cron route or Supabase scheduled function — pick one, document why):
-   for each due recurring_commitments, create ONE invoices row for the period (unique
-   (recurring_commitment_id, period_month) prevents double-billing).
-2. Issue the prefilled charge:
-   - MoMo: Paystack Charge API with mobile_money { phone, provider } from the partner
-     record (amount prefilled) OR a Paystack Payment Request/Invoice; store payment_link;
-     send it via Phase 8 messaging (WhatsApp→SMS). Invoice status → sent.
-   - Card: Stripe subscription drives its own invoice.paid; mirror it into an invoices row.
-3. Reconcile: the Phase 6 webhook marks the invoice paid + promotes a contribution. Cron
-   NEVER marks paid optimistically.
-4. Dunning: unpaid after N reminders (reminder_count) → a follow_up_task; expose per-cycle
-   paid/unpaid on the partner profile and reports.
-
-CONSTRAINTS: no stored MoMo mandate — every MoMo cycle is a fresh authorized charge.
-Idempotent cron: re-running a period is inert. Money stays minor-units + numeric usd_equivalent.
-
-VERIFY:
-- Integration: cron generates exactly one invoice per due commitment per period; re-run
-  inert; a simulated charge.success/paymentrequest.success flips the invoice to paid and
-  writes a contribution; unpaid after N reminders → follow_up_task.
-- E2E: a MoMo commitment's invoice shows a prefilled payment_link and a sent message; a
-  Stripe subscription invoice.paid reconciles.
-- Gate: typecheck && lint && test && build green.
-```
-
----
-
-## Phase 11 — AI assistant (Claude on Vertex, read-only)
+## Phase 8 — AI assistant (Claude on Vertex, read-only)
 
 **Prereq**: Phase 6. **Can start in parallel from Phase 6.**
 
@@ -494,53 +387,63 @@ VERIFY:
 
 ---
 
-## Phase 12 — Monthly cycle & reports (snapshots, close)
+## Phase 9 — Monthly cycle, reports & pledge tracking (snapshots, close)
 
-**Prereq**: Phases 8 and 11.
+**Prereq**: Phases 7 and 8.
 
-**Deliverable**: the month closes itself into frozen per-region snapshots; `/reports` reads them; sequences and AI drafting (approval-gated) land here.
+**Deliverable**: the month closes itself into frozen per-region snapshots; `/reports` reads them; pledges (`recurring_commitments`) drive a "who hasn't paid this period" list and reminders; sequences and AI drafting (approval-gated) land here.
 
 **Prompt**:
 
 ```
-Implement month-close + reports on top of Phases 8 + 11.
+Implement month-close + reports + pledge tracking on top of Phases 7 + 8.
 Read docs/design-spec.md §5 (close semantics), §7 (governance), §8 (Drafter row),
-db-schema.md (monthly_snapshots, sequence_*, approval_policies — §13).
+docs/decisions.md 0007, db-schema.md (recurring_commitments, monthly_snapshots, sequence_*,
+approval_policies — §13).
 
 1. monthly_snapshots migration + close job (cron): per-block frozen stats (partners, paid,
    unpaid, % active, USD totals, new, lapsed), guard against double-close, backfill command.
-2. /reports month selector: snapshots for closed months, live compute for the current month,
+2. Pledge tracking: staff CRUD for recurring_commitments (pledge amount, cadence,
+   day_of_month, reminder channel). A "who hasn't paid this period" view = active pledges with
+   no matched contribution in the period; the Phase 6 import sets last_fulfilled_date. No
+   charging — pledges only flag and remind.
+3. /reports month selector: snapshots for closed months, live compute for the current month,
    clearly labeled. Lapsed detection at close → follow_up_tasks (owner by region block).
-3. Sequences (trigger-gated — build only when manual batches bottleneck): reminder/welcome/
-   lapsed/pre-crusade; send steps require batch approval (Phase 8); pause/resume; idempotent
+4. Reminder run: build the month-end reminder batch from the unpaid-pledge segment; send via
+   the Phase 7 messaging pipeline with batch approval. The reminder IS the recurring mechanism.
+5. Sequences (trigger-gated — build only when manual batches bottleneck): reminder/welcome/
+   lapsed/pre-crusade; send steps require batch approval (Phase 7); pause/resume; idempotent
    step execution keyed by (run, partner, step).
-4. AI drafting tools with an approval envelope: drafts land in a review queue → approving
+6. AI drafting tools with an approval envelope: drafts land in a review queue → approving
    routes into the existing send pipeline. Template category 'prophet' requires a SECOND
    distinct approver (communication_batches.second_approved_by/_at).
 
-CONSTRAINTS: snapshots immutable after close (corrections = adjustment records). AI drafts
-never send — they enter the human approval pipeline. Sequences survive restarts.
+CONSTRAINTS: snapshots immutable after close (corrections = adjustment records). Pledges never
+charge — they only flag unpaid + drive reminders (Decision 0007). AI drafts never send — they
+enter the human approval pipeline. Sequences survive restarts.
 
 VERIFY:
 - Integration: simulated close freezes correct stats; later data changes don't alter them;
-  assistant reads closed-month numbers matching /reports; sequence pause/resume no double-send.
+  an active pledge with no matched contribution appears in "who hasn't paid"; a matched CSV
+  gift clears it; assistant reads closed-month numbers matching /reports; sequence
+  pause/resume no double-send.
 - E2E: an unapproved AI draft and a single-approved prophet draft are both blocked from sending.
 - Gate: typecheck && lint && test && build green.
 ```
 
 ---
 
-## Phase 13 — Scale & hardening (regional RLS, 40k, call queue)
+## Phase 10 — Scale & hardening (regional RLS, 40k, call queue)
 
-**Prereq**: Phase 12.
+**Prereq**: Phase 9.
 
-**Deliverable**: comfortable at 40,000 partners, multi-staff, ready for regional coordinators; production-grade webhook resilience and a tested restore.
+**Deliverable**: comfortable at 40,000 partners, multi-staff, ready for regional coordinators; a hardened CSV import (large files, replay-safe) and a tested restore.
 
 **Prompt**:
 
 ```
-Implement scale + hardening on top of Phase 12.
-Read docs/design-spec.md §9/§12, docs/decisions.md 0005/0006 (RLS is the gate), existing
+Implement scale + hardening on top of Phase 9.
+Read docs/design-spec.md §9/§12, docs/decisions.md 0006 (RLS is the gate) + 0007, existing
 policies from Phase 3.
 
 1. Region scoping: extend RLS with staff_country_assignments so a regional_coordinator only
@@ -548,19 +451,19 @@ policies from Phase 3.
    admin UI for assignments.
 2. Load: seed 40k realistic partners + 18 months of contributions; add pagination/
    virtualization on heavy lists; add indexes found under load; record measured budgets as
-   as-built notes.
+   as-built notes. Ensure a large payment CSV imports within budget.
 3. Call queue: /follow-up call mode ordered by attention tier + due date, script display,
    outcome capture, next-action scheduling.
-4. Ops: webhook_dead_letters + replay tool (idempotency makes replay safe); backup/restore
-   drill documented + run; audit-log coverage checklist; evaluate Meta Cloud API adapter;
-   pawaPay only if rest-of-Africa volume justifies (Decision 0005).
+4. Ops: CSV import replay-safety hardening (row_hash + payment_events unique make re-import
+   inert); backup/restore drill documented + run; audit-log coverage checklist; evaluate Meta
+   Cloud API messaging adapter.
 
 CONSTRAINTS: no behavior change for non-coordinator roles; performance work stays inside
 the repository (no forked data paths).
 
 VERIFY:
 - Integration/load: 40k seed within recorded budgets (e.g. p95 < 2s list render); a scoped
-  coordinator fenced exactly (403 write / 404 read); replayed historical webhook batch → zero
+  coordinator fenced exactly (403 write / 404 read); a re-imported historical CSV batch → zero
   duplicate contributions.
 - Ops: restore drill from backup on a scratch project documented step-by-step.
 - Gate: typecheck && lint && test && build green.
@@ -573,6 +476,6 @@ VERIFY:
 - Always read the relevant docs in this folder BEFORE coding. They are short and load-bearing.
 - **Tests are the completion gate, not optional.** Each phase's `VERIFY` block is the definition of done: Vitest for unit/integration, Playwright for E2E acceptance flows. A phase isn't finished until its `VERIFY` tests are green and `npm run typecheck && npm run lint && npm test && npm run build` all pass.
 - **Integration tests need a database.** They run against a disposable Postgres / test Supabase project via `DATABASE_URL_TEST` (CI `postgres:16` service or local docker), migrated fresh from `supabase/migrations/`. Unit tests need no I/O; E2E needs `npx playwright install chromium` once.
-- Provider specifics live behind adapters (`src/lib/data/`, `src/lib/payments/<provider>/`, `src/lib/messaging/<provider>/`) — UI and business logic import contracts only.
+- Provider specifics live behind adapters (`src/lib/data/`, `src/lib/messaging/<provider>/`) — UI and business logic import contracts only. Payment intake is CSV parsing in `src/lib/payments/csv/` + `match.ts` (no payment provider — Decision 0007).
 - Money is integer minor units + `numeric` `usd_equivalent` — never JS float arithmetic on amounts.
-- Keep webhook/intake logs structured (provider, event reference, match outcome, status) so money movements are greppable.
+- Keep CSV-import/intake logs structured (source, row reference, match outcome, status) so money movements are greppable.

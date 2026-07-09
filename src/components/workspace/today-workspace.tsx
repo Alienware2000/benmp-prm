@@ -214,7 +214,7 @@ export function TodayWorkspace({
     const paymentMethod = String(
       formData.get("paymentMethod") ?? "Mobile Money",
     ).trim();
-    const provider = String(formData.get("provider") ?? "Flutterwave").trim();
+    const provider = String(formData.get("provider") ?? "Manual entry").trim();
 
     const gift: ContributionRecord = {
       id,
@@ -639,10 +639,10 @@ function GiftForm({
         />
         <SelectField
           name="provider"
-          label="Provider"
-          options={["Flutterwave", "Hubtel", "Paystack", "Manual import"]}
+          label="Source"
+          options={["MoMo statement", "Bank CSV", "Remittance export", "Manual entry"]}
         />
-        <TextField name="providerReference" label="Provider ref" />
+        <TextField name="providerReference" label="Source ref" />
         <TextField name="campaignName" label="Campaign" defaultValue="Banjul" />
       </div>
       <SubmitButton label="Draft Thank-you" icon={CircleDollarSign} />

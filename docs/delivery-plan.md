@@ -2,7 +2,9 @@
 
 Last updated: 2026-07-08. Companion to `docs/design-spec.md`.
 
-> **⚠️ Superseded as the phase plan by [`docs/phases.md`](./phases.md) (2026-07-09).** The authoritative build spine is now the finer 14-phase, test-driven plan in `phases.md` (Database / Auth / Roles / Importer / Profile / Payments / … each its own phase, every task gated by an executable Vitest/Playwright test). This file is retained for its still-useful **Workstreams**, **one-week MVP sprint**, and **Cross-phase rules** sections — but its phase list (1A/1B/2A/2B/3–6) is renumbered per `phases.md`. Data layer is **just Supabase** (no ORM; `supabase/migrations/` authoritative; RLS is the authz gate — Decision 0006), and AI is Claude on Vertex. When in doubt, `phases.md` + `db-schema.md` win.
+> **⚠️ Superseded as the phase plan by [`docs/phases.md`](./phases.md) (2026-07-09).** The authoritative build spine is now the finer test-driven plan in `phases.md` (Database / Auth / Roles / Importer / Profile / Payment CSV import / … each its own phase, every task gated by an executable Vitest/Playwright test). This file is retained for its still-useful **Workstreams**, **one-week MVP sprint**, and **Cross-phase rules** sections — but its phase list (1A/1B/2A/2B/3–6) is renumbered per `phases.md`. Data layer is **just Supabase** (no ORM; `supabase/migrations/` authoritative; RLS is the authz gate — Decision 0006), and AI is Claude on Vertex. When in doubt, `phases.md` + `db-schema.md` win.
+
+> **⚠️ Payment approach superseded by Decision 0007 (2026-07-09).** This file's payment phases (2A webhook intake, 2B statement imports, the claim loop, and any recurring-charge/invoice work) describe an abandoned live-payment design. **The system takes no live payments and integrates no provider** — money enters only through a **CSV payment import** that matches partners and ticks them paid. The authoritative intake plan is `phases.md` **Phase 6 (Payment CSV import, matching & reconciliation)**. Treat the webhook/provider detail below as historical; where it says "webhook," read "CSV import row."
 
 > **How to use this file.** Each phase below has a Goal, Prerequisites, Deliverables, an Acceptance test, and a fenced **AI prompt**. To execute a phase, paste the prompt into your coding agent (Claude Code, Codex, etc.) — the prompts assume the agent can read this whole repo, especially `docs/`. **Every prompt's REQUIRED READING implicitly includes `docs/srs.md` (requirement IDs) and `docs/db-schema.md` (schema contract, incl. §13 planned tables/columns for your phase).** Build phases in order; run each acceptance test before starting the next. If implementation must deviate from the plan, record it as an **"As-built notes (Phase N, date)"** section appended to the end of this file. `supabase/migrations/` is the authoritative schema: if code and schema disagree, the schema wins until deliberately changed. "Working over looking nice" is the standing rule — every phase ends with something the BENMP office can actually use.
 
@@ -13,8 +15,8 @@ Five workstreams that can be owned by different people (or one person wearing mu
 | Workstream | Owns | Key skills |
 | --- | --- | --- |
 | A. Data & platform | Supabase schema, RLS, auth, roles, imports, audit log | Postgres, Supabase, Next.js server |
-| B. Payments | Payment adapters, webhooks, event pipeline, matching, reconciliation | Paystack/Hubtel/Stripe APIs, webhook security |
-| C. Messaging | WhatsApp/SMS/email adapters, templates, consent, delivery tracking, claim loop | Twilio/Meta Cloud API, Resend |
+| B. Payments (CSV intake) | CSV payment import, parsing, event pipeline, matching, reconciliation | CSV parsing, phone normalization, data matching (no payment provider — Decision 0007) |
+| C. Messaging | WhatsApp/SMS/email adapters, templates, consent, delivery tracking | Twilio/Meta Cloud API, Resend |
 | D. AI assistant | Chat surface, tool definitions, approval gates, evals | AI SDK 7, prompt/tool design |
 | E. Product & UX | Staff workflows, Today console, reports, onboarding the office team, **frontend consolidation pass** (audit current pages, remove redundant surfaces, improve visual design — runs alongside Phases 1–2, not a rewrite) | Next.js/React, operational UX |
 
@@ -28,7 +30,7 @@ Target: a **working MVP in one week**, built AI-assisted using the phase prompts
 
 1. Staff member logs in (real auth, real database).
 2. The partner list is real — imported from the office's sheets, phones normalized, region blocks assigned.
-3. A test MoMo payment (Paystack test mode) and a test Stripe payment each appear in the app within a minute — matched to a partner, acknowledgement drafted, high-touch flag firing above threshold.
+3. A test payment CSV is uploaded and its rows appear in the app within a minute — matched to partners, acknowledgements drafted, high-touch flag firing above threshold, unmatched rows in the reconciliation queue. (No payment provider — Decision 0007.)
 4. A statement CSV imports; recognized rows become contributions, strangers land in the reconciliation queue and get resolved by hand on screen.
 5. The AI assistant answers the five headline questions from the live data, numbers matching /reports.
 6. (Nice-to-have flourish) One sandbox WhatsApp thank-you actually delivered to a phone in the room.
@@ -65,7 +67,7 @@ Target: a **working MVP in one week**, built AI-assisted using the phase prompts
 
 Fewer people? Merge tracks in this order: E folds into A, then D waits until Day 4 (solo order: 1A → 1B → 2A → 2B → 4).
 
-**Explicitly deferred past the week** (say this out loud in the demo so expectations stay honest): live WhatsApp at volume + consent machinery + reminder batches (needs Meta verification and templates), the remittance claim loop, Hubtel USSD (application pending), month-close snapshots (reports compute live for now), sequences, AI drafting/acting/watchdog, regional RLS scoping, call queue, pawaPay. None of these require rework later — the week builds the spine they attach to.
+**Explicitly deferred past the week** (say this out loud in the demo so expectations stay honest): live WhatsApp at volume + consent machinery + reminder batches (needs Meta verification and templates), the WhatsApp claim loop, month-close snapshots (reports compute live for now), sequences, AI drafting/acting/watchdog, regional RLS scoping, call queue. None of these require rework later — the week builds the spine they attach to. (Live payment rails are not deferred — they are removed under Decision 0007; money enters via CSV.)
 
 **Sprint rule**: when a phase prompt's scope conflicts with the week, cut scope, not correctness — the invariants in Cross-phase rules are not negotiable, including at demo speed.
 
@@ -179,6 +181,8 @@ Output a PR-style summary including the fixture files added.
 ```
 
 ## Phase 2A — Webhook intake rails (Paystack + Stripe)
+
+> **⚠️ Superseded by Decision 0007 → build `phases.md` Phase 6 (CSV import) instead.** This phase and Phase 2B below describe an abandoned live-payment design; they are kept only as historical reference. There are no payment webhooks — read "webhook" as "CSV import row."
 
 **Goal**: a gift through a webhook rail becomes a matched contribution with an acknowledgement draft — the §5 pipeline, live for the two instant channels.
 
@@ -469,7 +473,7 @@ Output a PR-style summary with measured performance numbers.
 ## Cross-phase rules (invariants every phase must honor)
 
 - `supabase/migrations/` is authoritative. Schema changes ship as new migrations, updated in the same PR as the code, reflected in `docs/design-spec.md` when they change the domain model.
-- Contributions come only from verified `payment_events` (webhook or import). No SMS parsing, ever. Claims are advisory.
+- Contributions come only from verified `payment_events` (CSV import or manual entry). No SMS parsing, ever. No live payment provider (Decision 0007).
 - Money: original currency + `usd_equivalent`; numeric/decimal end-to-end; no JS float arithmetic on amounts.
 - Provider specifics live inside adapters (`src/lib/payments/<provider>/`, `src/lib/messaging/<provider>/`, `src/lib/data/`); UI and business logic import contracts only.
 - Every outbound send passes consent checks; bulk sends require a recorded approver; prophet-category requires two.
@@ -488,6 +492,6 @@ Output a PR-style summary with measured performance numbers.
 ## Standing decisions needed from BENMP (blockers by phase)
 
 - Phase 1: the office's partner Excel sheets + a benmp.com export for the clean import; who are the initial staff users and roles; office confirmation of the region-block list.
-- Phase 2: BENMP registered-business documents for Paystack + Hubtel merchant onboarding (start Hubtel's 3–7 day review early); which legal entity/bank Stripe settles to; is today's MoMo number personal or merchant-tier, and can we get daily statements (CSV/API) from it; the official published channels (short code, giving link, wallet number).
+- Phase 6 (payment CSV): a representative payment CSV export per period — the real column layout the office produces (MoMo wallet / bank / remittance) — plus how often it can be exported. This is the only payment integration; no merchant onboarding is needed (Decision 0007).
 - Phase 3: WhatsApp Business account ownership and Meta Business verification (weeks — start at Phase 1); sender identity ("BENMP Office"); what share of current giving arrives via remittance apps (decides the wallet channel's marketing weight).
 - Phase 5: sign-off on message tone/templates, especially anything sent in Bishop Dag's name, and who the second approver for prophet-category messages is.

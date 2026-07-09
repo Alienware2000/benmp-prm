@@ -46,7 +46,7 @@ Error shape:
 | `UNAUTHENTICATED`  | Staff auth required.                                                     |
 | `FORBIDDEN`        | Staff role lacks permission.                                             |
 | `VALIDATION_ERROR` | Request shape or file row failed validation.                             |
-| `BAD_SIGNATURE`    | Provider webhook signature failed.                                       |
+| `BAD_SIGNATURE`    | Messaging-provider webhook signature failed.                             |
 | `DUPLICATE_EVENT`  | Provider event or import row already processed. Usually safe/idempotent. |
 | `NOT_FOUND`        | Resource missing or hidden by scope.                                     |
 | `CONFLICT`         | State transition not allowed.                                            |
@@ -59,7 +59,7 @@ Error shape:
 | ------------------------ | ------------------------------------------------------ |
 | Staff pages              | Supabase staff session.                                |
 | Staff API/server actions | Supabase staff session and role check.                 |
-| Payment webhooks         | Provider signature, not staff session.                 |
+| CSV payment import       | Supabase staff session and finance/admin role (no provider webhooks — Decision 0007). |
 | Messaging webhooks       | Provider signature or verify token, not staff session. |
 | AI chat                  | Supabase staff session.                                |
 
@@ -67,8 +67,7 @@ Error shape:
 
 Required for:
 
-- Payment provider events.
-- Statement import rows.
+- CSV payment import rows.
 - Manual gift promotion.
 - Message status callbacks.
 - Month-close snapshots.
@@ -147,7 +146,9 @@ Commit output:
 - skipped rows
 - audit id
 
-### Statement Import
+### Payment CSV Import
+
+The **sole money-intake path** (Decision 0007). Staff upload a CSV of payments for a period; matched rows tick partners as paid.
 
 Candidate route/action:
 
@@ -156,9 +157,9 @@ Candidate route/action:
 
 Input:
 
-- provider/account type
+- source/account label
 - CSV file or parsed rows
-- statement date range
+- statement period (date range)
 
 Output:
 
@@ -171,9 +172,10 @@ Output:
 
 Rules:
 
-- Commit creates `payment_events`.
-- Recognized rows promote through the same path as webhooks.
-- Unknown rows remain in reconciliation.
+- Commit creates `payment_events` (source `csv_import`).
+- Recognized rows promote to `contributions` through the same path as manual finance entry.
+- Unknown/ambiguous rows remain in reconciliation.
+- Finance/admin role required; every import writes `audit_log`.
 
 ### Reconciliation
 
@@ -204,70 +206,16 @@ Rules:
 - Auto-send remains disabled until office explicitly approves it.
 - Provider responses update `communication_messages` or contribution acknowledgement state.
 
-## 6. Payment Webhooks
+## 6. Payment Intake (CSV-only)
 
-### `POST /api/webhooks/paystack`
+There are **no payment-provider webhooks, no signature verification, and no hosted/prefilled charges** (Decision 0007). All money enters through the **Payment CSV Import** in §5; there is no `/api/webhooks/{paystack,stripe,hubtel}` route and no recurring-invoice cron. "Paid" means a matched `contributions` row exists for the period.
 
-Phase: 6 (recurring/invoice handling: 10).
+### Pledge management (recurring_commitments)
 
-Auth: Paystack signature.
+`recurring_commitments` are **pledge records only** (expected monthly amount) — they drive "who hasn't paid" and the reminder list; they charge no one.
 
-Events: `charge.success`, `paymentrequest.success` (Invoices).
-
-Behavior:
-
-1. Read raw request body.
-2. Verify `x-paystack-signature` with `PAYSTACK_WEBHOOK_SECRET`.
-3. Parse event into `RawPaymentEvent`.
-4. Insert idempotent `payment_events` row.
-5. Re-query Paystack transaction with `PAYSTACK_SECRET_KEY`.
-6. Promote verified event to contribution.
-7. If the event references an open `invoices` row (payment-request/reference), mark it paid and link `payment_event_id` + `contribution_id`.
-8. Queue acknowledgement draft.
-9. Return 2xx for successfully handled duplicate or new event.
-
-Negative behavior:
-
-- Bad signature: 4xx, no promoted writes.
-- Provider verify mismatch: event stays unpromoted for review.
-
-### `POST /api/webhooks/stripe`
-
-Phase: 2A.
-
-Auth: Stripe signature.
-
-Events:
-
-- `checkout.session.completed`
-- `invoice.paid`
-
-Behavior:
-
-- Verify raw body signature.
-- Map one-time and subscription payments into the same payment event shape.
-- Promote only verified successful payments.
-- Use Stripe event id and payment intent/invoice id for idempotency.
-
-### Recurring giving & invoices (Phase 10)
-
-The prefilled-invoice loop (Decision 0005). Recurring MoMo has no auto-debit; the cron issues a prefilled charge and reconciles via the webhooks above.
-
-- `POST /api/cron/recurring-invoices` — cron-triggered (Vercel Cron; protected by a cron secret, not a staff session). For each due `recurring_commitments`, create one `invoices` row for the period (unique `(recurring_commitment_id, period_month)`), issue the prefilled Paystack **Charge API** (`mobile_money {phone, provider}` from the partner) or **Payment Request/Invoice**, store `payment_link`, set status `sent`, and send it via the messaging adapter. Idempotent: re-running a period is inert.
-- `POST /api/recurring-commitments` / `PATCH /api/recurring-commitments/:id` — staff manage a partner's standing pledge (amount, cadence, channel).
-- `POST /api/invoices/:id/resend` — staff re-send an unpaid invoice's prefilled link.
-- Invoices are marked `paid` **only** by a verified `charge.success` / `paymentrequest.success` / Stripe `invoice.paid` webhook (above) — never by the cron.
-
-### `POST /api/webhooks/hubtel`
-
-Phase: after Hubtel account approval.
-
-Auth: provider signature per Hubtel docs.
-
-Behavior:
-
-- Same payment event pipeline.
-- Designed for Ghana USSD merchant rail.
+- `POST /api/recurring-commitments` / `PATCH /api/recurring-commitments/:id` — staff (finance/admin) manage a partner's standing pledge (amount, cadence, `day_of_month`, reminder channel, status).
+- A pledge's `last_fulfilled_date` is set when a CSV-matched contribution covers the period; there is no invoice and nothing to resend.
 
 ## 7. Messaging Webhooks
 

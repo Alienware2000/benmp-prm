@@ -6,75 +6,46 @@
 
 Numbered to match `srs.md §3`. Journeys are grouped and numbered per persona (`J1.1`, `J1.2`, …).
 
-1. **Finance staff** — imports statements, reviews payment events, resolves reconciliation, creates contributions.
+1. **Finance staff** — uploads payment CSVs, reviews payment events, resolves reconciliation, ticks partners as paid.
 2. **Communications staff** — approves/sends acknowledgements, runs message batches, manages segments and templates.
-3. **Admin / Super admin** — imports partners, configures thresholds/providers/kill-switches, manages roles.
+3. **Admin / Super admin** — imports partners, configures thresholds/settings/kill-switches, manages roles.
 4. **Regional coordinator** — works an assigned region-block follow-up queue (row-level scoping deferred, `FR-1.5`).
 5. **Prayer team** — triages prayer requests and care responses.
 6. **Viewer / auditor** — reads dashboards and reports only.
 7. **AI assistant** — answers and (later) drafts on behalf of the invoking staff user, read-only first (`FR-9.1`).
-8. **System (no human)** — provider webhooks and cron jobs that drive the automatic gift-to-relationship pipeline.
 
-Every journey below assumes an authenticated Supabase staff session unless it is a provider webhook or cron path (those authenticate by signature or cron secret, not a session — `api-spec.md §2`).
-
----
-
-## J8. System: gift arrives via webhook and becomes a thanked relationship
-
-The spine of the product (`srs.md §1`). No human is in the loop until the acknowledgement gate.
-
-### J8.1 Provider webhook → contribution → queued thank-you
-
-**Prereqs**: a payment provider (Paystack Phase 6 / Stripe Phase 2A) is configured with a webhook secret; the partner's phone or provider customer id can be matched (`FR-4.1`).
-
-**Trigger**: a partner gives through a published channel; the provider POSTs to `POST /api/webhooks/{paystack|stripe}`.
-
-1. **Server** reads the **raw** body and verifies the provider signature. Bad signature → **4xx** `BAD_SIGNATURE`, no writes (`FR-3.2`).
-2. **Server** parses the payload into a `RawPaymentEvent` and inserts an idempotent `payment_events` row (unique on provider event id). Replay of an already-seen event → **2xx** `DUPLICATE_EVENT`, inert (`FR-3.6`, `NFR-6`).
-3. **Server** re-queries the provider transaction to confirm status/amount before promoting (`FR-3.3`). Mismatch → event stays **unpromoted**, no contribution.
-4. **Server** matches by normalized phone, then provider customer identity / email / reference words (`FR-4.1`–`FR-4.2`).
-   - **Match found** → promote to a `contributions` row (original minor units + currency + provider reference), classify against thresholds, queue an acknowledgement draft.
-   - **No/ambiguous match** → event routes to the reconciliation queue (→ **J1.2**); no contribution yet (`FR-4.3`).
-5. If the gift crosses the high-touch threshold (default USD 100, `BR-8`) or is above the partner's usual pattern, **Server** creates a priority follow-up task (`FR-6.4`).
-6. **Server** returns **2xx**.
-
-**DB state**: `payment_events` (+1, immutable), `contributions` (+1 on match), `communication_messages`/acknowledgement queue (+1 draft), optional `follow_up_tasks` (+1), `audit_log` (+1). Every money-movement step emits a structured log line (provider, event ref, match outcome, status) per AGENTS.md.
-
-**Failure modes**:
-- Signature invalid → **4xx**, nothing written beyond a rejected-webhook log.
-- Provider verify mismatch → payment event persisted but not promoted; surfaces in reconciliation for a human.
-- Contribution is **never** created from a claim/SMS text alone (`BR-2`, `BR-3`).
-
-### J8.2 Recurring invoice cron (Phase 10)
-
-**Trigger**: Vercel Cron hits `POST /api/cron/recurring-invoices` (authenticated by cron secret, not a session).
-
-1. **Server** finds due `recurring_commitments` and, for each, creates one idempotent `invoices` row for the period (unique `(recurring_commitment_id, period_month)`) (`api-spec.md §6`).
-2. **Server** issues a prefilled Paystack Charge/Payment-Request, stores `payment_link`, sets status `sent`, and dispatches it through the messaging adapter (consent-checked, `FR-7.4`).
-3. Payment, when it lands, arrives as a normal webhook (→ **J8.1**). The invoice is marked `paid` **only** by a verified webhook — never by the cron (`api-spec.md §6`).
-
-**DB state**: `invoices` (+1 per due commitment), `communication_messages` (+1). Re-running the same period is inert.
+Every journey below assumes an authenticated Supabase staff session unless it is a messaging-provider callback (those authenticate by signature/verify token, not a session — `api-spec.md §2`). There is **no live payment intake**: money enters only through the CSV import in **J1.1** (Decision 0007).
 
 ---
 
 ## J1. Finance staff
 
-### J1.1 Statement import → reconciliation
+### J1.1 Payment CSV import → match → tick paid (the product spine)
 
-**Prereqs**: finance/admin role; a provider/bank statement CSV (real statements never enter git, `FR-2.6`/`NFR-3`).
+The core loop (`srs.md §1`, Decision 0007): a CSV of a period's payments becomes matched, ticked, thanked contributions. No human is in the loop for a clean match until the acknowledgement gate.
 
-**Trigger**: finance uploads a statement on `/giving`.
+**Prereqs**: finance/admin role; a period's payment CSV, exported by the office from wherever the money landed (wallet/bank/remittance). Real CSVs never enter git (`FR-2.6`/`NFR-3`).
 
-1. **Screen** `/giving` → upload calls `POST /api/imports/payment-statements/preview` with provider/account type, rows, and date range.
-2. **Server** validates rows (Zod), computes row-count / matched / ambiguous / duplicate counts, and returns a preview. Invalid shape → **4xx** `VALIDATION_ERROR` (`api-spec.md §5`).
-3. Finance reviews and calls `POST /api/imports/payment-statements/commit`.
-4. **Server** creates `payment_events` with source metadata + row dedupe keys (`FR-3.4`); recognized rows promote through the **same** path as webhooks (→ **J8.1**); unknown rows stay in reconciliation (`BR-4`).
+**Trigger**: finance uploads the CSV on `/giving`.
 
-**DB state**: `payment_events` (+N), `contributions` (+matched), reconciliation queue (+unmatched), `audit_log` (+1 with import id).
+1. **Screen** `/giving` → upload calls `POST /api/imports/payment-statements/preview` with a source/account label, the rows, and the statement period.
+2. **Server** validates rows (Zod) and, for each, attempts a match against the partner DB by normalized phone, then email / reference words (`FR-4.1`–`FR-4.2`). Returns row-count / matched / ambiguous / duplicate / invalid counts. Invalid shape → **4xx** `VALIDATION_ERROR` (`api-spec.md §5`).
+3. Finance reviews the preview and calls `POST /api/imports/payment-statements/commit`.
+4. **Server** creates immutable `payment_events` (source `csv_import`) with per-row dedupe keys (`FR-3.1`, `FR-3.3`). Re-importing the same row is inert (`FR-3.6`, `NFR-6`).
+   - **Matched row** → promote to a `contributions` row (original minor units + currency + date); the partner is now **ticked as paid** for the period, and any covered `recurring_commitments` pledge gets `last_fulfilled_date` set. Classify against thresholds and queue an acknowledgement draft (`FR-6.1`).
+   - **Unmatched / ambiguous row** → stays in the reconciliation queue (→ **J1.2**); no contribution yet (`FR-4.3`, `BR-4`).
+5. If a gift crosses the high-touch threshold (default USD 100, `BR-8`) or is above the partner's usual pattern, **Server** creates a priority follow-up task (`FR-6.4`).
+
+**DB state**: `payment_imports` (+1), `payment_import_rows` (+N), `payment_events` (+N, immutable), `contributions` (+matched), reconciliation queue (+unmatched), acknowledgement queue (+matched), optional `follow_up_tasks` (+high-touch), `audit_log` (+1 with import id). Every money-movement step emits a structured log line (source, row ref, match outcome, status) per AGENTS.md.
+
+**Failure modes**:
+- Invalid CSV shape → **4xx** `VALIDATION_ERROR`, nothing committed.
+- Duplicate row on re-import → inert, no second contribution.
+- Contribution is **never** created from a claim/SMS text alone (`BR-2`, `BR-3`).
 
 ### J1.2 Resolve a reconciliation item
 
-**Trigger**: an unmatched/ambiguous payment event sits in the reconciliation queue (from **J8.1** or **J1.1**).
+**Trigger**: an unmatched/ambiguous payment event sits in the reconciliation queue (from **J1.1**).
 
 1. **Screen** `/giving` reconciliation view lists open events.
 2. Finance chooses one action (all require finance/admin role, `FR-4.4`):
@@ -87,7 +58,7 @@ The spine of the product (`srs.md §1`). No human is in the loop until the ackno
 
 ### J1.3 Manual finance entry
 
-Finance records a gift seen out-of-band (e.g. cash/transfer). It routes through the **same** payment-event promotion path as webhooks and imports (`FR-3.5`) — never a direct `contributions` insert. **DB state** identical to **J8.1** from step 4.
+Finance records a gift seen out-of-band (e.g. cash handed in). It routes through the **same** payment-event promotion path as the CSV import (`FR-3.5`) — never a direct `contributions` insert. **DB state** identical to **J1.1** from step 4.
 
 ---
 
@@ -95,14 +66,14 @@ Finance records a gift seen out-of-band (e.g. cash/transfer). It routes through 
 
 ### J2.1 Approve and send an acknowledgement
 
-**Prereqs**: an acknowledgement draft exists (from **J8.1**/**J1.2**); auto-send stays disabled until the office enables it (`api-spec.md §5`).
+**Prereqs**: an acknowledgement draft exists (from **J1.1**/**J1.2**); auto-send stays disabled until the office enables it (`api-spec.md §5`).
 
 **Trigger**: comms opens the acknowledgement queue on `/communication`.
 
 1. **Screen** shows the draft with personalization context: partner name, amount, campaign, giving history, channel (`FR-6.2`).
 2. Comms calls `POST /api/acknowledgements/:id/approve`.
 3. Comms calls `POST /api/acknowledgements/:id/send`. **Server** checks consent/opt-out **before** dispatch (`FR-7.4`); no consent → send blocked, item flagged. WhatsApp respects template category/approval (`FR-7.5`).
-4. Provider status callback (→ **J8**, `POST /api/webhooks/twilio/status`) updates `communication_messages.status` idempotently; failure → `POST /api/acknowledgements/:id/mark-failed` allows retry.
+4. The messaging provider's delivery-status callback (`POST /api/webhooks/twilio/status`, signature-verified) updates `communication_messages.status` idempotently; failure → `POST /api/acknowledgements/:id/mark-failed` allows retry.
 
 **DB state**: `communication_messages` (status transitions), contribution acknowledgement state updated, `audit_log` (+1).
 
@@ -134,7 +105,7 @@ Finance records a gift seen out-of-band (e.g. cash/transfer). It routes through 
 **Trigger**: admin edits settings on `/admin` (Phase 1A).
 
 1. **Server** validates and writes `app_settings` (active-year default USD 60, high-touch USD 100 — configurable, not code, `FR-5.4`–`FR-5.5`, `BR-7`–`BR-8`). Secrets are never exposed to the browser bundle (`FR-11.4`, `NFR-3`).
-2. Subsequent classification (**J8.1** step 4/5) uses the new thresholds; USD comparisons use stored numeric USD-equivalents, never JS floats (`NFR-7`).
+2. Subsequent classification (**J1.1** step 4/5) uses the new thresholds; USD comparisons use stored numeric USD-equivalents, never JS floats (`NFR-7`).
 
 **DB state**: `app_settings` (updated), `audit_log` (+1). Role changes are likewise auditable (`FR-11.3`, `NFR-4`).
 
@@ -147,7 +118,7 @@ Finance records a gift seen out-of-band (e.g. cash/transfer). It routes through 
 **Trigger**: coordinator opens `/follow-up`.
 
 1. **Screen** lists follow-up tasks. In Phase 1 all active staff see all operational data (`FR-1.4`, `BR-10`); row-level scoping by region block is **schema-ready but deferred** until coordinators are onboarded (`FR-1.5`, srs deferred triggers).
-2. Coordinator creates/updates/completes tasks; high-touch tasks (from **J8.1**) surface as priority (`FR-6.4`).
+2. Coordinator creates/updates/completes tasks; high-touch tasks (from **J1.1**) surface as priority (`FR-6.4`).
 
 **DB state**: `follow_up_tasks` (status transitions), `audit_log` (+1). When scoping activates, an out-of-region write → **403**, out-of-region read → **404**.
 
@@ -197,8 +168,8 @@ Finance records a gift seen out-of-band (e.g. cash/transfer). It routes through 
 
 Hold across every journey above (see `srs.md §5–6`, `security.md`):
 
-- **Contributions only from verified `payment_events`** (`BR-2`). No path — webhook, import, manual, AI, claim — creates a contribution any other way.
-- **Idempotency & replay-safety** on every provider event, import row, status callback, and cron period (`FR-3.6`, `NFR-6`).
+- **Contributions only from verified `payment_events`** (`BR-2`). No path — CSV import, manual, AI, claim — creates a contribution any other way.
+- **Idempotency & replay-safety** on every CSV import row and messaging status callback — re-importing a row is inert (`FR-3.6`, `NFR-6`).
 - **Consent before every send**; bulk sends need a named approver; Bishop-Dag/prayer broadcasts need a second (`FR-7.3`–`FR-7.6`, `BR-11`).
 - **Money is original minor units + a numeric USD-equivalent**, never JS floating-point for rule decisions (`NFR-7`).
 - **Audit on every sensitive action** — money, messages, prayer, AI approvals, imports, reconciliation, roles (`NFR-4`).

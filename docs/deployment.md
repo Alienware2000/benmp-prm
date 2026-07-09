@@ -96,8 +96,6 @@ Current keys from `.env.example`:
 | `GOOGLE_VERTEX_LOCATION`        | AI envs        | Vertex region, e.g. `us-east5`.                         |
 | `GOOGLE_APPLICATION_CREDENTIALS`| Server only    | Vertex service-account (path or inline JSON); not in git.|
 | `BENMP_DEFAULT_MODEL`           | AI envs        | Claude model id resolved via the registry.              |
-| `PAYSTACK_SECRET_KEY`           | Payment envs   | Server only.                                            |
-| `PAYSTACK_WEBHOOK_SECRET`       | Payment envs   | Server only.                                            |
 | `TWILIO_ACCOUNT_SID`            | Messaging envs | Server only.                                            |
 | `TWILIO_AUTH_TOKEN`             | Messaging envs | Server only.                                            |
 | `TWILIO_MESSAGING_SERVICE_SID`  | Messaging envs | Server only.                                            |
@@ -106,32 +104,25 @@ Current keys from `.env.example`:
 
 Add later when implemented:
 
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
-- `HUBTEL_CLIENT_ID`
-- `HUBTEL_CLIENT_SECRET`
-- `HUBTEL_WEBHOOK_SECRET`
 - `META_WHATSAPP_TOKEN`
 - `META_WHATSAPP_PHONE_NUMBER_ID`
 - `META_WHATSAPP_VERIFY_TOKEN`
-- `PAWAPAY_API_KEY`, only if triggered
 
-## 7. Provider Webhook URLs
+There are **no payment-provider env vars** — the system integrates no payment provider (Decision 0007). Money enters via CSV upload, which needs no credentials.
 
-Planned routes:
+## 7. Messaging Webhook URLs
+
+The only inbound webhooks are messaging delivery/inbound callbacks — **there are no payment webhooks** (Decision 0007).
 
 | Provider       | URL Shape                      | Environment                             |
 | -------------- | ------------------------------ | --------------------------------------- |
-| Paystack       | `/api/webhooks/paystack`       | Preview and production after Phase 2A.  |
-| Stripe         | `/api/webhooks/stripe`         | Preview and production after Phase 2A.  |
-| Twilio status  | `/api/webhooks/twilio/status`  | Phase 3.                                |
-| Twilio inbound | `/api/webhooks/twilio/inbound` | Phase 3 claim loop if triggered.        |
-| Hubtel         | `/api/webhooks/hubtel`         | When Hubtel merchant setup is approved. |
+| Twilio status  | `/api/webhooks/twilio/status`  | Phase 7.                                |
+| Twilio inbound | `/api/webhooks/twilio/inbound` | Phase 7 (opt-out; claim loop if triggered). |
 
 Rules:
 
-- Webhook routes are not staff-authenticated.
-- Webhook routes must verify provider signatures.
+- Messaging webhook routes are not staff-authenticated.
+- Messaging webhook routes must verify provider signatures.
 - Preview webhook endpoints must use test provider accounts.
 
 ## 8. Database Migration Workflow
@@ -184,11 +175,10 @@ Planned jobs:
 | Job                            | Phase | Candidate Runtime                                 |
 | ------------------------------ | ----- | ------------------------------------------------- |
 | Statement import reminders     | 7     | Staff workflow first; automation later.           |
-| Message batch dispatch         | 8     | Vercel cron or Supabase scheduled function.       |
-| **Recurring invoice cron**     | 10    | Vercel cron: generate `invoices` from due `recurring_commitments`, issue prefilled Paystack charge/link, reconcile via webhook. |
-| Month-close snapshots          | 12    | Vercel cron route or Supabase scheduled function. |
-| Lapsed partner task generation | 12    | Same job as month-close or follow-up worker.      |
-| Webhook replay review          | 13    | Admin-triggered job plus dead-letter queue.       |
+| Message batch dispatch         | 7     | Vercel cron or Supabase scheduled function.       |
+| Pledge reminder run            | 9     | Cron builds the reminder batch from unpaid pledges (no charging — Decision 0007). |
+| Month-close snapshots          | 9     | Vercel cron route or Supabase scheduled function. |
+| Lapsed partner task generation | 9     | Same job as month-close or follow-up worker.      |
 
 (Phase numbers per `docs/phases.md`.)
 
@@ -206,7 +196,7 @@ Before production:
 
 Recovery expectations:
 
-- Payment webhooks are replay-safe.
+- CSV payment imports are replay-safe (re-importing a row is inert).
 - Statement imports are deduped.
 - Manual corrections are audited.
 - Month-close snapshots can be backfilled from contributions if needed.
@@ -230,7 +220,7 @@ Rollback:
 
 - Prefer rolling back Vercel deployment for app-only issues.
 - Database rollbacks require explicit migration planning; do not rely on destructive down migrations.
-- If a webhook bug created bad data, pause provider webhook processing, fix idempotent replay logic, and correct data with audited scripts.
+- If a bad CSV import created wrong data, stop further imports, fix the parsing/dedup logic, and correct data with audited scripts (payment_events are immutable — correct at contribution level).
 
 ## 13. Go-Live Checklist
 

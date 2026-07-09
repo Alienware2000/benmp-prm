@@ -24,7 +24,7 @@ BENMP PRM is an internal Partner Relationship Management system for BENMP and th
 - Never store payment card data, WhatsApp tokens, API keys, or private partner information in git.
 - Docs update in the same change, never as a follow-up: schema change → `docs/db-schema.md`; new/changed route or server action → `docs/api-spec.md`; plan deviation → "As-built notes" in `docs/phases.md`; workflow/architecture decision → `docs/decisions.md`. Keep docs concise and scannable.
 - Verify with `npm run lint` (the npm script, not a bare `npx eslint` — config resolution differs) plus `npm run typecheck` before calling a change done.
-- Webhook/intake code paths emit structured logs (provider, event reference, match outcome, status) — money movements must be greppable.
+- CSV import/intake code paths emit structured logs (source, row reference, match outcome, status) — money movements must be greppable. (No payment provider/webhooks — Decision 0007.)
 
 ## Commands
 

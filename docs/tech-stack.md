@@ -14,12 +14,11 @@ Last updated: 2026-07-09. Companion to `docs/decisions.md` (the *why*) and `docs
 | Database | Supabase Postgres (+ RLS) | Installed (client) | Decision 0004; Transcript: "I agree with Postgres", RLS valued |
 | Data access | **`@supabase/supabase-js` + `@supabase/ssr`** (no ORM) | Installed | Decision 0006: RLS works as the authz gate; types via `supabase gen types` |
 | Auth | Supabase Auth (email/password + email-verify invite) | Installed | Decision 0004; Transcript: email-invite staff onboarding |
-| Payments — Africa | Paystack (cards + MoMo, USD-capable) | PLANNED (Phase 6) | Decision 0004/0005; Transcript |
-| Payments — Diaspora | Stripe (cards + subscriptions) | PLANNED (Phase 6) | Decision 0004; Transcript |
-| Recurring giving | Stripe subscriptions (card) + MoMo prefilled-invoice cron | PLANNED (Phase 10) | Decision 0005; Transcript: MoMo has no auto-recurring, "a cron that runs every month" |
-| Messaging | Twilio (WhatsApp + SMS) + Resend (email) | PLANNED (Phase 8) | Decision 0004/0005 |
+| Payment intake | **CSV import** (parse → match → tick paid); no payment provider | PLANNED (Phase 6) | Decision 0007: no live payments; money reconciled from a periodic CSV |
+| Recurring giving | `recurring_commitments` pledge records + reminders (no charging) | PLANNED (Phase 9) | Decision 0007: pledges flag "who hasn't paid"; the reminder loop is the mechanism |
+| Messaging | Twilio (WhatsApp + SMS) + Resend (email) | PLANNED (Phase 7) | Decision 0004 |
 | AI runtime | Vercel AI SDK (`ai`), provider behind model registry | Installed | Decision 0001/0002 |
-| AI model | **Anthropic Claude via GCP Vertex AI** | **PLANNED (Phase 11)** | Transcript: "Vertex already has Claude", Anthropic key |
+| AI model | **Anthropic Claude via GCP Vertex AI** | **PLANNED (Phase 8)** | Transcript: "Vertex already has Claude", Anthropic key |
 | Testing | **Vitest** (unit/integration) + **Playwright** (E2E) | Installed | TDD model: every task ships an executable green-test gate |
 | Validation | Zod | Installed | Standard across server actions / tool schemas |
 | CSV import | papaparse | Installed | Import-tool emphasis; Phase 4/7 |
@@ -46,7 +45,7 @@ Last updated: 2026-07-09. Companion to `docs/decisions.md` (the *why*) and `docs
 - **Money invariant**: original amounts are **integer minor units** (`amount_minor`) + currency; `usd_equivalent` is `numeric` (the client returns numerics as **strings**, so no JS float — parse with a decimal helper only when arithmetic is needed).
 - **`PrmRepository` stays the seam.** The Supabase queries live *inside* `src/lib/data/` behind the existing repository contract — UI and business logic import the contract only (Decision 0002). The mock provider is unaffected.
 
-**RLS is the authorization gate.** The Supabase client runs queries under the logged-in user's JWT, so per-role RLS policies (from `db-schema.md`/`security.md`) enforce reads/writes directly — a viewer's write fails at the database. Server actions still validate input and shape, but RLS is the primary gate, not a bypassed backstop. Region scoping (Phase 13) is RLS-enforced too. (Service-role key is used only in trusted server code that deliberately needs to bypass RLS, e.g. webhook intake.)
+**RLS is the authorization gate.** The Supabase client runs queries under the logged-in user's JWT, so per-role RLS policies (from `db-schema.md`/`security.md`) enforce reads/writes directly — a viewer's write fails at the database. Server actions still validate input and shape, but RLS is the primary gate, not a bypassed backstop. Region scoping (Phase 10) is RLS-enforced too. (Service-role key is used only in trusted server code that deliberately needs to bypass RLS, e.g. CSV import commit and seeds.)
 
 ## Auth
 
@@ -56,16 +55,15 @@ Last updated: 2026-07-09. Companion to `docs/decisions.md` (the *why*) and `docs
 
 | Rail | Provider | Modes | Notes |
 | --- | --- | --- | --- |
-| Africa (cards + MoMo) | **Paystack** | One-time; accepts USD | MoMo is **one-time OTP push only** — no card-style auto-recurring exists |
-| Diaspora (cards) | **Stripe** | One-time links **and** subscriptions | True auto-recurring for card countries |
+| All regions | **CSV payment import** | Periodic upload, matched to partners | The office already exports a statement/CSV of where money landed; no provider integration (Decision 0007) |
 
-- **Recurring**: card recurring = Stripe subscriptions. MoMo "recurring" = a **monthly cron** that generates an `invoices` row and issues a **prefilled** Paystack Charge/Payment-Request (partner only enters OTP+PIN) — the monthly cycle *is* the recurring mechanism (Decision 0005; transcript). Cron on Vercel Cron or a Supabase scheduled function (pick one in Phase 10, document why).
-- Providers sit behind `PaymentAdapter` (`BENMP_PAYMENT_PROVIDER`); SDKs confined to `src/lib/payments/<provider>/`. Contributions come only from verified `payment_events` (webhook or statement import).
-- `stripe` and Paystack SDKs are **PLANNED** — not yet in `package.json`.
+- **No payment provider, no webhooks, no charges.** Money enters only through a CSV upload parsed in `src/lib/payments/csv/` and matched by `src/lib/payments/match.ts`. Contributions come only from verified `payment_events` (source `csv_import` or `manual`).
+- **Recurring** = the monthly reminder loop, never an auto-debit. `recurring_commitments` are pledge records (expected amount) used to flag who has not appeared in a period's CSV; the CSV match clears the pledge. No cron issues charges (Decision 0007).
+- No payment-provider SDKs are needed (`paystack`/`stripe` removed). CSV parsing uses `papaparse`; phone matching uses `src/lib/phone.ts`.
 
 ## Messaging
 
-**Twilio** (WhatsApp + SMS) + **Resend** (email), behind `MessagingAdapter` (`BENMP_MESSAGING_PROVIDER`). Meta Cloud API is the long-term direct WhatsApp path (Decision 0004) evaluated in Phase 13. All PLANNED (Phase 8). Every send passes a consent check; bulk sends need a recorded approver.
+**Twilio** (WhatsApp + SMS) + **Resend** (email), behind `MessagingAdapter` (`BENMP_MESSAGING_PROVIDER`). Meta Cloud API is the long-term direct WhatsApp path (Decision 0004) evaluated in Phase 10. All PLANNED (Phase 7). Every send passes a consent check; bulk sends need a recorded approver.
 
 ## AI
 
@@ -102,7 +100,7 @@ The build is test-driven: **every task completes only when its test passes.** Tw
 
 - **Node**: per Vercel's Next 16 runtime.
 - **Hosting**: Vercel (app + cron). **Database/Auth/Storage**: Supabase.
-- **Cloud (AI)**: GCP (Vertex AI) — the one non-Vercel/Supabase dependency, introduced only at Phase 11.
+- **Cloud (AI)**: GCP (Vertex AI) — the one non-Vercel/Supabase dependency, introduced only at Phase 8.
 - **CI**: typecheck + lint + build green at every phase boundary (`npm run typecheck && npm run lint && npm run build`).
 
 ## Env vars (stack-driven)
@@ -111,15 +109,11 @@ The build is test-driven: **every task completes only when its test passes.** Tw
 # Data (Supabase)
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=   # server-only (webhook intake, seeds)
+SUPABASE_SERVICE_ROLE_KEY=   # server-only (CSV import commit, seeds)
 
-# Providers (behind adapters)
+# Providers (behind adapters) — no payment provider (Decision 0007)
 BENMP_DATA_PROVIDER=mock|supabase
-BENMP_PAYMENT_PROVIDER=mock|paystack|stripe
 BENMP_MESSAGING_PROVIDER=mock|twilio
-PAYSTACK_SECRET_KEY=
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
 RESEND_API_KEY=
@@ -134,7 +128,7 @@ GOOGLE_APPLICATION_CREDENTIALS=   # or inline service-account JSON var
 
 The **data layer matches the shipped repo** (`@supabase/ssr` + `@supabase/supabase-js`, SQL migrations, RLS) — no change there. What's not yet installed:
 
-1. **Claude via Vertex** — no AI provider package installed yet; Phase 11 adds `@ai-sdk/google-vertex` behind the model registry.
-2. **Provider SDKs** — `stripe`, Paystack, Twilio, Resend land in their phases (6/8).
+1. **Claude via Vertex** — no AI provider package installed yet; Phase 8 adds `@ai-sdk/google-vertex` behind the model registry.
+2. **Messaging SDKs** — Twilio + Resend land in Phase 7. **No payment SDKs** — intake is CSV parsing (`papaparse`), not a provider (Decision 0007).
 
-Everything else (Supabase + RLS, Paystack, Stripe both modes, Twilio + Resend, Vercel, Next.js/TS, Vitest/Playwright) matches Decisions 0004/0005/0006 and the transcript with no divergence.
+Everything else (Supabase + RLS, CSV import, Twilio + Resend, Vercel, Next.js/TS, Vitest/Playwright) matches Decisions 0006/0007 and the transcript with no divergence.

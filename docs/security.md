@@ -8,7 +8,7 @@ BENMP PRM handles money records, partner PII, prayer requests, WhatsApp/SMS/emai
 
 - Staff-only access.
 - Least privilege by role.
-- RLS on operational tables.
+- **RLS on operational tables is the authorization gate** — the Supabase client queries under the user's JWT, so per-role policies enforce reads/writes directly (Decision 0006, just-Supabase). Server actions validate input; RLS enforces access.
 - Verified payment evidence before contribution creation.
 - Human approval before bulk send, sensitive send, AI mutation, or AI send.
 - Audit logs for all sensitive operations.
@@ -19,7 +19,7 @@ BENMP PRM handles money records, partner PII, prayer requests, WhatsApp/SMS/emai
 Phase 1A target:
 
 - Supabase Auth with email/password.
-- All app routes protected except login and future provider webhook routes.
+- All app routes protected except login and messaging webhook routes (there are no payment webhooks — Decision 0007).
 - `profiles.id` references `auth.users(id)`.
 - `profiles.is_active = false` disables staff privilege through helper functions.
 
@@ -50,13 +50,15 @@ Phase 1 rule:
 
 ## 4. Row-Level Security
 
-`0001_initial_schema.sql` enables RLS on all operational tables.
+RLS is the authorization gate (Decision 0006, just-Supabase): the Supabase client queries under the logged-in user's JWT, so per-role policies enforce access at the database. `0001_initial_schema.sql` enables RLS on all operational tables.
 
 Implementation requirements:
 
 - Every new table must enable RLS in the same migration that creates it.
 - Every table must have explicit select/insert/update/delete policies or a documented denial.
-- Viewer write attempts must fail.
+- Viewer write attempts must fail (enforced by RLS).
+- Region scoping (Phase 10) is RLS-enforced via `staff_country_assignments`.
+- The service-role key bypasses RLS and is used only in trusted server code that must (e.g. CSV import commit, seeds).
 - Finance-only tables must stay finance/admin scoped.
 - Prayer-sensitive data must stay prayer/admin scoped.
 - Regional scoping must be tested before coordinator accounts are enabled.
@@ -73,23 +75,21 @@ Acceptance tests:
 
 Contribution creation is high-risk. Rules:
 
+Intake is CSV-only; there is no payment provider or webhook (Decision 0007). Rules:
+
 - Never create a contribution directly from browser form state.
-- Every money path first creates or references a `payment_events` row.
-- Provider webhooks must verify signatures.
-- Provider transactions should be re-queried before promotion when possible.
-- Bad signatures return 4xx and do not write promoted state.
-- Replays are idempotent and create no duplicate contribution.
-- Statement imports require row-level dedupe.
-- Manual entries use the same promotion path and audit trail as webhooks.
+- Every money path first creates or references a `payment_events` row (source `csv_import` or `manual`).
+- CSV imports are restricted to finance/admin (staff session + role), validated (parsed, typed, amount/currency checked) before any write, and previewed before commit.
+- CSV rows require row-level dedupe (stable row hash) so re-importing is idempotent and creates no duplicate contribution.
+- Manual entries use the same promotion path and audit trail as CSV imports.
+- `payment_events` are immutable; corrections happen at contribution level with an audit trail.
 
-Provider expectations:
+Intake expectations:
 
-| Provider          | Security Requirement                                                                                     |
-| ----------------- | -------------------------------------------------------------------------------------------------------- |
-| Paystack          | Verify `x-paystack-signature` using HMAC-SHA512 and secret. Re-query transaction before promotion.       |
-| Stripe            | Verify Stripe webhook signature using raw request body. Handle checkout and invoice events idempotently. |
-| Hubtel            | Verify signed callbacks per provider docs once account is approved.                                      |
-| Statement imports | Store row evidence, dedupe by stable hash, reconcile with staff audit.                                   |
+| Intake path      | Security requirement                                                                                     |
+| ---------------- | -------------------------------------------------------------------------------------------------------- |
+| CSV payment import | Finance/admin only; validate every row; store raw row evidence in `jsonb`; dedupe by stable row hash; preview → commit; write `audit_log`. |
+| Manual entry     | Same promotion path, role gate, and audit trail as CSV import.                                           |
 
 SMS parsing is not a payment security control and must never be treated as ledger evidence.
 
@@ -153,17 +153,16 @@ Current `.env.example` keys include:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `AI_GATEWAY_API_KEY`
 - `BENMP_DEFAULT_MODEL`
-- `PAYSTACK_SECRET_KEY`
-- `PAYSTACK_WEBHOOK_SECRET`
+- `GOOGLE_VERTEX_PROJECT`, `GOOGLE_VERTEX_LOCATION` (Claude on Vertex)
+- `GOOGLE_APPLICATION_CREDENTIALS` (Vertex service-account, server only — never in git)
 - `TWILIO_ACCOUNT_SID`
 - `TWILIO_AUTH_TOKEN`
 - `TWILIO_MESSAGING_SERVICE_SID`
 - `TWILIO_WHATSAPP_SENDER`
 - `RESEND_API_KEY`
 
-Planned keys should be added only when the integration lands, for example Stripe, Hubtel, Meta Cloud API, or pawaPay.
+Planned keys should be added only when the integration lands, for example Meta Cloud API (messaging). There are no payment-provider keys — intake is CSV (Decision 0007).
 
 ## 10. Input Validation
 
@@ -174,7 +173,7 @@ Use Zod or equivalent structured validation for:
 - Reconciliation actions.
 - Manual gift entries.
 - Message batch creation.
-- Provider webhook payload shapes after signature verification.
+- CSV import row shapes (parsed, before promotion).
 - AI tool arguments.
 
 Validation failures should return predictable errors and not partially write operational state.
@@ -200,7 +199,8 @@ Audit entries should include actor, action, entity table, entity id, before/afte
 ## 12. Operational Checklist
 
 - [ ] All staff pages protected.
-- [ ] Provider webhook routes bypass staff auth but verify provider signatures.
+- [ ] CSV import is finance/admin-gated, validated, preview→commit, and audited.
+- [ ] Messaging webhook routes bypass staff auth but verify provider signatures.
 - [ ] RLS enabled on every new table.
 - [ ] Viewer write negative test passes.
 - [ ] Finance-only data cannot be modified by communications-only staff.

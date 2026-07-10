@@ -1,0 +1,400 @@
+openapi: 3.1.0
+info:
+  title: BENMP PRM API
+  version: 0.1.0
+  description: |
+    Machine-readable companion to `docs/api-spec.md`. This is a **representative
+    subset**, not a full mirror: it covers the CSV-import/reconciliation/acknowledgement
+    spine, the messaging status callbacks, and the AI chat route — the surfaces backend
+    phases build first. The staff read views (`PrmRepository`, `api-spec.md §4`) and
+    the full messaging/campaign/prayer surfaces are intentionally omitted here; see
+    `api-spec.md` for the prose contract and `srs.md` for the requirements (FR-N).
+
+    Money enters only through the CSV payment import (Decision 0007) — there are no
+    payment-provider webhooks, no signature-verified charge callbacks, and no
+    recurring-invoice cron.
+
+    Most staff mutations MAY ship as Next.js server actions rather than JSON routes
+    (`api-spec.md §5`); the request/response shapes below still describe the contract.
+    Routes are annotated with the phase that lands them (see `phases.md`).
+
+    Auth (`api-spec.md §2`):
+    - Staff routes: Supabase staff session cookie + role check.
+    - Messaging webhooks: provider signature or verify token (no session).
+
+servers:
+  - url: https://benmp-prm.vercel.app
+    description: Planned first live environment (Vercel)
+
+tags:
+  - name: Imports
+    description: Partner and payment CSV import (preview/commit).
+  - name: Reconciliation
+    description: Match, create, or dismiss unmatched payment events.
+  - name: Acknowledgements
+    description: Approve, send, and mark-failed thank-you messages.
+  - name: Pledges
+    description: Manage recurring_commitments (pledge records; no charging).
+  - name: Webhooks.Messaging
+    description: Messaging provider status/inbound callbacks (Twilio, Meta).
+  - name: AI
+    description: Read-only staff AI assistant.
+
+components:
+  securitySchemes:
+    staffSession:
+      type: apiKey
+      in: cookie
+      name: sb-access-token
+      description: Supabase staff session; role is enforced server-side.
+    providerSignature:
+      type: apiKey
+      in: header
+      name: X-Provider-Signature
+      description: Messaging-provider signature/verify header (e.g. Twilio `X-Twilio-Signature`). Verified before the callback is processed.
+
+  schemas:
+    Error:
+      type: object
+      required: [ok, error]
+      description: Uniform error envelope (`api-spec.md §2`).
+      properties:
+        ok: { type: boolean, enum: [false] }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - UNAUTHENTICATED
+                - FORBIDDEN
+                - VALIDATION_ERROR
+                - BAD_SIGNATURE
+                - DUPLICATE_EVENT
+                - NOT_FOUND
+                - CONFLICT
+                - PROVIDER_ERROR
+                - INTERNAL_ERROR
+            message: { type: string }
+            details: { type: object, additionalProperties: true }
+
+    Ok:
+      type: object
+      required: [ok, data]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        data: { type: object, additionalProperties: true }
+
+    Pagination:
+      type: object
+      description: Query params for heavy lists (`api-spec.md §9`).
+      properties:
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 200 }
+        cursor: { type: string, description: Preferred over page for large tables. }
+        sort: { type: string }
+        direction: { type: string, enum: [asc, desc] }
+
+    ImportPreview:
+      type: object
+      properties:
+        rowCount: { type: integer }
+        validRows: { type: integer }
+        duplicateCandidates: { type: integer }
+        invalidRows:
+          type: array
+          items:
+            type: object
+            properties:
+              row: { type: integer }
+              reason: { type: string }
+        regionAssignmentSummary:
+          type: object
+          additionalProperties: { type: integer }
+          description: country → region-block counts.
+
+    StatementImportResult:
+      type: object
+      properties:
+        importId: { type: string }
+        rowCount: { type: integer }
+        matched: { type: integer }
+        ambiguous: { type: integer }
+        duplicate: { type: integer }
+
+  responses:
+    BadSignature:
+      description: Provider signature verification failed; no promoted writes.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Staff auth required.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Staff role lacks permission (e.g. bulk send without approver).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource missing or hidden by scope.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Request shape or file row failed validation.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+security:
+  - staffSession: []
+
+paths:
+  /api/imports/partners/preview:
+    post:
+      tags: [Imports]
+      summary: Preview a partner CSV import (Phase 1B)
+      description: Normalizes phones, detects duplicates, assigns region blocks (FR-2.2–2.5).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+                source: { type: string, example: office_excel }
+      responses:
+        '200':
+          description: Preview counts.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Ok'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/ImportPreview' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/imports/partners/commit:
+    post:
+      tags: [Imports]
+      summary: Commit a partner CSV import (Phase 1B)
+      responses:
+        '200':
+          description: Insert/update counts + audit id.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/imports/payment-statements/preview:
+    post:
+      tags: [Imports]
+      summary: Preview a payment-statement import (Phase 2)
+      responses:
+        '200':
+          description: Match/ambiguous/duplicate counts.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Ok'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/StatementImportResult' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/imports/payment-statements/commit:
+    post:
+      tags: [Imports]
+      summary: Commit a statement import; creates payment_events (Phase 2)
+      description: Recognized rows promote through the same path as webhooks; unknown rows stay in reconciliation (FR-3.4, BR-4).
+      responses:
+        '200':
+          description: Import result with reconciliation queue links.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/reconciliation/events/{id}/match-partner:
+    post:
+      tags: [Reconciliation]
+      summary: Match an event to an existing partner (Phase 2)
+      description: May promote to a contribution and queue an acknowledgement. Writes audit_log (FR-4.4–4.5).
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Matched., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/reconciliation/events/{id}/create-partner:
+    post:
+      tags: [Reconciliation]
+      summary: Create a partner from an event, then link (Phase 2)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Created + linked., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/reconciliation/events/{id}/dismiss:
+    post:
+      tags: [Reconciliation]
+      summary: Dismiss an event with a reason (Phase 2)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        '200': { description: Dismissed., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/acknowledgements/{id}/approve:
+    post:
+      tags: [Acknowledgements]
+      summary: Approve an acknowledgement draft (Phase 3)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Approved., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/acknowledgements/{id}/send:
+    post:
+      tags: [Acknowledgements]
+      summary: Send an approved acknowledgement (Phase 3)
+      description: Checks consent before dispatch (FR-7.4). Auto-send stays disabled until the office enables it.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Sent (or queued at provider)., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: State transition not allowed (e.g. not approved, or no consent).
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /api/acknowledgements/{id}/mark-failed:
+    post:
+      tags: [Acknowledgements]
+      summary: Mark an acknowledgement failed for retry (Phase 3)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Marked failed., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/recurring-commitments:
+    post:
+      tags: [Pledges]
+      summary: Create a partner pledge record (Phase 6)
+      description: |
+        A pledge (expected monthly amount/cadence) — used to flag who has not paid
+        and to drive reminders. It charges no one; there is no payment provider
+        (Decision 0007).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [partnerId, amountMinor, currency]
+              properties:
+                partnerId: { type: string, format: uuid }
+                amountMinor: { type: integer }
+                currency: { type: string }
+                frequency: { type: string, enum: [monthly, quarterly, annually] }
+                dayOfMonth: { type: integer, minimum: 1, maximum: 31 }
+                channel: { type: string, enum: [whatsapp, sms, email, phone] }
+      responses:
+        '200': { description: Pledge created., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/recurring-commitments/{id}:
+    patch:
+      tags: [Pledges]
+      summary: Update a partner pledge record (Phase 6)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Pledge updated., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/webhooks/twilio/status:
+    post:
+      tags: [Webhooks.Messaging]
+      summary: Twilio delivery-status callback (Phase 3)
+      description: Updates communication_messages.status idempotently per provider message id.
+      security:
+        - providerSignature: []
+      responses:
+        '200': { description: Status recorded., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '400': { $ref: '#/components/responses/BadSignature' }
+
+  /api/webhooks/twilio/inbound:
+    post:
+      tags: [Webhooks.Messaging]
+      summary: Twilio inbound message (Phase 3)
+      description: Processes STOP/opt-out; parses "I gave" claims only if the claim loop is enabled. Never creates contributions from claims alone (BR-2, BR-3).
+      security:
+        - providerSignature: []
+      responses:
+        '200': { description: Processed., content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '400': { $ref: '#/components/responses/BadSignature' }
+
+  /api/ai/chat:
+    post:
+      tags: [AI]
+      summary: Read-only staff AI assistant (Phase 4)
+      description: |
+        Streams a response via the AI SDK; model chosen through model-registry.
+        Tools are read-only and go through PrmRepository (FR-9.1–9.6). Refuses
+        mutation/send requests until an approval envelope exists. Logs to ai_runs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role: { type: string, enum: [user, assistant] }
+                      content: { type: string }
+      responses:
+        '200':
+          description: Streamed assistant response (text/event-stream).
+          content:
+            text/event-stream:
+              schema: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }

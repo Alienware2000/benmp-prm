@@ -27,7 +27,7 @@ Daily finance/comms check:
 5. Call high-touch partners.
 6. Review failed messages.
 7. Review urgent prayer requests.
-8. Check provider status.
+8. Check the latest payment CSV import status.
 
 Daily questions:
 
@@ -65,65 +65,50 @@ Rules:
 - Prefer normalized phone matching over name-only matching.
 - Unknown country should be corrected before production import where possible.
 
-## 4. Gift Received Through Webhook
+## 4. How Gifts Are Recorded
 
-Trigger:
+There is **no live payment feed and no provider webhook** (Decision 0007). Every gift is recorded by uploading a **payment CSV** for the period (§5). Once a row is matched to a partner, that partner is ticked as having paid.
 
-- Stripe (or a future MTN API / pawaPay rail) sends a signed webhook; Ghana MoMo arrives via daily statement import.
+Expected system behavior per matched row:
 
-Expected system behavior:
-
-1. Webhook verifies signature.
-2. Payment event is recorded.
-3. Provider transaction is verified where possible.
-4. Partner is matched by phone/customer/email.
-5. Contribution is created.
-6. Thank-you draft is queued.
-7. Threshold rules update partner status.
-8. High-touch task is created if needed.
+1. The row is recorded as a payment event.
+2. The partner is matched by phone/email/reference.
+3. A contribution is created (partner ticked paid for the period).
+4. A thank-you draft is queued.
+5. Threshold rules update partner status.
+6. A high-touch task is created if needed.
 
 Staff checks:
 
-- Confirm unmatched events do not sit too long.
+- Confirm unmatched rows in the reconciliation queue do not sit too long.
 - Confirm acknowledgements are drafted.
 - Confirm high-touch gifts have call owners.
 
-## 5. Statement Import
+## 5. Payment CSV Import
 
-Trigger:
+Trigger (the sole money intake):
 
-- Mobile money wallet statement.
-- Bank account statement.
-- Remittance landing into wallet/bank without webhook.
+- A mobile money wallet statement/CSV.
+- A bank account statement/CSV.
+- A remittance-arrivals export.
 
 Workflow:
 
-1. Download statement from provider/bank portal.
+1. Export the payment CSV from the wallet/bank/remittance portal.
 2. Keep the file outside git.
 3. Open Giving import.
-4. Select statement type.
-5. Upload CSV.
-6. Preview mapping.
+4. Select the source/account type.
+5. Upload the CSV.
+6. Preview mapping (matched / duplicate / ambiguous / invalid counts).
 7. Confirm import.
 8. Review matched, duplicate, ambiguous, and unmatched rows.
-9. Resolve reconciliation queue.
-
-Source discovery checklist (run once per account — MTN merchant wallet, each bank account, each council wallet; ~10 minutes each):
-
-1. What portal or app shows this account's incoming payments?
-2. Can it export the list as a file? What format (CSV/Excel/PDF), and what columns (sender name? sender number? reference?)
-3. Can the provider **email statements automatically on a schedule** (daily/weekly)? To any address?
-4. Is there an API, or is the bank covered by open banking (UK/EU accounts usually are)?
-5. Who holds the login, and how does 2FA work?
-6. How far back does history go, and can we get one **sample statement now** (redact amounts/names if needed)?
-
-Send answers + sample files to the engineering team; each account then gets its automation level assigned (manual upload → scheduled email → API).
+9. Resolve the reconciliation queue.
 
 Rules:
 
-- Statement import is the ledger for webhook-less money.
+- The payment CSV is the ledger for all money.
 - SMS can help staff understand a case, but it is not the ledger.
-- Re-importing the same statement should not duplicate contributions.
+- Re-importing the same CSV should not duplicate contributions.
 
 ## 6. Reconciliation
 
@@ -295,14 +280,14 @@ Common cases:
 | Duplicate gift               | Mark duplicate through reconciliation/correction; preserve evidence.                                  |
 | Wrong amount/currency        | Correct with audit note; keep original evidence.                                                      |
 | Message sent to wrong person | Pause affected batch, record incident, contact partner if appropriate.                                |
-| Provider webhook failure     | Review dead-letter/replay queue once Phase 6 exists; before then inspect logs and provider dashboard. |
+| Bad CSV import               | Stop further imports, inspect the import batch + logs, fix parsing/dedup, correct data via audited path. |
 | Partner opt-out missed       | Immediately mark opt-out, stop future sends, review consent bug.                                      |
 
 ## 14. Emergency Pause
 
 Situations that justify pause:
 
-- Provider sends duplicate or incorrect webhooks.
+- A payment CSV imported wrong or duplicate data.
 - Bad message template is about to send broadly.
 - Partner PII is exposed.
 - AI produces unsafe drafts at scale.
@@ -311,7 +296,7 @@ Situations that justify pause:
 Pause actions:
 
 1. Disable auto-send or message dispatch feature flag.
-2. Disable provider webhook promotion if needed.
+2. Pause payment CSV imports if needed.
 3. Remove or deactivate compromised user.
 4. Preserve logs and audit trail.
 5. Notify technical owner.

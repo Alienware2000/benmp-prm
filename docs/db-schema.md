@@ -12,7 +12,9 @@ Required next migration from the delivery plan:
 
 - `supabase/migrations/0002_foundation_config.sql`
 
-This project uses Supabase Postgres first, but the data model should remain ordinary Postgres. Business logic should stay behind `PrmRepository`, payment adapters, messaging adapters, and AI tools so Neon, Aurora Postgres, or Cloud SQL remain possible exits later.
+This project uses Supabase Postgres first, but the data model should remain ordinary Postgres. Business logic should stay behind `PrmRepository`, messaging adapters, and AI tools so Neon, Aurora Postgres, or Cloud SQL remain possible exits later. There is no payment adapter — money enters only through CSV import (Decision 0007).
+
+> **Decision 0006 (just Supabase, no ORM).** Data access is the Supabase client (`@supabase/supabase-js` + `@supabase/ssr`); schema is hand-written SQL under `supabase/migrations/` (authoritative — if this doc and migrations disagree, migrations win). Types come from `supabase gen types typescript`. **RLS is the authorization gate** (per-role policies), enforced because the client queries under the user's JWT. Money: original amounts stay **integer minor units** (`amount_minor`), `usd_equivalent` is `numeric` (returned as a string by the client — no JS float). No ORM (Prisma/Drizzle) — a prior interim Prisma decision was reversed.
 
 ## 2. Conventions
 
@@ -22,7 +24,7 @@ This project uses Supabase Postgres first, but the data model should remain ordi
 | Timestamps        | `timestamptz`, default `now()`, updated by `set_updated_at()` triggers where records are mutable.                                                          |
 | Money             | Current `0001` stores original money as integer minor units plus currency. Planned `0002` adds `contributions.usd_equivalent numeric` for threshold rules. |
 | Card data         | No card numbers or sensitive payment method details are stored.                                                                                            |
-| Provider payloads | Raw provider evidence is stored in `jsonb` on payment-related tables.                                                                                      |
+| Import evidence   | Raw CSV row evidence is stored in `jsonb` (`payment_events.raw_payload`, `payment_import_rows.raw_row`).                                                                                      |
 | RLS               | RLS is enabled on all operational tables in `0001`.                                                                                                        |
 | Soft delete       | Not implemented in `0001`. If added later, it must be documented and enforced consistently.                                                                |
 | Region scope      | Country assignment exists in `0001`; region blocks are planned in `0002`.                                                                                  |
@@ -40,7 +42,7 @@ erDiagram
   profiles ||--o{ payment_imports : uploads
   profiles ||--o{ ai_runs : runs
   partners ||--o{ contributions : gives
-  partners ||--o{ recurring_commitments : has
+  partners ||--o{ recurring_commitments : pledges
   partners ||--o{ partner_notes : has
   partners ||--o{ prayer_requests : has
   partners ||--o{ follow_up_tasks : has
@@ -85,7 +87,7 @@ erDiagram
 | `prayer_request_status`  | `open`, `praying`, `responded`, `closed`                                                                                                                                                   |
 | `message_status`         | `draft`, `queued`, `sent`, `delivered`, `failed`, `cancelled`                                                                                                                              |
 
-Note: `payment_method` still contains `flutterwave_mobile_money` because the initial draft allowed it. Decisions demote Flutterwave to fallback; new implementation should prefer Paystack/Hubtel/Stripe while leaving the enum value harmless for imports or migration history.
+Note: `payment_method` retains several provider-named values (`flutterwave_mobile_money`, `paystack_card`, `paypal`, …) from the initial draft. Under Decision 0007 no payment provider is integrated, so these are just **free labels a CSV row may carry** (how the money moved); prefer the generic values (`mobile_money`, `bank_transfer`, `cash`, `check`, `other`) and leave the rest harmless for import/migration history. No `invoice_status` enum exists — the `invoices` table was removed with the recurring-charge loop.
 
 ## 5. Staff And Authorization Tables
 
@@ -204,12 +206,12 @@ Rules:
 
 ### `payment_events`
 
-Purpose: immutable intake record for all money-like signals.
+Purpose: immutable intake record for all money-like signals. Under Decision 0007 the only writers are CSV import and manual finance entry.
 
 Fields:
 
-- Provider identity: `provider`, `provider_event_id`, `provider_reference`, `event_type`
-- Status/evidence: `status`, `raw_payload`, `received_at`, `processed_at`
+- Source identity: `provider` (the import source/account label, e.g. `momo_statement`, or `manual`), `provider_event_id` (the per-row dedupe key), `provider_reference`, `event_type`
+- Status/evidence: `status`, `raw_payload` (the raw CSV row), `received_at`, `processed_at`
 - Money: `amount_minor`, `currency`, `payment_method`
 - Donor identity: `donor_display_name`, `donor_phone`, `donor_email`
 - Promotion link: `contribution_id`
@@ -222,8 +224,8 @@ Indexes:
 
 Rules:
 
-- Webhook and statement import paths both write here.
-- Replays must be idempotent.
+- CSV import and manual entry both write here; there is no webhook path.
+- Re-importing the same row must be idempotent (`(provider, provider_event_id)` unique).
 - Events should be append-only in business logic even if the database does not yet enforce append-only triggers.
 
 ### `contributions`
@@ -256,37 +258,37 @@ Rules:
 
 ### `recurring_commitments`
 
-Purpose: subscription-like giving commitments where a provider supports them, especially Stripe.
+Purpose: **pledge records only** — the amount a partner has committed to give on a cadence. Under Decision 0007 nothing charges anyone; this table exists solely to answer "who has *not* yet paid this period" and to drive the reminder list. A CSV-matched contribution in the period fulfils the pledge.
 
 Fields:
 
 - `partner_id`
-- `provider`
-- `provider_subscription_code`
 - `amount_minor`
 - `currency`
-- `frequency`
-- `status`
-- `next_payment_date`
-- `last_payment_date`
-- `failed_payment_count`
-
-Unique:
-
-- `(provider, provider_subscription_code)`
+- `frequency giving_frequency`
+- `status` (`active` | `paused` | `ended`)
+- `day_of_month int` — when in the cycle the partner is expected to give (drives reminders)
+- `next_expected_date`
+- `last_fulfilled_date` — set when a matched contribution covers the period
+- `channel communication_channel` — how the reminder is delivered
+- `notes`
+- `created_by`, timestamps
 
 Rules:
 
-- Do not assume MoMo recurring mandates exist.
-- Stripe subscriptions can use this table once webhook handling lands.
+- No provider, no subscription code, no charging — pledges are informational.
+- `amount_minor` is the expected gift; a period is "paid" when a matched `contributions` row exists for the partner in that period.
+- Unfulfilled by the expected date → eligible for a reminder and/or a `follow_up_task`.
+
+> **Removed with Decision 0007:** the `invoices` table and the monthly cron that issued prefilled Paystack/Stripe charges. There is no per-cycle bill because there is nothing to charge — money is reconciled from the CSV import instead.
 
 ### `payment_imports`
 
-Purpose: uploaded statement/import batch metadata.
+Purpose: uploaded CSV payment-batch metadata (the core intake artifact under Decision 0007).
 
 Fields:
 
-- `provider`
+- `provider` (the import source/account label, e.g. `momo_statement`, `bank_csv`)
 - `filename`
 - `status`
 - `row_count`
@@ -298,11 +300,11 @@ Fields:
 Rules:
 
 - Filenames should not reveal private account numbers.
-- Real statement files should not be committed.
+- Real payment CSV files should not be committed.
 
 ### `payment_import_rows`
 
-Purpose: row-level statement/import evidence and matching state.
+Purpose: row-level CSV evidence and matching state — the heart of the intake pipeline.
 
 Fields:
 
@@ -318,7 +320,7 @@ Fields:
 Rules:
 
 - Re-importing the same row must be inert once row-hash dedupe lands.
-- Matched rows promote through the same payment event path as webhooks.
+- Matched rows promote through the same payment event path as manual finance entry.
 
 ## 8. Campaign Tables
 
@@ -526,15 +528,15 @@ Recommended fields:
 - `created_at timestamptz not null default now()`
 - `updated_at timestamptz not null default now()`
 
-Seed values (Decision 0006):
+Seed values:
 
 1. Ghana
 2. Rest of Africa
 3. Europe
 4. UK
-5. Australia/Asia
+5. America
 6. South America
-7. North America
+7. Australia/Asia
 
 ### `country_region_defaults`
 
@@ -591,22 +593,22 @@ Rule:
 
 ## 13. Later Planned Tables And Columns
 
+> **Phase numbers in this section follow the OLD `delivery-plan.md` scheme (1B, 2A, 2B, 3, 5).** The new finer spine lives in `docs/phases.md`; mapping — 1B→Phase 4 (importer), 2B→Phase 6 (CSV payment import + reconciliation), messaging→Phase 7, AI→Phase 8, snapshots→Phase 9, scale/RLS→Phase 10. `recurring_commitments` (§7) is **core** (modeled in Phase 1's schema) as a pledge record, not "later planned"; the `invoices` table was removed (Decision 0007).
+
 | Table                                                     | Phase | Trigger                                                                      |
 | --------------------------------------------------------- | ----- | ---------------------------------------------------------------------------- |
-| `fx_rates`                                                | 2A/2B | Needed once USD-equivalent values are calculated from non-USD gifts.         |
-| `claims`                                                  | 3     | Only if remittance-app giving is significant enough to build the claim loop. |
+| `fx_rates`                                                | 2B    | Needed once USD-equivalent values are calculated from non-USD gifts.         |
+| `claims`                                                  | 3     | Only if partner "I gave" messages would meaningfully speed CSV-row matching. |
 | `monthly_snapshots`                                       | 5     | Needed for frozen month-close reports.                                       |
 | `sequence_definitions`, `sequence_runs`, `sequence_steps` | 5     | Only if manual message batches become the bottleneck.                        |
 | `approval_policies`                                       | 5+    | Only when per-batch approval becomes the bottleneck (srs FR-7.7).            |
-| `ingestion_sources`                                       | 2B    | Registry of statement sources: label, method (manual/email/api), expected cadence, parser key, masked account ref, `last_ingested_at` — powers the freshness monitor (design-spec §6 addendum). |
-| `webhook_dead_letters`, `webhook_replays`                 | 6     | Needed for production-grade retry/replay tooling.                            |
 
 Planned columns (needed by specific phases; add in that phase's migration):
 
 | Column                                                             | Phase | Why                                                                                                 |
 | ------------------------------------------------------------------ | ----- | ---------------------------------------------------------------------------------------------------- |
-| `partners.normalized_phone text` + index                           | 1B    | E.164 canonical phone is the matching key for MoMo and WhatsApp; text-column scans won't hold at 40k. |
-| `payment_import_rows.row_hash text` + unique index                 | 2B    | Statement re-imports must be inert; webhooks dedupe on `(provider, provider_event_id)`, rows need their own key. |
+| `partners.normalized_phone text` + index                           | 1B    | E.164 canonical phone is the matching key for CSV rows and WhatsApp; text-column scans won't hold at 40k. |
+| `payment_import_rows.row_hash text` + unique index                 | 2B    | CSV re-imports must be inert; each row needs its own dedupe key alongside `payment_events (provider, provider_event_id)`. |
 | `partners` per-channel consent (`whatsapp_consent`, `sms_consent`, `email_consent` + timestamps/source) | 3     | FR-7.4: every send checks consent; nothing stores it today.                                          |
 | `ai_runs.input_tokens`, `ai_runs.output_tokens`, `ai_runs.cost_usd` | 4     | Design-spec §8 promises per-run token/cost logging; current table has none.                          |
 | `communication_batches.second_approved_by/_at`                      | 5     | FR-7.6: prophet-category content needs two distinct named approvers; one `approved_by` can't express it. |

@@ -40,7 +40,7 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 
 **Decided**:
 1. The **monthly cycle** is the core product loop: remind → receive → acknowledge → **close on the 1st** with a frozen per-region snapshot.
-2. Reporting groups by **five region blocks** — Ghana, Rest of Africa, Europe, UK, America — as a configurable lookup (pending office confirmation). One block per partner, derived from country, overridable.
+2. Reporting groups by **seven region blocks** — Ghana, Rest of Africa, Europe, UK, America, South America, Australia/Asia — as a configurable lookup (pending office confirmation). One block per partner, derived from country, overridable.
 3. The **AI ships early but read-only first** (the analyst), gaining autonomy per 0001.
 
 **Why**:
@@ -56,6 +56,8 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 ## 0004 — Providers and platform
 
 *2026-07-08*
+
+> **Partially superseded by [0007](#0007--csv-only-payment-intake-no-live-payment-rails) (2026-07-09).** The Ghana rail (Paystack/Hubtel) and diaspora rail (Stripe) below are **removed** — the system takes no live payments. Supabase, clean CSV partner import, USD thresholds, messaging, and data-access rows still stand.
 
 **Decided**:
 
@@ -85,6 +87,8 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 
 *2026-07-08, amended same day*
 
+> **Superseded by [0007](#0007--csv-only-payment-intake-no-live-payment-rails) (2026-07-09).** The three published giving channels, all webhook/merchant machinery, and the prefilled-invoice recurring loop below are **removed**. The one durable idea that survives — a CSV/statement import as the trustworthy ledger — is now the *sole* intake. Kept for the reasoning (why SMS parsing and consumer-wallet detection were rejected), which still holds.
+
 **Decided**: publish **three giving channels**, everything webhook-confirmed where physics allows:
 
 | Channel | Serves | How the system knows |
@@ -99,6 +103,8 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 - **Consumer wallets have no payment-notification API.** Money landing in a wallet tells no software anything — the only automatic detection is parsing the SMS on the SIM-holding phone, which is hardware-dependent, format-fragile per network/country, unverifiable, and exactly where the office prototype got stuck. Merchant rails exist precisely to notify a server with signed, verifiable webhooks.
 - **The wallet number must still exist** because remittance apps can only deliver to wallet numbers — drop it and the diaspora remittance channel dies. Statement import is its trustworthy ledger; the office is never more than ~24h behind.
 - **Recurring MoMo mandates don't exist anywhere** (verified against provider docs) — so the monthly reminder *is* the recurring mechanism. This validates the monthly-cycle design rather than complicating it.
+
+**Verified recurring mechanism (2026-07-09, confirmed against live Paystack docs)**: Paystack reusable authorizations exist only for **cards (all markets)** and **direct debit (Nigeria only)** — Ghana MoMo authorizations are one-time, and the Subscriptions API supports **card + Nigerian direct debit only**. So MoMo recurring is impossible as an auto-pull. The mechanism we build (the transcript's "invoice database + cron" workaround): a monthly **cron** reads each `recurring_commitments` pledge → writes an `invoices` row → issues a **server-side prefilled** payment (Paystack **Charge API** with `mobile_money {phone, provider}` from the partner record, or a Paystack **Payment Request/Invoice** link) so the partner **only enters OTP+PIN** → the `charge.success`/`paymentrequest.success` webhook marks the invoice paid and promotes a contribution. Cards (Stripe subscriptions / `invoice.paid`) remain the only zero-touch rail. New `invoices` table + reconciled `recurring_commitments` land in Phase 1 (see `db-schema.md` §7); the cron loop is Phase 10. Sources: paystack.com/docs/payments/recurring-charges, /subscriptions, /api/charge, /blog Payment Requests.
 - **Merchant-tier registration is non-negotiable at scale**: 40k × $5/month breaches consumer wallet caps, and ministry money should settle to BENMP's bank with an audit trail, not sit on one person's phone.
 
 **Said no to**: bare wallet number as the main channel (blind + fragile) · SMS parsing (rejected as ledger forever) · one provider for everything (none covers Ghana USSD + pan-Africa MoMo + diaspora cards).
@@ -107,28 +113,50 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 - **WhatsApp claim loop** (partner messages "I gave" → instant provisional thank-you → claim auto-matches the statement) — build only if the office reports remittance-app giving is a significant share.
 - **pawaPay** — add only if rest-of-Africa in-country volume justifies upgrading those partners from the wallet channel to a true merchant rail.
 
-## 0006 — Custody-first rails: MTN-direct Ghana, bank accounts + statements elsewhere (2026-07-09)
+---
 
-**Decided** (revises the rail choices in 0004/0005 after admin review; region list expanded):
+## 0006 — Full tech stack: just Supabase + Claude-on-Vertex
 
-| Region | Published channel | Custody | Intake |
-| --- | --- | --- | --- |
-| Ghana | **MTN MoMoPay merchant account** (`*170#` → Pay → merchant ID) | BENMP's own merchant wallet, instantly | Statement import from day one; MTN API webhooks pursued in background |
-| Europe / UK / Australia-Asia | BENMP's own bank accounts + published reference word | BENMP, fully | Statement import |
-| North America | Text-to-give (Twilio inbound → payment-link reply) + bank/Zelle with reference | Link payments via processor; bank direct | Webhook + statement import |
-| Rest of Africa / South America | Remittance apps to the Ghana wallet | BENMP wallet | Statement import |
+*2026-07-09*
 
-- **Region blocks are now seven**: Ghana, Rest of Africa, Europe, UK, Australia/Asia, South America, North America.
-- **The statement-import pipeline is the backbone**; webhooks are upgrades where free, not requirements.
-- **Paystack is dropped from the Ghana plan** (retained in api-spec as the webhook reference pattern and behind the adapter if ever needed). Hubtel trigger-gated: only if Telecel/AT volume demands cross-network coverage. Stripe demoted to a convenience card option (text-to-give links, benmp.com) — cards can't be taken custody-first.
-- **Council flows**: the system supports central, federated (import each council wallet's statement), and hybrid. **Recommended default: hybrid** — new/direct partners on central channels; existing council wallets federated via weekly statement import. Final call belongs to leadership.
+**Decided** (from the Jmills meeting transcript; full detail in `docs/tech-stack.md`):
+1. **Next.js full-stack in TypeScript**, deployed on **Vercel** — the REST API is Next route handlers, **not** a separate Python/FastAPI service.
+2. **Data layer is Supabase directly** — `@supabase/supabase-js` + `@supabase/ssr` behind `PrmRepository`, schema as SQL migrations under `supabase/migrations/`, types via `supabase gen types typescript`. **No ORM** (no Prisma, no Drizzle).
+3. AI model is **Anthropic Claude via GCP Vertex AI**, behind the AI SDK model registry.
 
 **Why**:
-- **Admin's three real concerns are custody, visibility, and cost.** Telco-direct merchant + own bank accounts score best on all three: money is BENMP's the second it's sent, statements are first-party evidence, fees are lowest (~1–2% negotiable with MTN; ~0 for bank transfers).
-- **The aggregator worry was part misconception** (dashboards itemize fees; failed MoMo request-to-pay means money never left the partner's wallet) **but the custody kernel is legitimate** — settlement-lag custody and third-party ledgers are a real governance cost for a ministry.
-- **The only price of custody-first is latency**: next-morning thank-yous on statement channels instead of same-minute. That trade is admin's to make, and they made it.
-- **Federated council imports end the blindness without rerouting anyone's money** — the politically viable first step.
+- **Next.js full-stack**: the tech lead explicitly rejected Python/FastAPI — "it will not be in Python… Next.js is both front-end and back-end." One deployable, one language, one type system end-to-end.
+- **Just Supabase (reversed from an interim Prisma decision)**: it's the shipped codebase (zero rework), and — decisively — the Supabase client runs queries under the user's JWT so **RLS works as the authorization gate exactly as `db-schema.md`/`security.md` already designed**. An ORM (Prisma) would connect as one role and bypass RLS, forcing authorization up into the repository layer for no benefit here. `supabase gen types` gives type safety without an ORM; money stays integer minor units + `numeric` (returned as strings, no float). The only thing that had argued for Prisma — a "profile" NPM package said to require it — is **not a hard dependency** (nothing in the repo uses it; the partner profile is built natively on the existing `partners` tables).
+- **Claude on Vertex**: "Vertex already has Claude" — consolidates the AI credential on GCP while the registry keeps a swap to the direct Anthropic API cheap.
 
-**Said no to**: building an own fintech (BoG PSP licensing: capital on the order of GHS 2m, compliance staffing, 6–18 months — rent payments, own the relationship layer instead) · Paystack as Ghana anchor (admin trust, custody) · SMS parsing (still permanently rejected — statements are the wallet's trustworthy record).
+**Consequences**: RLS is the primary write gate (per-role policies in the migration that creates each table), restoring 0004's design; server actions still validate but don't replace RLS. `docs/db-schema.md` stays raw-SQL/Supabase; the new `invoices` table + reconciled `recurring_commitments` (the recurring-giving loop) are ordinary Supabase migrations.
 
-**Deferred with triggers**: Hubtel ← Telecel/AT volume · pawaPay ← rest-of-Africa in-country volume · MTN API webhooks ← production access granted (application is the sprint's longest pole, submit Day 0).
+**Said no to**: Python/FastAPI backend · Prisma / Drizzle / any ORM (the Supabase client + RLS covers it with less complexity) · direct Anthropic API as the primary path (Vertex chosen; direct stays a config-level fallback).
+
+**Trigger to revisit**: only if the "profile" NPM package (or similar) turns out to be mandatory *and* genuinely Prisma-only.
+
+---
+
+## 0007 — CSV-only payment intake, no live payment rails
+
+*2026-07-09*
+
+**Decided**: the system takes **no live payments and integrates no payment provider.** There are no payment-provider webhooks, no signature verification, no hosted charges, and no recurring-charge/prefilled-invoice loop. Instead:
+
+1. **The sole money-intake path is a CSV upload.** Staff upload, on the backend, a CSV of payments for a period. Each row becomes an immutable `payment_events` row (source `csv_import`), exactly as manual finance entry already does.
+2. **Matching is unchanged and is now the whole job.** Rows match against the partner database by normalized phone (then email/reference); matched rows promote to `contributions`; unmatched/ambiguous rows go to reconciliation for a human to match, create-partner, or dismiss.
+3. **"Paid" means a contribution exists for the period.** Once a row is matched, the partner is ticked as having paid for that period; the monthly cycle, region reports, active-year and high-touch classification all read from those contributions as before.
+4. **`recurring_commitments` stays as pledge records** (each partner's expected monthly amount/cadence) — the thing that powers "who hasn't paid this month" and the reminder list. But the **`invoices` table and the cron that issued prefilled charges are removed** — there is nothing to charge.
+
+This amends **0004** (removes the Ghana/diaspora payment rails) and supersedes **0005** (removes the three channels and the recurring-charge loop; keeps only its statement-import idea, now promoted to the only intake). The **adapter-first** principle (0002) still holds for **data, messaging, and AI**; the *payment* adapter is retired rather than swapped.
+
+**Why**:
+- **It matches how the office actually reconciles.** Money lands wherever it lands (wallets, bank, remittance apps); the office already exports a statement/CSV per period. Turning that CSV into matched, ticked contributions *is* the operational win — the same "who paid, per region, without asking any church" answer, with none of the merchant-onboarding, KYC, or webhook-security surface.
+- **It removes the biggest cost and risk centre.** No merchant-tier registration, no Paystack/Stripe/Hubtel business docs, no signature/replay security, no provider outages, no PCI-adjacent surface. The one-week path to value stops depending on calendar-time provider approvals.
+- **Nothing important is lost.** Contributions still carry amount/currency/date/method, so all reporting, thresholds, thank-yous, and follow-up work unchanged. Reconciliation — already built for the remittance channel — becomes the primary workflow rather than the exception.
+
+**Said no to**: Paystack / Hubtel / Stripe / any payment provider · payment webhooks and signature verification · hosted/prefilled charges and the `invoices` cron loop · SMS parsing (still rejected, 0005) · a boolean "paid" flag with no amount (would break amount-based reporting, thresholds, and high-touch).
+
+**Documented target (per the Jmills planning meeting — where payments go next, not "never")**: CSV import is **step one and the permanent reconciliation floor**, not the end state. The intended live-giving flow is **pre-filled Paystack links** (the monthly reminder carries a link pre-populated from the partner's profile — name + expected amount — they tap, choose MoMo, pay) for Africa, and **Stripe subscriptions** (monitorable by webhook) for overseas cards, re-introducing the `invoices`/reminder loop then. Both land behind the retained `payment_events` pipeline, so nothing built now is wasted. Sequencing only: CSV-first because it has zero calendar-time blockers; the link-based flow follows once the foundation ships.
+
+**Trigger to build the target**: the CSV MVP is shipped and the office wants giving to originate *from* the app (reminder → link → pay) rather than only be reconciled after the fact.

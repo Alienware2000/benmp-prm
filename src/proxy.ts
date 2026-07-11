@@ -2,39 +2,40 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * Password gate for the POC console.
- *
- * `/poc` and `/api/poc/*` show real partner data (names, phones, giving), so they must
- * not be public once deployed. This gate requires HTTP Basic Auth against POC_PASSWORD
- * (and optional POC_USER, default "benmp").
+ * Password gate for the POC console — a proper in-app login (not the browser's Basic-auth
+ * popup). `/poc` and `/api/poc/*` require a valid session cookie set by /api/login after
+ * the shared password (POC_PASSWORD) is entered on /login.
  *
  * If POC_PASSWORD is unset, requests pass through — convenient for local dev. ALWAYS set
  * POC_PASSWORD in any deployed environment (see docs/deployment.md).
  */
 
-const USER = process.env.POC_USER ?? "benmp";
+export const SESSION_COOKIE = "poc_session";
 
-function unauthorized() {
-  return new NextResponse("Authentication required.", {
-    status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="BENMP PRM", charset="UTF-8"' },
-  });
+/** Cookie value = base64(sha256(password)); can't be forged without knowing the password. */
+export async function sessionToken(password: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password));
+  return btoa(String.fromCharCode(...new Uint8Array(digest)));
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const password = process.env.POC_PASSWORD;
   if (!password) return NextResponse.next(); // not configured → open (local dev only)
 
-  const header = request.headers.get("authorization");
-  if (header?.startsWith("Basic ")) {
-    try {
-      const [user, pass] = atob(header.slice(6)).split(":");
-      if (user === USER && pass === password) return NextResponse.next();
-    } catch {
-      // malformed header → fall through to 401
-    }
+  const cookie = request.cookies.get(SESSION_COOKIE)?.value;
+  if (cookie && cookie === (await sessionToken(password))) {
+    return NextResponse.next();
   }
-  return unauthorized();
+
+  const { pathname } = request.nextUrl;
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const url = request.nextUrl.clone();
+  url.pathname = "/login";
+  url.searchParams.set("next", pathname);
+  return NextResponse.redirect(url);
 }
 
 export const config = {

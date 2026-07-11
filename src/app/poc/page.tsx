@@ -25,7 +25,7 @@ export default async function PocPage() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Registrations reconciled against the MoMo statement. Everyone who paid is included and
-          thanked — even if they aren&apos;t on the register (Bishop Ebo&apos;s rule).
+          thanked — even if they aren&apos;t on the register.
         </p>
       </header>
 
@@ -64,7 +64,7 @@ export default async function PocPage() {
         <PocAsk />
       </Panel>
 
-      <Panel eyebrow="Bishop Ebo's rule" title={`Top unregistered givers (${a.unregisteredCount} total)`}>
+      <Panel eyebrow="Include & thank" title={`Top unregistered givers (${a.unregisteredCount} total)`}>
         {topUnregistered.length === 0 ? (
           <p className="text-sm text-muted-foreground">No unregistered payers this period.</p>
         ) : (

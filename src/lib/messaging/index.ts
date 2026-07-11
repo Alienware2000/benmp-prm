@@ -1,4 +1,5 @@
 import { MockMessagingAdapter } from "./mock-adapter";
+import { TwilioMessagingAdapter } from "./twilio-adapter";
 import type { MessagingAdapter, MessagingProvider } from "./types";
 
 function getMessagingProvider(): MessagingProvider {
@@ -14,12 +15,16 @@ function getMessagingProvider(): MessagingProvider {
 export function getMessagingAdapter(): MessagingAdapter {
   const provider = getMessagingProvider();
 
+  if (provider === "twilio") {
+    return new TwilioMessagingAdapter();
+  }
+
   if (provider === "mock") {
     return new MockMessagingAdapter();
   }
 
   throw new Error(
-    `${provider} messaging is not implemented yet. Use the mock adapter for the MVP demo.`,
+    `${provider} messaging is not implemented yet. Use the mock adapter or twilio.`,
   );
 }
 

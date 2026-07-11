@@ -3,6 +3,7 @@ import { MetricCard, Panel } from "@/components/dashboard/primitives";
 import { loadReconciliation } from "@/lib/poc/db";
 import { headlineAnswers, formatGhs } from "@/lib/poc/answers";
 import { PocAsk } from "./ask-box";
+import { PocSend } from "./send-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,10 @@ export default async function PocPage() {
           tone="slate"
         />
       </section>
+
+      <Panel eyebrow="Messaging" title="Thank-yous & reminders">
+        <PocSend />
+      </Panel>
 
       <Panel eyebrow="Ask" title="Ask about this period">
         <PocAsk />

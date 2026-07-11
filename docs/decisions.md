@@ -160,3 +160,21 @@ This amends **0004** (removes the Ghana/diaspora payment rails) and supersedes *
 **Documented target (per the Jmills planning meeting — where payments go next, not "never")**: CSV import is **step one and the permanent reconciliation floor**, not the end state. The intended live-giving flow is **pre-filled Paystack links** (the monthly reminder carries a link pre-populated from the partner's profile — name + expected amount — they tap, choose MoMo, pay) for Africa, and **Stripe subscriptions** (monitorable by webhook) for overseas cards, re-introducing the `invoices`/reminder loop then. Both land behind the retained `payment_events` pipeline, so nothing built now is wasted. Sequencing only: CSV-first because it has zero calendar-time blockers; the link-based flow follows once the foundation ships.
 
 **Trigger to build the target**: the CSV MVP is shipped and the office wants giving to originate *from* the app (reminder → link → pay) rather than only be reconciled after the fact.
+
+---
+
+## 0008 — POC scope: Ghana + MoMo, Qodesh BENMP
+
+*2026-07-10*
+
+**Decided**: the first deliverable is a proof of concept scoped to **Ghana, MoMo only, on Qodesh BENMP** (not the full multi-region MVP). Within that POC:
+
+1. **Skip GDPR** — once the data is provisioned, POC data governance is out of scope (no Europe partners in play).
+2. **Skip registration** — no new-partner sign-up flow; work from the provisioned registration + payment data.
+3. **Bishop Ebo's rule (load-bearing)**: in the reconciliation of the registration table against the payment table, a person who **has paid but is not on the registration table is still included and messaged like everyone else** — the payment makes them a partner. Reconciliation therefore has three buckets: registered-and-paid, **paid-but-unregistered (include + message)**, and registered-but-unpaid (the reminder targets). Implemented in `src/lib/reconcile.ts`.
+4. **AI model**: use **Gemini 2.5** on the fresh Vertex account (Claude isn't available immediately on a new GCP project; no need to wait for it for the POC).
+5. **No cron / no subscriptions**: MoMo is push, so there is no recurring-charge model to schedule. Reminders are a **basic event-driven script** — when a due date passes and no payment is recognized for a partner, send a message. (This is the registered-but-unpaid bucket above.)
+
+**Why**: proves the core loop (reconcile → who paid / who didn't / who paid unregistered → message) on one campus with real data, with zero calendar-time blockers (no merchant onboarding, no GDPR build, no Claude-on-Vertex wait, no cron infra). Everything here is a narrowing of scope, not a new direction — the full MVP (0004–0007) resumes after the POC proves out.
+
+**Said no to**: registration/sign-up in the POC · GDPR build in the POC · waiting on Claude-on-Vertex · cron/subscription scheduling · dropping unregistered payers (Bishop Ebo's rule keeps them).

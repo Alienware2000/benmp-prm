@@ -164,7 +164,27 @@ Reviewed 2026-07-11. The office prototype already ran the core loop on real Ghan
 
 **Matching note:** the prototype matched **phone OR name**; our `reconcile.ts` is **phone-only**, with Bishop Ebo's rule catching phone-unmatched payers as `paidUnregistered`. A **name fallback** would reduce false "unregistered" for payers whose MoMo phone differs from the sheet — a candidate enhancement to raise with the office (don't change the rule silently).
 
-> **PII boundary:** the prototype committed real names/phones (`contributors.ts`) — **we will NOT** copy that into this repo (AGENTS.md / NFR-3: real partner data stays out of git). POC fixtures are **synthetic** but deliberately reproduce the quirks above. The real Qodesh data is loaded locally at run time (POC-6), never committed.
+### Real POC data files (inspected 2026-07-11, live in `Data/` outside the repo)
+
+The two files the POC actually ingests. Column names below are schema, not PII; **no real names/phones/amounts are recorded here or committed** (see PII boundary).
+
+**Registration — `Qodesh Benmp Members.xlsx`, sheet `Sheet1`, ~900+ members**
+- Row 1 is **blank**; the header row is **row 2**: `no.` · `Name ` *(note the trailing space)* · `Phone number`.
+- Data: `no.` (1..N) · full name · 9-digit Ghana NSN (e.g. `502669227`).
+- **No pledge/expected-amount column** — registration is name + phone only.
+- It is an **`.xlsx`**, not a CSV: the edge reader (POC-5) reads the sheet (e.g. SheetJS), **skips the blank first row**, and maps `{ id: "no.", fullName: "Name ", phone: "Phone number" }`; `expectedAmount` is **unset**.
+
+**Payment — `QODESH MOMO.csv`, a MoMo merchant statement (credits into "QODESH CITY CHURCH LBG", account `FRI:109469325/MM`)**
+- Columns used (all uniquely named): `Id`→`reference` · `Date` (`YYYY-MM-DD HH:MM:SS`)→`paidAt` · `From name`→`payerName` · `Amount` (whole GHS, e.g. `50`)→`amount` · plus `Status` and `From`/`To` for filtering/extraction.
+- **Payer phone is embedded**: `From = "FRI:233244285942/MSISDN"` → strip `FRI:` … `/MSISDN` → `233244285942` (normalizePhone handles it). `From account`/`To account` are `/MM` wallet ids, not phones.
+- **Header has duplicate names** (`Currency` ×many, `Initiated by` ×2, `On behalf of` ×2) → parse **index-aware**, not naive header-keyed. The columns we need are unique, so a targeted map is safe.
+- Needs a **QODESH pre-transform** before the generic `parsePayments` (POC-5/6): keep `Status = "Successful"` and **incoming** rows (`To account` = the church), extract the phone from `From`, then map `Id`/`From name`/`Amount`/`Date`. Amounts here are whole GHS; `parseAmountToMinor` already handles them.
+
+**Plan deltas from these real files:**
+- Registration has **no pledge amount** → `expectedAmountMinor` stays null; POC-2 reminders are purely **event-driven** (no per-partner amount to quote) — consistent with Decision 0008.
+- POC-1's generic `ingest.ts` is unchanged and correct; the xlsx read + the QODESH payment pre-transform are **edge adapters** added at POC-5/6, keeping `ingest`/`reconcile` pure.
+
+> **PII boundary:** the prototype committed real names/phones (`contributors.ts`) — **we will NOT** copy that, nor the `Data/` files, into this repo (AGENTS.md / NFR-3: real partner data stays out of git). POC fixtures are **synthetic** but deliberately reproduce the quirks above. The real Qodesh files are read locally at run time (POC-5/6), never committed.
 
 ## Cross-phase rules (POC)
 

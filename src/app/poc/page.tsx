@@ -54,6 +54,10 @@ export default async function PocPage() {
   const gaveCount = a.registeredPaidCount + a.unregisteredCount;
   const denom = gaveCount + a.unpaidCount;
   const pct = denom > 0 ? Math.round((gaveCount / denom) * 100) : 0;
+  const avgGiftGhs = a.paidCount > 0 ? formatGhs(Math.round(a.totalCollectedMinor / a.paidCount / 100) * 100) : "0";
+  const newGiverShare = gaveCount > 0 ? Math.round((a.unregisteredCount / gaveCount) * 100) : 0;
+  const registerTotal = a.registeredPaidCount + a.unpaidCount;
+  const ringC = 2 * Math.PI * 30;
   const provider = process.env.BENMP_MESSAGING_PROVIDER === "twilio" ? "twilio" : "mock";
 
   return (
@@ -84,79 +88,89 @@ export default async function PocPage() {
 
         <SectionLabel>This month at a glance</SectionLabel>
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+          <div className="flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[13px] font-medium leading-snug text-muted-foreground">Giving progress</p>
-              <span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+              <p className="text-[13px] font-medium text-muted-foreground">Giving progress</p>
+              <span className="grid h-8 w-8 flex-none place-items-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
                 <PieChart className="h-4 w-4" aria-hidden />
               </span>
             </div>
-            <div className="mt-3 flex items-center gap-4">
-              <span className="relative grid h-[76px] w-[76px] flex-none place-items-center">
-                <span
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    background: `conic-gradient(var(--success) 0 ${pct}%, var(--border) ${pct}% 100%)`,
-                  }}
-                  aria-hidden
+            <div className="flex flex-1 items-center gap-4 py-3">
+              <svg viewBox="0 0 72 72" className="h-[72px] w-[72px] flex-none" role="img" aria-label={`${pct}% given`}>
+                <circle cx="36" cy="36" r="30" fill="none" stroke="var(--border)" strokeWidth="7.5" />
+                <circle
+                  cx="36" cy="36" r="30" fill="none" stroke="var(--success)" strokeWidth="7.5"
+                  strokeLinecap="round" strokeDasharray={`${(ringC * pct) / 100} ${ringC}`}
+                  transform="rotate(-90 36 36)"
                 />
-                <span className="absolute inset-[11px] grid place-items-center rounded-full bg-surface text-center">
-                  <span>
-                    <span className="block text-base font-bold leading-none tabular-nums">{pct}%</span>
-                    <span className="text-[9px] text-muted-foreground">given</span>
-                  </span>
-                </span>
-              </span>
+                <text x="36" y="34" textAnchor="middle" className="fill-[var(--foreground)] text-[15px] font-bold" style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {pct}%
+                </text>
+                <text x="36" y="46" textAnchor="middle" className="fill-[var(--muted-foreground)] text-[8px]">
+                  given
+                </text>
+              </svg>
               <div className="space-y-2 text-xs leading-none">
                 <p className="flex items-center gap-2 whitespace-nowrap text-muted-foreground">
-                  <span className="h-2 w-2 rounded-sm bg-success" aria-hidden />
+                  <span className="h-2 w-2 rounded-full bg-success" aria-hidden />
                   Gave&nbsp;<b className="text-foreground tabular-nums">{gaveCount}</b>
                 </p>
                 <p className="flex items-center gap-2 whitespace-nowrap text-muted-foreground">
-                  <span className="h-2 w-2 rounded-sm bg-border" aria-hidden />
+                  <span className="h-2 w-2 rounded-full bg-border" aria-hidden />
                   Not yet&nbsp;<b className="text-foreground tabular-nums">{a.unpaidCount}</b>
                 </p>
               </div>
             </div>
+            <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
+              <b className="font-semibold text-emerald-700 tabular-nums">{gaveCount}</b>{" "}of {denom.toLocaleString("en-US")} have given
+            </p>
           </div>
 
-          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+          <div className="flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="text-[13px] font-medium text-muted-foreground">Collected</p>
-              <span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+              <span className="grid h-8 w-8 flex-none place-items-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
                 <CircleDollarSign className="h-4 w-4" aria-hidden />
               </span>
             </div>
-            <p className="mt-4 text-[26px] font-semibold leading-none tracking-tight tabular-nums">
-              GHS {a.totalCollectedGhs}
+            <div className="flex flex-1 items-center py-3">
+              <p className="text-[27px] font-semibold leading-none tracking-tight tabular-nums">
+                GHS {a.totalCollectedGhs}
+              </p>
+            </div>
+            <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
+              {a.paidCount} gifts · avg <b className="font-semibold text-emerald-700 tabular-nums">GHS {avgGiftGhs}</b>
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">across {a.paidCount} payers this period</p>
           </div>
 
-          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+          <div className="flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="text-[13px] font-medium text-muted-foreground">Gave, not registered</p>
-              <span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-violet-50 text-violet-700 ring-1 ring-violet-100">
+              <span className="grid h-8 w-8 flex-none place-items-center rounded-lg bg-violet-50 text-violet-700 ring-1 ring-violet-100">
                 <UserPlus className="h-4 w-4" aria-hidden />
               </span>
             </div>
-            <p className="mt-4 text-[26px] font-semibold leading-none tracking-tight tabular-nums">
-              {a.unregisteredCount}
+            <div className="flex flex-1 items-center py-3">
+              <p className="text-[27px] font-semibold leading-none tracking-tight tabular-nums">{a.unregisteredCount}</p>
+            </div>
+            <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
+              <b className="font-semibold text-violet-700 tabular-nums">{newGiverShare}%</b>{" "}of this month&apos;s givers
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">included &amp; thanked anyway</p>
           </div>
 
-          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+          <div className="flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="text-[13px] font-medium text-muted-foreground">Reminder targets</p>
-              <span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-amber-50 text-amber-700 ring-1 ring-amber-100">
+              <span className="grid h-8 w-8 flex-none place-items-center rounded-lg bg-amber-50 text-amber-700 ring-1 ring-amber-100">
                 <BellRing className="h-4 w-4" aria-hidden />
               </span>
             </div>
-            <p className="mt-4 text-[26px] font-semibold leading-none tracking-tight tabular-nums">
-              {a.unpaidCount}
+            <div className="flex flex-1 items-center py-3">
+              <p className="text-[27px] font-semibold leading-none tracking-tight tabular-nums">{a.unpaidCount}</p>
+            </div>
+            <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
+              of <b className="font-semibold text-amber-700 tabular-nums">{registerTotal.toLocaleString("en-US")}</b>{" "}registered partners
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">registered, not yet given</p>
           </div>
         </section>
 

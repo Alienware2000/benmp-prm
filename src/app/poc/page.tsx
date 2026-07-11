@@ -54,7 +54,9 @@ export default async function PocPage() {
   const gaveCount = a.registeredPaidCount + a.unregisteredCount;
   const denom = gaveCount + a.unpaidCount;
   const pct = denom > 0 ? Math.round((gaveCount / denom) * 100) : 0;
-  const avgGiftGhs = a.paidCount > 0 ? formatGhs(Math.round(a.totalCollectedMinor / a.paidCount / 100) * 100) : "0";
+  // Average over person-attributed money only — statement rows have no giver to average.
+  const attributedMinor = a.totalCollectedMinor - a.statementTotalMinor;
+  const avgGiftGhs = a.paidCount > 0 ? formatGhs(Math.round(attributedMinor / a.paidCount / 100) * 100) : "0";
   const newGiverShare = gaveCount > 0 ? Math.round((a.unregisteredCount / gaveCount) * 100) : 0;
   const registerTotal = a.registeredPaidCount + a.unpaidCount;
   const ringC = 2 * Math.PI * 30;
@@ -154,7 +156,8 @@ export default async function PocPage() {
               <p className="text-[27px] font-semibold leading-none tracking-tight tabular-nums">{a.unregisteredCount}</p>
             </div>
             <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
-              <b className="font-semibold text-violet-700 tabular-nums">{newGiverShare}%</b>{" "}of this month&apos;s givers
+              <b className="font-semibold text-violet-700 tabular-nums">{newGiverShare}%</b>{" "}of givers ·{" "}
+              <b className="font-semibold tabular-nums">{a.statementRowCount}</b>{" "}bank rows filtered
             </p>
           </div>
 

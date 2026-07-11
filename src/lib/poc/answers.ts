@@ -27,10 +27,16 @@ export function countsByBucket(r: ReconciliationResult): BucketCounts {
   };
 }
 
+/** All money received this period — includes statement rows (bank/interop money is real giving). */
 export function totalCollectedMinor(r: ReconciliationResult): number {
   const fromRegistered = r.registeredPaid.reduce((s, x) => s + x.totalMinor, 0);
   const fromUnregistered = r.paidUnregistered.reduce((s, x) => s + x.payment.amountMinor, 0);
-  return fromRegistered + fromUnregistered;
+  return fromRegistered + fromUnregistered + statementTotalMinor(r);
+}
+
+/** Money that arrived as bank/interop statement rows — no person to attribute or message. */
+export function statementTotalMinor(r: ReconciliationResult): number {
+  return r.statementRows.reduce((s, p) => s + p.amountMinor, 0);
 }
 
 export type UnregisteredPayer = {
@@ -67,12 +73,17 @@ export type HeadlineAnswers = {
   totalPeople: number;
   totalCollectedMinor: number;
   totalCollectedGhs: string;
+  /** Bank/interop statement rows — money counted above, but not people and never messaged. */
+  statementRowCount: number;
+  statementTotalMinor: number;
+  statementTotalGhs: string;
   unregistered: UnregisteredPayer[];
 };
 
 export function headlineAnswers(r: ReconciliationResult): HeadlineAnswers {
   const counts = countsByBucket(r);
   const collected = totalCollectedMinor(r);
+  const statementTotal = statementTotalMinor(r);
   return {
     paidCount: counts.registeredPaid + counts.paidUnregistered,
     registeredPaidCount: counts.registeredPaid,
@@ -81,6 +92,9 @@ export function headlineAnswers(r: ReconciliationResult): HeadlineAnswers {
     totalPeople: counts.totalPeople,
     totalCollectedMinor: collected,
     totalCollectedGhs: formatGhs(collected),
+    statementRowCount: r.statementRows.length,
+    statementTotalMinor: statementTotal,
+    statementTotalGhs: formatGhs(statementTotal),
     unregistered: unregisteredPayers(r),
   };
 }

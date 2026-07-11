@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   countsByBucket,
   totalCollectedMinor,
+  statementTotalMinor,
   unregisteredPayers,
   headlineAnswers,
 } from "./answers";
@@ -23,6 +24,9 @@ const result: ReconciliationResult = {
     { id: "reg_5", fullName: "Late One", phone: "+233244555000" },
     { id: "reg_6", fullName: "Late Two", phone: "+233244555001" },
   ],
+  statementRows: [
+    { reference: "TXN9", payerName: "Ecobank MobileApp", payerPhone: "+233598598874", amountMinor: 200000, currency: "GHS", paidAt: "2026-07-09" },
+  ],
 };
 
 describe("answers aggregations (what the AI cites)", () => {
@@ -35,8 +39,13 @@ describe("answers aggregations (what the AI cites)", () => {
     });
   });
 
-  it("totalCollectedMinor sums registered + unregistered payments (integer minor units)", () => {
-    expect(totalCollectedMinor(result)).toBe(22550); // 5000 + 10000 + 7550
+  it("totalCollectedMinor sums registered + unregistered + statement money (integer minor units)", () => {
+    expect(totalCollectedMinor(result)).toBe(222550); // 5000 + 10000 + 7550 + 200000
+  });
+
+  it("statement rows: money counted, but never a person in the counts", () => {
+    expect(statementTotalMinor(result)).toBe(200000);
+    expect(countsByBucket(result).paidUnregistered).toBe(1); // Ecobank row is not here
   });
 
   it("unregisteredPayers lists the Bishop-Ebo payers", () => {
@@ -52,8 +61,10 @@ describe("answers aggregations (what the AI cites)", () => {
     expect(a.unregisteredCount).toBe(1);
     expect(a.unpaidCount).toBe(2);
     expect(a.totalPeople).toBe(5);
-    expect(a.totalCollectedMinor).toBe(22550);
-    expect(a.totalCollectedGhs).toBe("225.50");
+    expect(a.totalCollectedMinor).toBe(222550);
+    expect(a.totalCollectedGhs).toBe("2,225.50");
+    expect(a.statementRowCount).toBe(1);
+    expect(a.statementTotalGhs).toBe("2,000");
     expect(a.unregistered).toHaveLength(1);
   });
 });

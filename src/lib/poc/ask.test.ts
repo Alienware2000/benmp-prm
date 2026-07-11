@@ -19,6 +19,7 @@ const result: ReconciliationResult = {
     { id: "reg_5", fullName: "Late One", phone: "+233244555000" },
     { id: "reg_6", fullName: "Late Two", phone: "+233244555001" },
   ],
+  statementRows: [],
 };
 
 describe("answerLocally (deterministic, no model)", () => {

@@ -66,6 +66,14 @@ export function supabaseRestFetcher(): Fetcher {
   };
 }
 
+export type DbOptOut = { phone_e164: string | null };
+
+/** E.164 phones that must never be messaged — the consent gate before any send. */
+export async function loadOptOuts(fetcher: Fetcher = supabaseRestFetcher()): Promise<Set<string>> {
+  const rows = await fetcher<DbOptOut>("opt_outs?select=phone_e164&limit=5000");
+  return new Set(rows.map((r) => r.phone_e164).filter((p): p is string => Boolean(p)));
+}
+
 export async function loadReconciliation(
   fetcher: Fetcher = supabaseRestFetcher(),
 ): Promise<ReconciliationResult> {

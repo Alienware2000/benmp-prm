@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { sendPlanned } from "./send";
+import { sendPlanned, parseAllowlist } from "./send";
 import type { PlannedMessage } from "./messages";
 import type {
   MessagingAdapter,
@@ -61,6 +61,26 @@ describe("sendPlanned", () => {
     expect(optedOut.reason).toMatch(/opt/i);
   });
 
+  it("with an allowlist, only listed numbers are dispatched (training wheels)", async () => {
+    const adapter = okAdapter();
+    const report = await sendPlanned(messages, {
+      adapter,
+      allowlist: new Set(["+233244000001"]),
+    });
+
+    expect(report.queued).toBe(1); // reg_0 only
+    expect(adapter.send).toHaveBeenCalledTimes(1);
+    const blocked = report.outcomes.find((o) => o.partnerRef === "reg_5")!;
+    expect(blocked.status).toBe("skipped");
+    expect(blocked.reason).toBe("not in allowlist");
+  });
+
+  it("a null allowlist means no restriction", async () => {
+    const adapter = okAdapter();
+    const report = await sendPlanned([messages[0], messages[1]], { adapter, allowlist: null });
+    expect(report.queued).toBe(2);
+  });
+
   it("records a provider failure without throwing", async () => {
     const throwing: MessagingAdapter = {
       provider: "mock",
@@ -88,5 +108,22 @@ describe("sendPlanned", () => {
     const report = await sendPlanned([messages[0]], { adapter: failed });
     expect(report.failed).toBe(1);
     expect(report.outcomes[0].reason).toBe("bad number");
+  });
+});
+
+describe("parseAllowlist (BENMP_SEND_ALLOWLIST)", () => {
+  it("returns null (no restriction) when unset or empty", () => {
+    expect(parseAllowlist(undefined)).toBeNull();
+    expect(parseAllowlist("")).toBeNull();
+    expect(parseAllowlist("   ")).toBeNull();
+  });
+
+  it("parses comma/space-separated numbers and normalizes to E.164", () => {
+    const set = parseAllowlist("+14753659443, 0244123456 +233209999999");
+    expect(set).toEqual(new Set(["+14753659443", "+233244123456", "+233209999999"]));
+  });
+
+  it("drops junk entries and returns null when nothing usable remains", () => {
+    expect(parseAllowlist("not-a-phone, xyz")).toBeNull();
   });
 });

@@ -39,6 +39,8 @@ const result: ReconciliationResult = {
     { payment: pay("TXN9", null, "0201234567", 2000), suggestedName: null, includeAndMessage: true },
   ],
   registeredUnpaid: [reg("reg_5", "Mr. Late Payer", "0244555000")],
+  // set aside by reconcile() — planMessages must never thank a bank artifact
+  statementRows: [pay("TXN10", "Ecobank MobileApp", "0598598874", 200000)],
 };
 
 describe("firstName (strip titles for greeting)", () => {
@@ -63,6 +65,8 @@ describe("planMessages", () => {
     const stranger = thanks.find((m) => m.partnerRef === "TXN2");
     expect(stranger).toBeDefined();
     expect(stranger!.sendable).toBe(true);
+    // the bank artifact gets no message at all
+    expect(msgs.find((m) => m.partnerRef === "TXN10")).toBeUndefined();
   });
 
   it("personalizes the thank-you with first name and amount", () => {

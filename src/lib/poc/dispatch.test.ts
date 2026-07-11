@@ -31,12 +31,22 @@ describe("summarizePlan", () => {
 
   it("returns at most sampleSize examples", () => {
     const many = Array.from({ length: 20 }, (_, i) => msg({ partnerRef: `p${i}` }));
-    expect(summarizePlan(many, 3).sample).toHaveLength(3);
+    expect(summarizePlan(many, { sampleSize: 3 }).sample).toHaveLength(3);
+  });
+
+  it("counts opted-out recipients separately and removes them from sendable", () => {
+    const s = summarizePlan(
+      [msg({ to: "+233244123456" }), msg({ to: "+233209999999" }), msg({ to: null, sendable: false })],
+      { optedOut: new Set(["+233209999999"]) },
+    );
+    expect(s.sendable).toBe(1);
+    expect(s.optedOut).toBe(1);
+    expect(s.skippedNoPhone).toBe(1);
   });
 
   it("handles an empty plan", () => {
     const s = summarizePlan([]);
-    expect(s).toMatchObject({ total: 0, sendable: 0, skippedNoPhone: 0, thankYou: 0, reminder: 0 });
+    expect(s).toMatchObject({ total: 0, sendable: 0, skippedNoPhone: 0, optedOut: 0, thankYou: 0, reminder: 0 });
     expect(s.sample).toEqual([]);
   });
 });

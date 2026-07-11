@@ -11,6 +11,11 @@
  *   3. registeredUnpaid   — registered but no payment this period. These are the defaulters
  *                           the event-driven reminder targets (a due date passed with no
  *                           recognized payment).
+ *   4. statementRows      — bank/interop artifacts on the statement ("Ecobank MobileApp",
+ *                           "INTEROPERABILITY PULL OVA"): real money, not a person. Counted
+ *                           in giving totals, NEVER messaged, set aside for finance review.
+ *                           Only unmatched rows are classified — a phone match always wins,
+ *                           so a registered partner paying through bank rails stays matched.
  *
  * Pure functions, no I/O — matching key is the E.164 phone (see ./phone).
  */
@@ -54,7 +59,34 @@ export type ReconciliationResult = {
   registeredPaid: RegisteredPaid[];
   paidUnregistered: PaidUnregistered[];
   registeredUnpaid: RegistrationRow[];
+  /** Bank/interop statement artifacts — money counted, no message, finance review. */
+  statementRows: PaymentRow[];
 };
+
+/**
+ * Payer names that are bank/interop transfer artifacts, not people. Curated from the
+ * real Qodesh MoMo statement ("Ecobank MobileApp", "INTEROPERABILITY PULL OVA",
+ * "INTEROPERABILITY PULL", "Interpush OVA", "Quickpay pull", "CalSEND", "ZenithSend")
+ * plus generic markers. Extend here when a new statement shows a new artifact name.
+ */
+const STATEMENT_ROW_PATTERNS: RegExp[] = [
+  /\binteroperability\b/i,
+  /\binterpush\b/i,
+  /\bquickpay\b/i,
+  /\becobank\b/i,
+  /\bmobileapp\b/i,
+  /calsend/i,
+  /zenithsend/i,
+  /\bova\b/i,
+  /\bpull\b/i,
+  /\bbank\b/i,
+];
+
+/** True when a payer name looks like a bank/interop statement entry rather than a person. */
+export function isStatementRow(payerName: string | null): boolean {
+  if (!payerName) return false;
+  return STATEMENT_ROW_PATTERNS.some((re) => re.test(payerName));
+}
 
 /**
  * Reconcile a period's payments against the registration sheet.
@@ -75,6 +107,7 @@ export function reconcile(
 
   const paymentsByRegId = new Map<string, PaymentRow[]>();
   const paidUnregistered: PaidUnregistered[] = [];
+  const statementRows: PaymentRow[] = [];
 
   for (const payment of payments) {
     const key = normalizePhone(payment.payerPhone);
@@ -84,6 +117,8 @@ export function reconcile(
       const existing = paymentsByRegId.get(match.id);
       if (existing) existing.push(payment);
       else paymentsByRegId.set(match.id, [payment]);
+    } else if (isStatementRow(payment.payerName)) {
+      statementRows.push(payment);
     } else {
       paidUnregistered.push({
         payment,
@@ -107,5 +142,5 @@ export function reconcile(
 
   const registeredUnpaid = registrations.filter((r) => !paymentsByRegId.has(r.id));
 
-  return { registeredPaid, paidUnregistered, registeredUnpaid };
+  return { registeredPaid, paidUnregistered, registeredUnpaid, statementRows };
 }

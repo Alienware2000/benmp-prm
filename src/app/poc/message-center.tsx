@@ -6,6 +6,7 @@ type Summary = {
   total: number;
   sendable: number;
   skippedNoPhone: number;
+  optedOut: number;
   thankYou: number;
   reminder: number;
   sample: Array<{ kind: string; name: string; to: string | null; body: string }>;
@@ -133,6 +134,7 @@ function QueueRow({
           <p className="text-[11px] text-muted-foreground">
             Showing 2 of {kind === "thank_you" ? summary.thankYou : summary.reminder} ·{" "}
             {summary.skippedNoPhone} skipped (no phone number)
+            {summary.optedOut > 0 && <> · {summary.optedOut} opted out</>}
           </p>
         </div>
       )}

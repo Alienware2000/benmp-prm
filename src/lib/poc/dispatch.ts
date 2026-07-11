@@ -13,21 +13,33 @@ export type PlanSummary = {
   total: number;
   sendable: number;
   skippedNoPhone: number;
+  /** Planned recipients excluded by the opt_outs consent gate. */
+  optedOut: number;
   thankYou: number;
   reminder: number;
   /** A few examples for the preview — never the whole list. */
   sample: Array<{ kind: PlannedMessage["kind"]; name: string; to: string | null; body: string }>;
 };
 
-export function summarizePlan(messages: PlannedMessage[], sampleSize = 5): PlanSummary {
+export type SummarizeOptions = {
+  sampleSize?: number;
+  /** E.164 phones that opted out — counted separately and removed from sendable. */
+  optedOut?: Set<string>;
+};
+
+export function summarizePlan(messages: PlannedMessage[], opts: SummarizeOptions = {}): PlanSummary {
+  const sampleSize = opts.sampleSize ?? 5;
+  const optedOutSet = opts.optedOut ?? new Set<string>();
   let sendable = 0;
   let skippedNoPhone = 0;
+  let optedOut = 0;
   let thankYou = 0;
   let reminder = 0;
 
   for (const m of messages) {
-    if (m.sendable && m.to !== null) sendable++;
-    else skippedNoPhone++;
+    if (!m.sendable || m.to === null) skippedNoPhone++;
+    else if (optedOutSet.has(m.to)) optedOut++;
+    else sendable++;
     if (m.kind === "thank_you") thankYou++;
     else reminder++;
   }
@@ -36,6 +48,7 @@ export function summarizePlan(messages: PlannedMessage[], sampleSize = 5): PlanS
     total: messages.length,
     sendable,
     skippedNoPhone,
+    optedOut,
     thankYou,
     reminder,
     sample: messages.slice(0, sampleSize).map((m) => ({

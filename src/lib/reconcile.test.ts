@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { reconcile, type RegistrationRow, type PaymentRow } from "./reconcile";
+import { reconcile, isStatementRow, type RegistrationRow, type PaymentRow } from "./reconcile";
 
 const reg = (id: string, fullName: string, phone: string | null): RegistrationRow => ({
   id,
@@ -79,5 +79,50 @@ describe("reconcile", () => {
     const result = reconcile([reg("p1", "Ama Serwaa", "0244123456")], [pay("r1", null, 5000, "Cash Gift")]);
     expect(result.paidUnregistered).toHaveLength(1);
     expect(result.paidUnregistered[0].includeAndMessage).toBe(true);
+  });
+
+  it("sets aside unmatched bank/interop statement rows — never messaged as people", () => {
+    const result = reconcile(
+      [reg("p1", "Ama Serwaa", "0244123456")],
+      [
+        pay("r1", "+233598598874", 200000, "Ecobank MobileApp"),
+        pay("r2", null, 5000, "INTEROPERABILITY PULL OVA"),
+        pay("r3", "+233209998888", 7000, "Kwame Mensah"),
+      ],
+    );
+    expect(result.statementRows.map((p) => p.reference)).toEqual(["r1", "r2"]);
+    // the real person still lands in paidUnregistered (Bishop Ebo's rule)
+    expect(result.paidUnregistered.map((pu) => pu.suggestedName)).toEqual(["Kwame Mensah"]);
+  });
+
+  it("a phone match beats the statement-noise check — a registered partner paying via bank rails stays matched", () => {
+    const result = reconcile(
+      [reg("p1", "Ama Serwaa", "0244123456")],
+      [pay("r1", "0244123456", 6000, "INTEROPERABILITY PULL")],
+    );
+    expect(result.registeredPaid.map((m) => m.registration.id)).toEqual(["p1"]);
+    expect(result.statementRows).toHaveLength(0);
+  });
+});
+
+describe("isStatementRow", () => {
+  it("flags the artifacts seen on the real Qodesh statement", () => {
+    for (const name of [
+      "Ecobank MobileApp",
+      "INTEROPERABILITY PULL OVA",
+      "INTEROPERABILITY PULL",
+      "Interpush OVA",
+      "Quickpay pull",
+      "CalSEND",
+      "ZenithSend",
+    ]) {
+      expect(isStatementRow(name), name).toBe(true);
+    }
+  });
+
+  it("leaves real names alone (including substring lookalikes)", () => {
+    for (const name of ["Kwame Mensah", "Ewurabena Bankson", "Nova Owusu", "PAUL EDDY OKWABI QUARTEY", null]) {
+      expect(isStatementRow(name), String(name)).toBe(false);
+    }
   });
 });

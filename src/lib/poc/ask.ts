@@ -29,6 +29,7 @@ export function buildGrounding(a: HeadlineAnswers): string {
     `- Registered partners who have NOT paid: ${a.unpaidCount}.`,
     `- Paid but not on the register (still included and thanked): ${a.unregisteredCount}${names ? ` — ${names}` : ""}.`,
     `- Total collected: GHS ${a.totalCollectedGhs}.`,
+    `- Of that, GHS ${a.statementTotalGhs} arrived as ${a.statementRowCount} bank/interop statement rows (e.g. "Ecobank MobileApp") — real money but not a person, so no thank-you is sent for them.`,
     `- Total people on the register + unregistered payers: ${a.totalPeople}.`,
   ].join("\n");
 }

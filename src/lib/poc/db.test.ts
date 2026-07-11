@@ -3,6 +3,7 @@ import {
   mapRegistrations,
   mapPayments,
   loadReconciliation,
+  loadOptOuts,
   type Fetcher,
 } from "./db";
 
@@ -45,5 +46,21 @@ describe("loadReconciliation (injected fetcher, no network)", () => {
     expect(result.paidUnregistered).toHaveLength(1); // Stranger (Bishop Ebo)
     expect(result.paidUnregistered[0].suggestedName).toBe("Stranger");
     expect(result.registeredUnpaid.map((r) => r.fullName)).toEqual(["Ama"]);
+  });
+});
+
+describe("loadOptOuts (injected fetcher, no network)", () => {
+  it("returns the opted-out phones as a set, dropping null rows", async () => {
+    const fetcher: Fetcher = (async () => [
+      { phone_e164: "+233244000001" },
+      { phone_e164: null },
+      { phone_e164: "+233209999999" },
+    ]) as Fetcher;
+    expect(await loadOptOuts(fetcher)).toEqual(new Set(["+233244000001", "+233209999999"]));
+  });
+
+  it("returns an empty set when the table is empty", async () => {
+    const fetcher: Fetcher = (async () => []) as Fetcher;
+    expect(await loadOptOuts(fetcher)).toEqual(new Set());
   });
 });

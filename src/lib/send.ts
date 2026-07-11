@@ -10,6 +10,7 @@
 import { getMessagingAdapter } from "./messaging";
 import type { MessagingAdapter } from "./messaging/types";
 import type { PlannedMessage } from "./messages";
+import { normalizePhone } from "./phone";
 
 export type SendStatus = "queued" | "sent" | "skipped" | "failed";
 
@@ -35,9 +36,28 @@ export type SendOptions = {
   adapter?: MessagingAdapter;
   /** E.164 phones that have opted out — skipped before dispatch. */
   optedOut?: Set<string>;
+  /**
+   * Training wheels (BENMP_SEND_ALLOWLIST): when non-null, only these E.164 phones are
+   * dispatched — everything else is skipped. null/undefined = no restriction.
+   */
+  allowlist?: Set<string> | null;
   /** Structured sink for send events; defaults to console.info. */
   log?: (event: Record<string, unknown>) => void;
 };
+
+/**
+ * Parse the BENMP_SEND_ALLOWLIST env value (comma/space-separated phone numbers) into a
+ * set of E.164 phones. Returns null when the variable is unset, empty, or contains no
+ * usable number — meaning "no restriction". Unparseable entries are dropped.
+ */
+export function parseAllowlist(raw: string | undefined | null): Set<string> | null {
+  if (!raw || !raw.trim()) return null;
+  const phones = raw
+    .split(/[,\s]+/)
+    .map((p) => normalizePhone(p))
+    .filter((p): p is string => p !== null);
+  return phones.length > 0 ? new Set(phones) : null;
+}
 
 export async function sendPlanned(
   messages: PlannedMessage[],
@@ -45,6 +65,7 @@ export async function sendPlanned(
 ): Promise<SendReport> {
   const adapter = opts.adapter ?? getMessagingAdapter();
   const optedOut = opts.optedOut ?? new Set<string>();
+  const allowlist = opts.allowlist ?? null;
   const log = opts.log ?? ((e) => console.info(JSON.stringify(e)));
 
   const outcomes: SendOutcome[] = [];
@@ -60,6 +81,12 @@ export async function sendPlanned(
     }
     if (optedOut.has(m.to)) {
       const outcome: SendOutcome = { ...base, status: "skipped", reason: "opted out" };
+      outcomes.push(outcome);
+      log({ evt: "poc_send", ...outcome });
+      continue;
+    }
+    if (allowlist && !allowlist.has(m.to)) {
+      const outcome: SendOutcome = { ...base, status: "skipped", reason: "not in allowlist" };
       outcomes.push(outcome);
       log({ evt: "poc_send", ...outcome });
       continue;

@@ -30,7 +30,7 @@ export function countsByBucket(r: ReconciliationResult): BucketCounts {
 /** All money received this period — includes statement rows (bank/interop money is real giving). */
 export function totalCollectedMinor(r: ReconciliationResult): number {
   const fromRegistered = r.registeredPaid.reduce((s, x) => s + x.totalMinor, 0);
-  const fromUnregistered = r.paidUnregistered.reduce((s, x) => s + x.payment.amountMinor, 0);
+  const fromUnregistered = r.paidUnregistered.reduce((s, x) => s + x.totalMinor, 0);
   return fromRegistered + fromUnregistered + statementTotalMinor(r);
 }
 
@@ -49,9 +49,9 @@ export type UnregisteredPayer = {
 export function unregisteredPayers(r: ReconciliationResult): UnregisteredPayer[] {
   return r.paidUnregistered.map((pu) => ({
     name: pu.suggestedName,
-    amountMinor: pu.payment.amountMinor,
-    reference: pu.payment.reference,
-    phone: pu.payment.payerPhone,
+    amountMinor: pu.totalMinor,
+    reference: pu.payments[0].reference,
+    phone: pu.phone,
   }));
 }
 

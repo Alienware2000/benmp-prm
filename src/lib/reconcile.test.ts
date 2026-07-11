@@ -79,6 +79,29 @@ describe("reconcile", () => {
     const result = reconcile([reg("p1", "Ama Serwaa", "0244123456")], [pay("r1", null, 5000, "Cash Gift")]);
     expect(result.paidUnregistered).toHaveLength(1);
     expect(result.paidUnregistered[0].includeAndMessage).toBe(true);
+    expect(result.paidUnregistered[0].phone).toBeNull();
+  });
+
+  it("groups an unregistered person's payments by phone — one entry, one total (no double thank-you)", () => {
+    const result = reconcile(
+      [],
+      [
+        pay("r1", "0209998888", 5000, "Kwame Mensah"),
+        pay("r2", "+233209998888", 3000, "Kwame Mensah"),
+        pay("r3", "0209997777", 2000, "Abena Osei"),
+      ],
+    );
+    expect(result.paidUnregistered).toHaveLength(2);
+    const kwame = result.paidUnregistered[0];
+    expect(kwame.phone).toBe("+233209998888");
+    expect(kwame.payments.map((p) => p.reference)).toEqual(["r1", "r2"]);
+    expect(kwame.totalMinor).toBe(8000);
+    expect(kwame.suggestedName).toBe("Kwame Mensah");
+  });
+
+  it("keeps no-phone unregistered payments as separate entries (nothing to group by)", () => {
+    const result = reconcile([], [pay("r1", null, 5000, "Cash Gift"), pay("r2", null, 3000, "Cash Gift")]);
+    expect(result.paidUnregistered).toHaveLength(2);
   });
 
   it("sets aside unmatched bank/interop statement rows — never messaged as people", () => {

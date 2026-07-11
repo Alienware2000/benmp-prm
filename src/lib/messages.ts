@@ -102,12 +102,13 @@ export function planMessages(
     messages.push(plan("thank_you", rp.registration.fullName, rp.registration.phone, rp.registration.id, body));
   }
 
-  // Thank unregistered payers too (Bishop Ebo's rule).
+  // Thank unregistered payers too (Bishop Ebo's rule) — one message per person,
+  // covering their total across payments, same as registered partners.
   for (const pu of result.paidUnregistered) {
     const name = firstName(pu.suggestedName ?? "");
-    const amt = formatGhs(pu.payment.amountMinor);
-    const body = pu.payment.amountMinor >= VIP_THRESHOLD_MINOR ? t.vip(name, amt) : t.thankYou(name, amt);
-    messages.push(plan("thank_you", pu.suggestedName, pu.payment.payerPhone, pu.payment.reference, body));
+    const amt = formatGhs(pu.totalMinor);
+    const body = pu.totalMinor >= VIP_THRESHOLD_MINOR ? t.vip(name, amt) : t.thankYou(name, amt);
+    messages.push(plan("thank_you", pu.suggestedName, pu.phone, pu.payments[0].reference, body));
   }
 
   // Remind registered-but-unpaid — only if the due date has passed (event-driven).

@@ -48,7 +48,11 @@ export type RegisteredPaid = {
 };
 
 export type PaidUnregistered = {
-  payment: PaymentRow;
+  /** All of this person's payments this period — one entry per person, not per payment. */
+  payments: PaymentRow[];
+  totalMinor: number;
+  /** E.164 grouping key; null when the phone is unusable (then the entry is one payment). */
+  phone: string | null;
   /** Best-guess partner name to seed the auto-created record. */
   suggestedName: string | null;
   /** Bishop Ebo's rule: always true — include them and message them like the rest. */
@@ -91,7 +95,9 @@ export function isStatementRow(payerName: string | null): boolean {
 /**
  * Reconcile a period's payments against the registration sheet.
  * Matching is by normalized phone; a payment with no phone match falls to
- * paidUnregistered (Bishop Ebo's rule) rather than being dropped.
+ * paidUnregistered (Bishop Ebo's rule) rather than being dropped. Unregistered
+ * payments are grouped by phone — one entry (and later one thank-you) per person,
+ * covering their total, exactly like registeredPaid.
  */
 export function reconcile(
   registrations: RegistrationRow[],
@@ -107,6 +113,7 @@ export function reconcile(
 
   const paymentsByRegId = new Map<string, PaymentRow[]>();
   const paidUnregistered: PaidUnregistered[] = [];
+  const unregisteredByPhone = new Map<string, PaidUnregistered>();
   const statementRows: PaymentRow[] = [];
 
   for (const payment of payments) {
@@ -120,11 +127,23 @@ export function reconcile(
     } else if (isStatementRow(payment.payerName)) {
       statementRows.push(payment);
     } else {
-      paidUnregistered.push({
-        payment,
-        suggestedName: payment.payerName?.trim() || null,
-        includeAndMessage: true,
-      });
+      const suggestedName = payment.payerName?.trim() || null;
+      const existing = key ? unregisteredByPhone.get(key) : undefined;
+      if (existing) {
+        existing.payments.push(payment);
+        existing.totalMinor += payment.amountMinor;
+        if (!existing.suggestedName) existing.suggestedName = suggestedName;
+      } else {
+        const entry: PaidUnregistered = {
+          payments: [payment],
+          totalMinor: payment.amountMinor,
+          phone: key,
+          suggestedName,
+          includeAndMessage: true,
+        };
+        if (key) unregisteredByPhone.set(key, entry);
+        paidUnregistered.push(entry);
+      }
     }
   }
 

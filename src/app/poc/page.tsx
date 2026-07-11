@@ -37,11 +37,11 @@ export default async function PocPage() {
   }));
   const unregisteredRows: Row[] = result.paidUnregistered.map((pu) => ({
     name: pu.suggestedName ?? "Unknown",
-    phoneMasked: mask(pu.payment.payerPhone),
+    phoneMasked: mask(pu.phone),
     status: "new" as const,
-    amountMinor: pu.payment.amountMinor,
-    amountGhs: `GHS ${formatGhs(pu.payment.amountMinor)}`,
-    latest: pu.payment.paidAt,
+    amountMinor: pu.totalMinor,
+    amountGhs: `GHS ${formatGhs(pu.totalMinor)}`,
+    latest: pu.payments.reduce((m, p) => (p.paidAt > m ? p.paidAt : m), ""),
   }));
 
   const all = [...registeredRows, ...unregisteredRows];

@@ -15,7 +15,7 @@ export const defaultModel = process.env.BENMP_DEFAULT_MODEL ?? "gateway:auto";
  * Vertex isn't available immediately on a new project, and the POC shouldn't wait).
  * Resolved from env so it can be overridden without a code change.
  */
-export const POC_MODEL = "gemini-2.5";
+export const POC_MODEL = "gemini-2.5-flash";
 
 export function pocModelId(): string {
   return process.env.BENMP_POC_MODEL ?? POC_MODEL;

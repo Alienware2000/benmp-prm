@@ -51,7 +51,7 @@ export function unregisteredPayers(r: ReconciliationResult): UnregisteredPayer[]
 
 /** Display GHS from integer minor units (display only — never a rule input). */
 export function formatGhs(minor: number): string {
-  const whole = Math.trunc(minor / 100);
+  const whole = Math.trunc(minor / 100).toLocaleString("en-US");
   const pesewas = Math.abs(minor % 100);
   return pesewas === 0 ? `${whole}` : `${whole}.${String(pesewas).padStart(2, "0")}`;
 }

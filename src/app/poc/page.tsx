@@ -1,3 +1,4 @@
+import { BellRing, CircleDollarSign, PieChart, UserPlus } from "lucide-react";
 import { loadReconciliation } from "@/lib/poc/db";
 import { headlineAnswers, formatGhs } from "@/lib/poc/answers";
 import { normalizePhone } from "@/lib/phone";
@@ -83,10 +84,15 @@ export default async function PocPage() {
 
         <SectionLabel>This month at a glance</SectionLabel>
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-border bg-surface p-4">
-            <h3 className="mb-2.5 text-xs font-semibold text-muted-foreground">Given vs outstanding</h3>
-            <div className="flex items-center gap-4">
-              <span className="relative grid h-[84px] w-[84px] flex-none place-items-center">
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[13px] font-medium leading-snug text-muted-foreground">Giving progress</p>
+              <span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+                <PieChart className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <div className="mt-3 flex items-center gap-4">
+              <span className="relative grid h-[76px] w-[76px] flex-none place-items-center">
                 <span
                   className="absolute inset-0 rounded-full"
                   style={{
@@ -94,39 +100,63 @@ export default async function PocPage() {
                   }}
                   aria-hidden
                 />
-                <span className="absolute inset-[13px] grid place-items-center rounded-full bg-surface text-center">
+                <span className="absolute inset-[11px] grid place-items-center rounded-full bg-surface text-center">
                   <span>
-                    <span className="block text-[17px] font-bold leading-none tabular-nums">{pct}%</span>
-                    <span className="text-[9.5px] text-muted-foreground">given</span>
+                    <span className="block text-base font-bold leading-none tabular-nums">{pct}%</span>
+                    <span className="text-[9px] text-muted-foreground">given</span>
                   </span>
                 </span>
               </span>
-              <div className="space-y-1.5 text-xs">
-                <p className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-sm bg-success" aria-hidden /> Gave —{" "}
-                  <b className="tabular-nums">{gaveCount}</b>
+              <div className="space-y-2 text-xs leading-none">
+                <p className="flex items-center gap-2 whitespace-nowrap text-muted-foreground">
+                  <span className="h-2 w-2 rounded-sm bg-success" aria-hidden />
+                  Gave&nbsp;<b className="text-foreground tabular-nums">{gaveCount}</b>
                 </p>
-                <p className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-sm bg-border" aria-hidden /> Not yet —{" "}
-                  <b className="tabular-nums">{a.unpaidCount}</b>
+                <p className="flex items-center gap-2 whitespace-nowrap text-muted-foreground">
+                  <span className="h-2 w-2 rounded-sm bg-border" aria-hidden />
+                  Not yet&nbsp;<b className="text-foreground tabular-nums">{a.unpaidCount}</b>
                 </p>
               </div>
             </div>
           </div>
-          <div className="rounded-2xl border border-border bg-surface p-4">
-            <h3 className="text-xs font-semibold text-muted-foreground">Collected</h3>
-            <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">GHS {a.totalCollectedGhs}</p>
-            <p className="mt-1 text-xs text-muted-foreground">across {a.paidCount} payers</p>
+
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[13px] font-medium text-muted-foreground">Collected</p>
+              <span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+                <CircleDollarSign className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-4 text-[26px] font-semibold leading-none tracking-tight tabular-nums">
+              GHS {a.totalCollectedGhs}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">across {a.paidCount} payers this period</p>
           </div>
-          <div className="rounded-2xl border border-border bg-surface p-4">
-            <h3 className="text-xs font-semibold text-muted-foreground">Gave, not registered</h3>
-            <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">{a.unregisteredCount}</p>
-            <p className="mt-1 text-xs text-muted-foreground">included &amp; thanked anyway</p>
+
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[13px] font-medium text-muted-foreground">Gave, not registered</p>
+              <span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-violet-50 text-violet-700 ring-1 ring-violet-100">
+                <UserPlus className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-4 text-[26px] font-semibold leading-none tracking-tight tabular-nums">
+              {a.unregisteredCount}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">included &amp; thanked anyway</p>
           </div>
-          <div className="rounded-2xl border border-border bg-surface p-4">
-            <h3 className="text-xs font-semibold text-muted-foreground">Reminder targets</h3>
-            <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">{a.unpaidCount}</p>
-            <p className="mt-1 text-xs text-muted-foreground">registered, not yet given</p>
+
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[13px] font-medium text-muted-foreground">Reminder targets</p>
+              <span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-amber-50 text-amber-700 ring-1 ring-amber-100">
+                <BellRing className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-4 text-[26px] font-semibold leading-none tracking-tight tabular-nums">
+              {a.unpaidCount}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">registered, not yet given</p>
           </div>
         </section>
 

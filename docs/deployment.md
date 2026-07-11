@@ -235,3 +235,30 @@ Rollback:
 - [ ] Real partner export received securely.
 - [ ] Backup/restore plan confirmed.
 - [ ] Support owner named for first live week.
+
+## POC Deploy Checklist (Vercel)
+
+Quick path to get the `/poc` console in front of the team at a shared URL. The gate
+(`src/proxy.ts`) means `/poc` and `/api/poc/*` require a password once `POC_PASSWORD` is set.
+
+**Dashboard route (simplest):**
+
+1. Vercel → **Add New → Project** → import `Alienware2000/benmp-prm` (Next.js auto-detected).
+2. **Project Settings → Environment Variables** (Production) — add:
+   - `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `GOOGLE_GENERATIVE_AI_API_KEY`
+   - `POC_USER` (e.g. `benmp`) and **`POC_PASSWORD`** ← **required, or `/poc` is public**
+   - For live sending: `BENMP_MESSAGING_PROVIDER=twilio`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`, `TWILIO_WHATSAPP_SENDER`
+3. **Deploy.** After this, every push to `main` auto-deploys.
+4. Share `https://<project>.vercel.app/poc` + the password with the team.
+
+**CLI route (equivalent):**
+
+```bash
+npx vercel login          # you — browser auth
+npx vercel link           # link this repo to a Vercel project
+# set env vars in the dashboard (keeps secrets out of the shell), then:
+npx vercel --prod         # deploy
+```
+
+**Before sharing publicly, verify:** opening `/poc` prompts for the password (no prompt = `POC_PASSWORD` not set). Trial Twilio still can't send at volume — the console previews correctly regardless.

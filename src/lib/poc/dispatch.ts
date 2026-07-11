@@ -46,3 +46,11 @@ export function summarizePlan(messages: PlannedMessage[], sampleSize = 5): PlanS
     })),
   };
 }
+
+export type PlanKind = "thank_you" | "reminder" | "all";
+
+/** Restrict a plan to one queue (Message Center operates thank-yous and reminders independently). */
+export function filterByKind(messages: PlannedMessage[], kind: PlanKind): PlannedMessage[] {
+  if (kind === "all") return messages;
+  return messages.filter((m) => m.kind === kind);
+}

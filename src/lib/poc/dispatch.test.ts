@@ -40,3 +40,20 @@ describe("summarizePlan", () => {
     expect(s.sample).toEqual([]);
   });
 });
+
+import { filterByKind } from "./dispatch";
+
+describe("filterByKind", () => {
+  const plan = [
+    msg({ kind: "thank_you", partnerRef: "a" }),
+    msg({ kind: "reminder", partnerRef: "b" }),
+    msg({ kind: "reminder", partnerRef: "c" }),
+  ];
+  it("returns everything for 'all'", () => {
+    expect(filterByKind(plan, "all")).toHaveLength(3);
+  });
+  it("filters to one queue", () => {
+    expect(filterByKind(plan, "thank_you").map((m) => m.partnerRef)).toEqual(["a"]);
+    expect(filterByKind(plan, "reminder")).toHaveLength(2);
+  });
+});

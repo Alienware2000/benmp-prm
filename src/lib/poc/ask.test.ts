@@ -10,7 +10,11 @@ const result: ReconciliationResult = {
   ],
   paidUnregistered: [
     {
-      payment: { reference: "TXN2", payerName: "Kwesi Stranger", payerPhone: "+233209999999", amountMinor: 7550, currency: "GHS", paidAt: "2026-07-10" },
+      payments: [
+        { reference: "TXN2", payerName: "Kwesi Stranger", payerPhone: "+233209999999", amountMinor: 7550, currency: "GHS", paidAt: "2026-07-10" },
+      ],
+      totalMinor: 7550,
+      phone: "+233209999999",
       suggestedName: "Kwesi Stranger",
       includeAndMessage: true,
     },

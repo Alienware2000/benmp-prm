@@ -34,9 +34,22 @@ const result: ReconciliationResult = {
     { registration: reg("reg_2", "Yaa Broken", "5560002"), payments: [], totalMinor: 2000 },
   ],
   paidUnregistered: [
-    { payment: pay("TXN2", "Kwesi Stranger", "0209999999", 7550), suggestedName: "Kwesi Stranger", includeAndMessage: true },
+    // two payments grouped by phone -> ONE thank-you covering the total
+    {
+      payments: [pay("TXN2", "Kwesi Stranger", "0209999999", 7550), pay("TXN3", "Kwesi Stranger", "0209999999", 3000)],
+      totalMinor: 10550,
+      phone: "+233209999999",
+      suggestedName: "Kwesi Stranger",
+      includeAndMessage: true,
+    },
     // no name on the statement -> falls back to a generic greeting
-    { payment: pay("TXN9", null, "0201234567", 2000), suggestedName: null, includeAndMessage: true },
+    {
+      payments: [pay("TXN9", null, "0201234567", 2000)],
+      totalMinor: 2000,
+      phone: "+233201234567",
+      suggestedName: null,
+      includeAndMessage: true,
+    },
   ],
   registeredUnpaid: [reg("reg_5", "Mr. Late Payer", "0244555000")],
   // set aside by reconcile() — planMessages must never thank a bank artifact
@@ -67,6 +80,14 @@ describe("planMessages", () => {
     expect(stranger!.sendable).toBe(true);
     // the bank artifact gets no message at all
     expect(msgs.find((m) => m.partnerRef === "TXN10")).toBeUndefined();
+  });
+
+  it("thanks a multi-payment unregistered giver ONCE, for the total (VIP when the total qualifies)", () => {
+    const msgs = planMessages(result, passed);
+    const strangers = msgs.filter((m) => m.to === "+233209999999");
+    expect(strangers).toHaveLength(1);
+    expect(strangers[0].body).toContain("105.50"); // 75.50 + 30.00, quoted as one gift total
+    expect(strangers[0].body.toLowerCase()).toContain("generous"); // VIP tone: total >= 100 GHS
   });
 
   it("personalizes the thank-you with first name and amount", () => {

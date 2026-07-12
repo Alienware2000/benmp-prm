@@ -18,19 +18,32 @@ export interface PocModelClient {
 
 export type AskOptions = { model?: PocModelClient };
 
+/** How many example names an answer may cite — counts first, never a roll call. */
+export const MAX_NAMES_IN_ANSWER = 5;
+
+/** Top examples by amount, e.g. "Kofi (GHS 600), Ama (GHS 500) …and 109 more". */
+function sampleNames(a: HeadlineAnswers): string {
+  const top = [...a.unregistered]
+    .sort((x, y) => y.amountMinor - x.amountMinor)
+    .slice(0, MAX_NAMES_IN_ANSWER)
+    .map((u) => `${u.name ?? "Unknown"} (GHS ${formatGhs(u.amountMinor)})`);
+  const rest = a.unregistered.length - top.length;
+  return top.join(", ") + (rest > 0 ? ` …and ${rest} more` : "");
+}
+
 /** A compact, factual grounding block the model must answer from — no figures invented. */
 export function buildGrounding(a: HeadlineAnswers): string {
-  const names = a.unregistered
-    .map((u) => `${u.name ?? "Unknown"} (GHS ${formatGhs(u.amountMinor)})`)
-    .join(", ");
+  const names = a.unregistered.length > 0 ? sampleNames(a) : "";
   return [
     `Period figures (use ONLY these; do not compute or invent numbers):`,
     `- People who paid: ${a.paidCount} (${a.registeredPaidCount} registered + ${a.unregisteredCount} unregistered).`,
     `- Registered partners who have NOT paid: ${a.unpaidCount}.`,
-    `- Paid but not on the register (still included and thanked): ${a.unregisteredCount}${names ? ` — ${names}` : ""}.`,
+    `- Paid but not on the register (still included and thanked): ${a.unregisteredCount}. Largest: ${names || "none"}.`,
     `- Total collected: GHS ${a.totalCollectedGhs}.`,
     `- Of that, GHS ${a.statementTotalGhs} arrived as ${a.statementRowCount} bank/interop statement rows (e.g. "Ecobank MobileApp") — real money but not a person, so no thank-you is sent for them.`,
     `- Total people on the register + unregistered payers: ${a.totalPeople}.`,
+    ``,
+    `Style rules: lead with the number, not a list. Name at most ${MAX_NAMES_IN_ANSWER} people, then say "and N more — the full list is in the partners table". Never enumerate everyone.`,
   ].join("\n");
 }
 
@@ -54,8 +67,12 @@ export function answerLocally(question: string, a: HeadlineAnswers): string {
   const isPaid = q.includes("paid") || q.includes("gave") || q.includes("give");
 
   if (isUnregistered) {
-    const names = a.unregistered.map((u) => `${u.name ?? "Unknown"} (GHS ${formatGhs(u.amountMinor)})`).join(", ");
-    return `${a.unregisteredCount} paid but are not on the register — they are still included and thanked${names ? `: ${names}` : ""}.`;
+    const names = a.unregistered.length > 0 ? sampleNames(a) : "";
+    const tail =
+      a.unregistered.length > MAX_NAMES_IN_ANSWER
+        ? " The full list is in the partners table below."
+        : "";
+    return `${a.unregisteredCount} paid but are not on the register — they are still included and thanked${names ? `. Largest: ${names}.` : "."}${tail}`;
   }
   if (isUnpaid) {
     return `${a.unpaidCount} registered partners have not paid this period yet.`;
@@ -79,7 +96,7 @@ export async function askAi(
 ): Promise<string> {
   const a = headlineAnswers(result);
   if (opts.model) {
-    const prompt = `${buildGrounding(a)}\n\nQuestion: ${question}\n\nAnswer in one or two sentences using ONLY the figures above.`;
+    const prompt = `${buildGrounding(a)}\n\nQuestion: ${question}\n\nAnswer in one or two sentences using ONLY the figures above. Lead with the number; never list more than ${MAX_NAMES_IN_ANSWER} names.`;
     return opts.model.generate(prompt);
   }
   return answerLocally(question, a);

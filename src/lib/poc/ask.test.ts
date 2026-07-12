@@ -74,3 +74,40 @@ describe("buildGrounding", () => {
     expect(g).toMatch(/unregistered/i);
   });
 });
+
+describe("answers stay concise with many unregistered givers (no name dumps)", () => {
+  // 120 unregistered payers — the real-data shape that produced overwhelming answers
+  const many: ReconciliationResult = {
+    registeredPaid: [],
+    registeredUnpaid: [],
+    statementRows: [],
+    paidUnregistered: Array.from({ length: 120 }, (_, i) => ({
+      payments: [
+        { reference: `TX${i}`, payerName: `Giver ${i}`, payerPhone: `+23320${String(1000000 + i)}`, amountMinor: 1000 + i, currency: "GHS", paidAt: "2026-07-01" },
+      ],
+      totalMinor: 1000 + i,
+      phone: `+23320${String(1000000 + i)}`,
+      suggestedName: `Giver ${i}`,
+      includeAndMessage: true as const,
+    })),
+  };
+
+  it("grounding caps the examples and instructs count-first style", () => {
+    const g = buildGrounding(headlineAnswers(many));
+    const nameCount = (g.match(/Giver \d+/g) ?? []).length;
+    expect(nameCount).toBeLessThanOrEqual(5);
+    expect(g).toContain("…and 115 more");
+    expect(g).toMatch(/lead with the number/i);
+    expect(g).toMatch(/never enumerate/i);
+  });
+
+  it("deterministic answer gives the count, top examples, and points to the table", () => {
+    const ans = answerLocally("Who paid but isn't on the register?", headlineAnswers(many));
+    expect(ans).toContain("120");
+    const nameCount = (ans.match(/Giver \d+/g) ?? []).length;
+    expect(nameCount).toBeLessThanOrEqual(5);
+    expect(ans).toMatch(/partners table/i);
+    // largest gifts are the examples shown
+    expect(ans).toContain("Giver 119");
+  });
+});

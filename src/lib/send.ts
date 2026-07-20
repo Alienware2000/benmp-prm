@@ -29,6 +29,8 @@ export type SendReport = {
   sent: number;
   skipped: number;
   failed: number;
+  /** Skip counts by reason ("no phone" | "opted out" | "not in allowlist") — lets the UI explain a skip as the safety feature it is. */
+  skippedByReason: Record<string, number>;
   outcomes: SendOutcome[];
 };
 
@@ -117,12 +119,20 @@ export async function sendPlanned(
     }
   }
 
+  const skippedByReason: Record<string, number> = {};
+  for (const o of outcomes) {
+    if (o.status === "skipped" && o.reason) {
+      skippedByReason[o.reason] = (skippedByReason[o.reason] ?? 0) + 1;
+    }
+  }
+
   return {
     total: outcomes.length,
     queued: outcomes.filter((o) => o.status === "queued").length,
     sent: outcomes.filter((o) => o.status === "sent").length,
     skipped: outcomes.filter((o) => o.status === "skipped").length,
     failed: outcomes.filter((o) => o.status === "failed").length,
+    skippedByReason,
     outcomes,
   };
 }

@@ -49,6 +49,7 @@ describe("sendPlanned", () => {
     expect(report.queued).toBe(2); // reg_0 + reg_5
     expect(report.skipped).toBe(2); // no-phone + opted-out
     expect(report.failed).toBe(0);
+    expect(report.skippedByReason).toEqual({ "no phone": 1, "opted out": 1 });
     // the adapter was only called for the two sendable, non-opted-out messages
     expect(adapter.send).toHaveBeenCalledTimes(2);
 
@@ -73,6 +74,7 @@ describe("sendPlanned", () => {
     const blocked = report.outcomes.find((o) => o.partnerRef === "reg_5")!;
     expect(blocked.status).toBe("skipped");
     expect(blocked.reason).toBe("not in allowlist");
+    expect(report.skippedByReason["not in allowlist"]).toBe(2); // reg_5 + reg_9
   });
 
   it("a null allowlist means no restriction", async () => {

@@ -1,10 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   mapRegistrations,
   mapPayments,
   loadReconciliation,
   loadOptOuts,
+  toSentMessageRows,
+  recordSentMessages,
   type Fetcher,
+  type Inserter,
 } from "./db";
 
 describe("db row -> domain mapping", () => {
@@ -62,5 +65,40 @@ describe("loadOptOuts (injected fetcher, no network)", () => {
   it("returns an empty set when the table is empty", async () => {
     const fetcher: Fetcher = (async () => []) as Fetcher;
     expect(await loadOptOuts(fetcher)).toEqual(new Set());
+  });
+});
+
+describe("sent_messages audit trail", () => {
+  const messages = [
+    { partnerRef: "reg_0", kind: "thank_you", to: "+233244000001", body: "Hi Kofi, thank you." },
+    { partnerRef: "reg_5", kind: "reminder", to: null, body: "Hi Late, reminder." },
+  ];
+  const outcomes = [
+    { status: "queued", providerMessageId: "SM123" },
+    { status: "skipped", reason: "no phone" },
+  ];
+
+  it("zips planned messages with outcomes into audit rows", () => {
+    expect(toSentMessageRows(messages, outcomes)).toEqual([
+      { partner_ref: "reg_0", kind: "thank_you", to_phone: "+233244000001", body: "Hi Kofi, thank you.", status: "queued", reason: null, provider_message_id: "SM123" },
+      { partner_ref: "reg_5", kind: "reminder", to_phone: null, body: "Hi Late, reminder.", status: "skipped", reason: "no phone", provider_message_id: null },
+    ]);
+  });
+
+  it("recordSentMessages inserts via the injected inserter", async () => {
+    const inserter = vi.fn(async () => {}) as Inserter;
+    expect(await recordSentMessages(toSentMessageRows(messages, outcomes), inserter)).toBe(true);
+    expect(inserter).toHaveBeenCalledWith("sent_messages", expect.arrayContaining([expect.objectContaining({ partner_ref: "reg_0" })]));
+  });
+
+  it("an audit failure returns false, never throws (send result must survive)", async () => {
+    const inserter: Inserter = async () => { throw new Error("db down"); };
+    expect(await recordSentMessages(toSentMessageRows(messages, outcomes), inserter)).toBe(false);
+  });
+
+  it("skips the insert entirely for an empty send", async () => {
+    const inserter = vi.fn(async () => {}) as Inserter;
+    expect(await recordSentMessages([], inserter)).toBe(true);
+    expect(inserter).not.toHaveBeenCalled();
   });
 });

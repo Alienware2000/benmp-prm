@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { loadReconciliation, loadOptOuts } from "@/lib/poc/db";
+import { loadReconciliation, loadOptOuts, toSentMessageRows, recordSentMessages } from "@/lib/poc/db";
 import { planMessages } from "@/lib/messages";
 import { summarizePlan, filterByKind, type PlanKind } from "@/lib/poc/dispatch";
 import { sendPlanned, parseAllowlist } from "@/lib/send";
@@ -45,5 +45,7 @@ export async function POST(req: Request) {
     optedOut,
     allowlist: parseAllowlist(process.env.BENMP_SEND_ALLOWLIST),
   });
-  return NextResponse.json({ ok: true, data: { mode: "sent", report } });
+  // Audit trail: every attempt (sent, skipped, failed) lands in sent_messages.
+  const audited = await recordSentMessages(toSentMessageRows(messages, report.outcomes));
+  return NextResponse.json({ ok: true, data: { mode: "sent", report, audited } });
 }

@@ -12,7 +12,33 @@ type Summary = {
   sample: Array<{ kind: string; name: string; to: string | null; body: string }>;
 };
 
-type Report = { total: number; queued: number; sent: number; skipped: number; failed: number };
+type Report = {
+  total: number;
+  queued: number;
+  sent: number;
+  skipped: number;
+  failed: number;
+  skippedByReason?: Record<string, number>;
+};
+
+/** Explain skips as the safety features they are, not as failures. */
+const SKIP_LABELS: Record<string, string> = {
+  "not in allowlist": "held by safety allowlist",
+  "opted out": "opted out",
+  "no phone": "no phone number",
+};
+
+function reportLine(r: Report): string {
+  const delivered = r.sent + r.queued;
+  const parts = [`${delivered} sent`];
+  for (const [reason, n] of Object.entries(r.skippedByReason ?? {})) {
+    parts.push(`${n} ${SKIP_LABELS[reason] ?? reason}`);
+  }
+  const unexplained = r.skipped - Object.values(r.skippedByReason ?? {}).reduce((s, n) => s + n, 0);
+  if (unexplained > 0) parts.push(`${unexplained} skipped`);
+  if (r.failed > 0) parts.push(`${r.failed} failed`);
+  return `${parts.join(" · ")} (of ${r.total})`;
+}
 
 type Kind = "thank_you" | "reminder";
 
@@ -141,8 +167,7 @@ function QueueRow({
 
       {report && (
         <p className="col-span-full rounded-xl border border-border bg-background px-3 py-2.5 text-xs text-foreground">
-          Sent {report.sent} · queued {report.queued} · skipped {report.skipped} · failed {report.failed}{" "}
-          (of {report.total})
+          {reportLine(report)}
         </p>
       )}
     </div>

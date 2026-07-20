@@ -13,7 +13,6 @@ function mask(phone: string | null): string {
   const e164 = normalizePhone(phone);
   return e164 ? `…${e164.slice(-4)}` : "no phone";
 }
-
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p className="mb-3 mt-8 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -84,7 +83,11 @@ export default async function PocPage() {
   const newGiverShare = gaveCount > 0 ? Math.round((a.unregisteredCount / gaveCount) * 100) : 0;
   const registerTotal = a.registeredPaidCount + a.unpaidCount;
   const ringC = 2 * Math.PI * 30;
-  const provider = process.env.BENMP_MESSAGING_PROVIDER === "twilio" ? "twilio" : "mock";
+  const configuredProvider = process.env.BENMP_MESSAGING_PROVIDER;
+  const provider =
+    configuredProvider === "twilio" || configuredProvider === "meta-cloud-api"
+      ? configuredProvider
+      : "mock";
 
   // The statement covers a window, not a calendar month — label it honestly.
   const paidDates = [...result.registeredPaid.flatMap((rp) => rp.payments), ...result.paidUnregistered.flatMap((pu) => pu.payments)]

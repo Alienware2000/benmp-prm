@@ -1,4 +1,5 @@
 import { MockMessagingAdapter } from "./mock-adapter";
+import { MetaCloudMessagingAdapter } from "./meta-cloud-adapter";
 import { TwilioMessagingAdapter } from "./twilio-adapter";
 import type { MessagingAdapter, MessagingProvider } from "./types";
 
@@ -23,9 +24,7 @@ export function getMessagingAdapter(): MessagingAdapter {
     return new MockMessagingAdapter();
   }
 
-  throw new Error(
-    `${provider} messaging is not implemented yet. Use the mock adapter or twilio.`,
-  );
+  return new MetaCloudMessagingAdapter();
 }
 
 export type {

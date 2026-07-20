@@ -52,11 +52,14 @@ function reportLine(r: Report): string {
 
 type Kind = "thank_you" | "reminder";
 
-function AssistedWhatsApp() {
+function AssistedWhatsApp({ provider }: { provider: string }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const amountMinor = Math.round(Number(amount) * 100);
   const message = useMemo(
@@ -67,6 +70,40 @@ function AssistedWhatsApp() {
     [amountMinor, name],
   );
   const whatsappUrl = buildWhatsAppUrl(phone, message);
+  const canSendAutomatically = provider !== "mock" && whatsappUrl !== null;
+
+  async function sendAutomatically() {
+    setSending(true);
+    setSendResult(null);
+    setSendError(null);
+    try {
+      const response = await fetch("/api/poc/send-one", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name, phone, amountGhs: amount }),
+      });
+      const result = (await response.json()) as {
+        ok: boolean;
+        data?: { outcome?: { status?: string } };
+        error?: { message?: string };
+      };
+      if (!response.ok || !result.ok) {
+        setSendError(
+          result.error?.message ?? "The provider did not accept the message.",
+        );
+      } else {
+        setSendResult(
+          result.data?.outcome?.status === "sent"
+            ? "Delivered to the provider."
+            : "Accepted for delivery.",
+        );
+      }
+    } catch {
+      setSendError("Could not reach the server.");
+    } finally {
+      setSending(false);
+    }
+  }
 
   if (!open) {
     return (
@@ -146,23 +183,44 @@ function AssistedWhatsApp() {
         <div className="min-h-16 flex-1 rounded-lg border border-border bg-surface px-3 py-2.5 text-xs leading-5 text-foreground/80">
           {message || "The personalized thank-you will appear here."}
         </div>
-        {whatsappUrl ? (
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-10 flex-none items-center justify-center gap-2 rounded-lg bg-success px-4 text-xs font-semibold text-white transition hover:opacity-90"
-          >
-            <MessageCircle className="h-4 w-4" aria-hidden />
-            Open WhatsApp
-          </a>
-        ) : (
-          <span className="inline-flex h-10 flex-none cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-success px-4 text-xs font-semibold text-white opacity-40">
-            <MessageCircle className="h-4 w-4" aria-hidden />
-            Open WhatsApp
-          </span>
-        )}
+        <div className="flex flex-none flex-col gap-2 sm:items-stretch">
+          {provider !== "mock" && (
+            <button
+              type="button"
+              onClick={sendAutomatically}
+              disabled={!canSendAutomatically || sending}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-success px-4 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <MessageCircle className="h-4 w-4" aria-hidden />
+              {sending ? "Sending…" : "Send automatically"}
+            </button>
+          )}
+          {whatsappUrl ? (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-xs font-semibold text-foreground transition hover:border-muted-foreground/40"
+            >
+              <MessageCircle className="h-4 w-4" aria-hidden />
+              Open WhatsApp
+            </a>
+          ) : (
+            <span className="inline-flex h-10 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-xs font-semibold text-foreground opacity-40">
+              <MessageCircle className="h-4 w-4" aria-hidden />
+              Open WhatsApp
+            </span>
+          )}
+        </div>
       </div>
+      {(sendResult || sendError) && (
+        <p
+          className={`mt-3 text-xs font-medium ${sendError ? "text-danger" : "text-success"}`}
+          role="status"
+        >
+          {sendError ?? sendResult}
+        </p>
+      )}
     </div>
   );
 }
@@ -320,7 +378,7 @@ export function MessageCenter({
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-      <AssistedWhatsApp />
+      <AssistedWhatsApp provider={provider} />
       <QueueRow
         kind="thank_you"
         count={thankYous}

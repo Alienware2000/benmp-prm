@@ -100,12 +100,13 @@ Current keys from `.env.example`:
 | `TWILIO_AUTH_TOKEN`             | Messaging envs | Server only.                                            |
 | `TWILIO_MESSAGING_SERVICE_SID`  | Messaging envs | Server only.                                            |
 | `TWILIO_WHATSAPP_SENDER`        | Messaging envs | Server only.                                            |
+| `META_WHATSAPP_TOKEN`           | Messaging envs | Server-only Meta Cloud API access token.                |
+| `META_WHATSAPP_PHONE_NUMBER_ID` | Messaging envs | Meta sender ID, not the displayed phone number.         |
+| `META_GRAPH_API_VERSION`        | Messaging envs | Optional; defaults to `v23.0`.                          |
 | `RESEND_API_KEY`                | Messaging envs | Server only.                                            |
 
 Add later when implemented:
 
-- `META_WHATSAPP_TOKEN`
-- `META_WHATSAPP_PHONE_NUMBER_ID`
 - `META_WHATSAPP_VERIFY_TOKEN`
 
 There are **no payment-provider env vars** — the system integrates no payment provider (Decision 0007). Money enters via CSV upload, which needs no credentials.

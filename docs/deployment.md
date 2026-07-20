@@ -240,6 +240,8 @@ Rollback:
 
 Quick path to get the `/poc` console in front of the team at a shared URL. The gate
 (`src/proxy.ts`) means `/poc` and `/api/poc/*` require a password once `POC_PASSWORD` is set.
+Every other route — including `/` and the pre-POC mock MVP shell (`/partners`, `/giving`, …) —
+redirects to `/poc` for everyone, so the old demo pages never show; only `/login` is public.
 
 **Dashboard route (simplest):**
 

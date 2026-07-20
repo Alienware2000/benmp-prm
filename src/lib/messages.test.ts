@@ -1,12 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { planMessages, firstName } from "./messages";
+import { buildThankYouMessage, planMessages, firstName } from "./messages";
 import type {
   ReconciliationResult,
   RegistrationRow,
   PaymentRow,
 } from "./reconcile";
 
-const reg = (id: string, fullName: string, phone: string | null): RegistrationRow => ({
+const reg = (
+  id: string,
+  fullName: string,
+  phone: string | null,
+): RegistrationRow => ({
   id,
   fullName,
   phone,
@@ -27,16 +31,31 @@ const pay = (
 
 const result: ReconciliationResult = {
   registeredPaid: [
-    { registration: reg("reg_0", "Rev. Kofi Boateng", "0244000002"), payments: [], totalMinor: 5000 },
+    {
+      registration: reg("reg_0", "Rev. Kofi Boateng", "0244000002"),
+      payments: [],
+      totalMinor: 5000,
+    },
     // VIP: >= 100 GHS
-    { registration: reg("reg_1", "Ama Serwaa", "244000003"), payments: [], totalMinor: 10000 },
+    {
+      registration: reg("reg_1", "Ama Serwaa", "244000003"),
+      payments: [],
+      totalMinor: 10000,
+    },
     // unnormalizable phone -> planned but not sendable
-    { registration: reg("reg_2", "Yaa Broken", "5560002"), payments: [], totalMinor: 2000 },
+    {
+      registration: reg("reg_2", "Yaa Broken", "5560002"),
+      payments: [],
+      totalMinor: 2000,
+    },
   ],
   paidUnregistered: [
     // two payments grouped by phone -> ONE thank-you covering the total
     {
-      payments: [pay("TXN2", "Kwesi Stranger", "0209999999", 7550), pay("TXN3", "Kwesi Stranger", "0209999999", 3000)],
+      payments: [
+        pay("TXN2", "Kwesi Stranger", "0209999999", 7550),
+        pay("TXN3", "Kwesi Stranger", "0209999999", 3000),
+      ],
       totalMinor: 10550,
       phone: "+233209999999",
       suggestedName: "Kwesi Stranger",
@@ -62,6 +81,17 @@ describe("firstName (strip titles for greeting)", () => {
     expect(firstName("LP. Nana Yaa Ane")).toBe("Nana");
     expect(firstName("Dr Wilfred Torshie")).toBe("Wilfred");
     expect(firstName("Ama Serwaa")).toBe("Ama");
+  });
+});
+
+describe("buildThankYouMessage", () => {
+  it("uses the regular and high-touch wording at the same threshold as planned sends", () => {
+    expect(buildThankYouMessage("Mr. Kofi Boateng", 60_00)).toContain(
+      "Hi Kofi",
+    );
+    expect(buildThankYouMessage("Mr. Kofi Boateng", 100_00)).toContain(
+      "Dear Kofi",
+    );
   });
 });
 
@@ -122,12 +152,16 @@ describe("planMessages", () => {
   });
 
   it("sends a reminder to registered-unpaid ONLY once the due date has passed (event-driven)", () => {
-    const afterDue = planMessages(result, passed).filter((m) => m.kind === "reminder");
+    const afterDue = planMessages(result, passed).filter(
+      (m) => m.kind === "reminder",
+    );
     expect(afterDue).toHaveLength(1);
     expect(afterDue[0].partnerRef).toBe("reg_5");
     expect(afterDue[0].body).not.toMatch(/GHS\s*\d/); // no pledge amount to quote
 
-    const beforeDue = planMessages(result, future).filter((m) => m.kind === "reminder");
+    const beforeDue = planMessages(result, future).filter(
+      (m) => m.kind === "reminder",
+    );
     expect(beforeDue).toHaveLength(0);
   });
 });

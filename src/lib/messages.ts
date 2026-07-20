@@ -47,7 +47,8 @@ export type Templates = {
   reminder: (name: string) => string;
 };
 
-const TITLE_RE = /\b(Rev\.?|LP\.?|Dr\.?|Mr\.?|Mrs\.?|Ms\.?|Pastor|Ps\.?|Ps)\b/gi;
+const TITLE_RE =
+  /\b(Rev\.?|LP\.?|Dr\.?|Mr\.?|Mrs\.?|Ms\.?|Pastor|Ps\.?|Ps)\b/gi;
 
 /** First name for a greeting, with common titles stripped ("Rev. Kofi Boateng" -> "Kofi"). */
 export function firstName(fullName: string): string {
@@ -62,7 +63,9 @@ export function firstName(fullName: string): string {
 function formatGhs(minor: number): string {
   const whole = Math.trunc(minor / 100);
   const pesewas = Math.abs(minor % 100);
-  return pesewas === 0 ? `${whole}` : `${whole}.${String(pesewas).padStart(2, "0")}`;
+  return pesewas === 0
+    ? `${whole}`
+    : `${whole}.${String(pesewas).padStart(2, "0")}`;
 }
 
 const DEFAULT_TEMPLATES: Templates = {
@@ -73,6 +76,19 @@ const DEFAULT_TEMPLATES: Templates = {
   reminder: (name) =>
     `Hi ${name}, a gentle reminder to send your BENMP partnership gift by MoMo whenever you're ready. Thank you and God bless!`,
 };
+
+/** Build the same personalized thank-you used by both automated and assisted sending. */
+export function buildThankYouMessage(
+  rawName: string,
+  amountMinor: number,
+  templates: Templates = DEFAULT_TEMPLATES,
+): string {
+  const name = firstName(rawName);
+  const amount = formatGhs(amountMinor);
+  return amountMinor >= VIP_THRESHOLD_MINOR
+    ? templates.vip(name, amount)
+    : templates.thankYou(name, amount);
+}
 
 function plan(
   kind: MessageKind,
@@ -103,25 +119,49 @@ export function planMessages(
 
   // Thank registered payers.
   for (const rp of result.registeredPaid) {
-    const name = firstName(rp.registration.fullName);
-    const amt = formatGhs(rp.totalMinor);
-    const body = rp.totalMinor >= VIP_THRESHOLD_MINOR ? t.vip(name, amt) : t.thankYou(name, amt);
-    messages.push(plan("thank_you", rp.registration.fullName, rp.registration.phone, rp.registration.id, body));
+    const body = buildThankYouMessage(
+      rp.registration.fullName,
+      rp.totalMinor,
+      t,
+    );
+    messages.push(
+      plan(
+        "thank_you",
+        rp.registration.fullName,
+        rp.registration.phone,
+        rp.registration.id,
+        body,
+      ),
+    );
   }
 
   // Thank unregistered payers too (Bishop Ebo's rule) — one message per person,
   // covering their total across payments, same as registered partners.
   for (const pu of result.paidUnregistered) {
-    const name = firstName(pu.suggestedName ?? "");
-    const amt = formatGhs(pu.totalMinor);
-    const body = pu.totalMinor >= VIP_THRESHOLD_MINOR ? t.vip(name, amt) : t.thankYou(name, amt);
-    messages.push(plan("thank_you", pu.suggestedName, pu.phone, pu.payments[0].reference, body));
+    const body = buildThankYouMessage(pu.suggestedName ?? "", pu.totalMinor, t);
+    messages.push(
+      plan(
+        "thank_you",
+        pu.suggestedName,
+        pu.phone,
+        pu.payments[0].reference,
+        body,
+      ),
+    );
   }
 
   // Remind registered-but-unpaid — only if the due date has passed (event-driven).
   if (opts.dueDate < opts.asOf) {
     for (const r of result.registeredUnpaid) {
-      messages.push(plan("reminder", r.fullName, r.phone, r.id, t.reminder(firstName(r.fullName))));
+      messages.push(
+        plan(
+          "reminder",
+          r.fullName,
+          r.phone,
+          r.id,
+          t.reminder(firstName(r.fullName)),
+        ),
+      );
     }
   }
 

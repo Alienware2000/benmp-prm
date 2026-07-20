@@ -196,7 +196,7 @@ export function MessageCenter({
         kind="reminder"
         count={reminders}
         title="Gentle reminders"
-        subtitle="WhatsApp · for registered partners who haven't given this month"
+        subtitle="WhatsApp · for registered partners who haven't given this period"
         idleChip="preview required"
       />
       <div className="flex flex-wrap justify-between gap-2 border-t border-border bg-background/60 px-4 py-2.5 text-[11px] text-muted-foreground sm:px-5">

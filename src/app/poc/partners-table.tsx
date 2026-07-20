@@ -7,6 +7,8 @@ export type PartnerRow = {
   phoneMasked: string;
   status: "registered" | "new";
   amountGhs: string;
+  /** Latest payment moment, pre-formatted ("5 Jul, 7:48 PM"). */
+  when: string;
 };
 
 export type TableData = {
@@ -58,13 +60,14 @@ export function PartnersTable({ data }: { data: TableData }) {
               <th className="px-4 pb-2 pt-3 sm:px-5">Partner</th>
               <th className="pb-2 pt-3 pr-4">Phone</th>
               <th className="pb-2 pt-3 pr-4">Status</th>
+              <th className="hidden pb-2 pt-3 pr-4 sm:table-cell">When</th>
               <th className="pb-2 pt-3 pr-4 text-right sm:pr-5">Amount</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={4} className="border-t border-border px-4 py-6 text-sm text-muted-foreground sm:px-5">
+                <td colSpan={5} className="border-t border-border px-4 py-6 text-sm text-muted-foreground sm:px-5">
                   Nothing in this view for the period.
                 </td>
               </tr>
@@ -84,6 +87,9 @@ export function PartnersTable({ data }: { data: TableData }) {
                     >
                       {r.status}
                     </span>
+                  </td>
+                  <td className="hidden whitespace-nowrap py-2.5 pr-4 text-xs tabular-nums text-muted-foreground sm:table-cell">
+                    {r.when}
                   </td>
                   <td className="py-2.5 pr-4 text-right font-mono text-xs tabular-nums text-foreground sm:pr-5">
                     {r.amountGhs}

@@ -23,26 +23,49 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 type Row = PartnerRow & { amountMinor: number; latest: string };
 
+/**
+ * "2026-07-05T19:48:01+00:00" -> "5 Jul" (Ghana is UTC year-round).
+ *
+ * Date only, deliberately: 39% of the statement's person payments carry a batch
+ * timestamp of exactly 03:00 (scheduled transfers settling overnight), so the
+ * time-of-day is a posting artifact rather than when the partner actually gave.
+ * The full timestamp stays in payments.paid_at for finance queries.
+ */
+function formatWhen(iso: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return `${d.getUTCDate()} ${d.toLocaleString("en-US", { month: "short", timeZone: "UTC" })}`;
+}
+
 export default async function PocPage() {
   const result = await loadReconciliation();
   const a = headlineAnswers(result);
 
-  const registeredRows: Row[] = result.registeredPaid.map((rp) => ({
-    name: rp.registration.fullName,
-    phoneMasked: mask(rp.registration.phone),
-    status: "registered" as const,
-    amountMinor: rp.totalMinor,
-    amountGhs: `GHS ${formatGhs(rp.totalMinor)}`,
-    latest: rp.payments.reduce((m, p) => (p.paidAt > m ? p.paidAt : m), ""),
-  }));
-  const unregisteredRows: Row[] = result.paidUnregistered.map((pu) => ({
-    name: pu.suggestedName ?? "Unknown",
-    phoneMasked: mask(pu.phone),
-    status: "new" as const,
-    amountMinor: pu.totalMinor,
-    amountGhs: `GHS ${formatGhs(pu.totalMinor)}`,
-    latest: pu.payments.reduce((m, p) => (p.paidAt > m ? p.paidAt : m), ""),
-  }));
+  const registeredRows: Row[] = result.registeredPaid.map((rp) => {
+    const latest = rp.payments.reduce((m, p) => (p.paidAt > m ? p.paidAt : m), "");
+    return {
+      name: rp.registration.fullName,
+      phoneMasked: mask(rp.registration.phone),
+      status: "registered" as const,
+      amountMinor: rp.totalMinor,
+      amountGhs: `GHS ${formatGhs(rp.totalMinor)}`,
+      latest,
+      when: formatWhen(latest),
+    };
+  });
+  const unregisteredRows: Row[] = result.paidUnregistered.map((pu) => {
+    const latest = pu.payments.reduce((m, p) => (p.paidAt > m ? p.paidAt : m), "");
+    return {
+      name: pu.suggestedName ?? "Unknown",
+      phoneMasked: mask(pu.phone),
+      status: "new" as const,
+      amountMinor: pu.totalMinor,
+      amountGhs: `GHS ${formatGhs(pu.totalMinor)}`,
+      latest,
+      when: formatWhen(latest),
+    };
+  });
 
   const all = [...registeredRows, ...unregisteredRows];
   const tableData: TableData = {
@@ -62,6 +85,16 @@ export default async function PocPage() {
   const ringC = 2 * Math.PI * 30;
   const provider = process.env.BENMP_MESSAGING_PROVIDER === "twilio" ? "twilio" : "mock";
 
+  // The statement covers a window, not a calendar month — label it honestly.
+  const paidDates = [...result.registeredPaid.flatMap((rp) => rp.payments), ...result.paidUnregistered.flatMap((pu) => pu.payments)]
+    .map((p) => p.paidAt)
+    .filter(Boolean)
+    .sort();
+  const periodLabel =
+    paidDates.length > 0
+      ? `${formatWhen(paidDates[0])} – ${formatWhen(paidDates[paidDates.length - 1])}`
+      : "This period";
+
   return (
     <div className="min-h-screen bg-background pb-14 text-foreground">
       <header className="border-b border-border bg-surface">
@@ -74,21 +107,21 @@ export default async function PocPage() {
             <span className="font-normal text-muted-foreground/80">· Qodesh</span>
           </span>
           <span className="whitespace-nowrap rounded-full border border-border bg-background px-3 py-1 text-xs tabular-nums text-muted-foreground">
-            This period
+            {periodLabel}
           </span>
         </div>
       </header>
 
       <main className="mx-auto max-w-4xl px-5">
         <section className="pt-8">
-          <h1 className="text-[22px] font-semibold tracking-tight">Ask about this month</h1>
+          <h1 className="text-[22px] font-semibold tracking-tight">Ask about this period</h1>
           <p className="mb-4 mt-1 text-sm text-muted-foreground">
             Answers come from the reconciled giving — {denom} partners, {a.paidCount} payments.
           </p>
           <AskHero />
         </section>
 
-        <SectionLabel>This month at a glance</SectionLabel>
+        <SectionLabel>This period at a glance</SectionLabel>
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
@@ -177,7 +210,7 @@ export default async function PocPage() {
           </div>
         </section>
 
-        <SectionLabel>Partners this month</SectionLabel>
+        <SectionLabel>Partners this period</SectionLabel>
         <PartnersTable data={tableData} />
 
         <SectionLabel>Message center</SectionLabel>

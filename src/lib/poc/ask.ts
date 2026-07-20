@@ -97,7 +97,16 @@ export async function askAi(
   const a = headlineAnswers(result);
   if (opts.model) {
     const prompt = `${buildGrounding(a)}\n\nQuestion: ${question}\n\nAnswer in one or two sentences using ONLY the figures above. Lead with the number; never list more than ${MAX_NAMES_IN_ANSWER} names.`;
-    return opts.model.generate(prompt);
+    try {
+      return await opts.model.generate(prompt);
+    } catch (err) {
+      // A model outage must never break the ask box — fall back to the same
+      // grounded deterministic answer used when no model is configured.
+      console.error(
+        JSON.stringify({ evt: "poc_ask_model_failed", error: err instanceof Error ? err.message : String(err) }),
+      );
+      return answerLocally(question, a);
+    }
   }
   return answerLocally(question, a);
 }

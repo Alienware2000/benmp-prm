@@ -53,6 +53,16 @@ describe("askAi", () => {
     expect(ans).toContain("225.50");
   });
 
+  it("falls back to the deterministic answer when the model throws (demo resilience)", async () => {
+    const model: PocModelClient = {
+      generate: vi.fn(async () => {
+        throw new Error("gemini 503");
+      }),
+    };
+    const ans = await askAi("How much did we collect?", result, { model });
+    expect(ans).toContain("225.50"); // grounded fallback, not an error
+  });
+
   it("delegates phrasing to the model, grounding the prompt with the real figures", async () => {
     const model: PocModelClient = {
       generate: vi.fn(async () => "We collected two hundred twenty-five cedis fifty."),

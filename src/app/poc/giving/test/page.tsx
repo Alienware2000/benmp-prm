@@ -9,7 +9,8 @@ export default function GiftAcknowledgementTestPage() {
   const provider =
     configuredProvider === "twilio" ||
     configuredProvider === "meta-cloud-api" ||
-    configuredProvider === "infobip"
+    configuredProvider === "infobip" ||
+    configuredProvider === "vonage"
       ? configuredProvider
       : "mock";
 

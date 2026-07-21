@@ -88,7 +88,7 @@ Current keys from `.env.example`:
 | ------------------------------- | -------------- | ------------------------------------------------------- |
 | `NEXT_PUBLIC_APP_URL`           | All            | Public app base URL.                                    |
 | `BENMP_DATA_PROVIDER`           | All            | `mock`, `supabase`, or future `postgres`. Default mock. |
-| `BENMP_MESSAGING_PROVIDER`      | All            | `mock`, `twilio`, or future `meta-cloud-api`.           |
+| `BENMP_MESSAGING_PROVIDER`      | All            | `mock`, `twilio`, `meta-cloud-api`, `infobip`, or `vonage`. |
 | `NEXT_PUBLIC_SUPABASE_URL`      | Supabase envs  | Public Supabase URL.                                    |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase envs  | Public anon key; RLS backstops data.                    |
 | `SUPABASE_SERVICE_ROLE_KEY`     | Server only    | Never expose to client bundles. Bypasses RLS — trusted server code only. |
@@ -103,6 +103,10 @@ Current keys from `.env.example`:
 | `META_WHATSAPP_TOKEN`           | Messaging envs | Server-only Meta Cloud API access token.                |
 | `META_WHATSAPP_PHONE_NUMBER_ID` | Messaging envs | Meta sender ID, not the displayed phone number.         |
 | `META_GRAPH_API_VERSION`        | Messaging envs | Optional; defaults to `v23.0`.                          |
+| `VONAGE_API_KEY`                | Messaging envs | Server only; sandbox account API key.                   |
+| `VONAGE_API_SECRET`             | Messaging envs | Server only; sandbox account API secret.                |
+| `VONAGE_WHATSAPP_SENDER`        | Messaging envs | Sandbox sender shown in the Vonage dashboard.           |
+| `VONAGE_MESSAGES_API_URL`       | Messaging envs | Optional; defaults to the Vonage v1 sandbox endpoint.   |
 | `RESEND_API_KEY`                | Messaging envs | Server only.                                            |
 
 Add later when implemented:
@@ -251,7 +255,7 @@ redirects to `/poc` for everyone, so the old demo pages never show; only `/login
    - `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `GOOGLE_GENERATIVE_AI_API_KEY`
    - `POC_USER` (e.g. `benmp`) and **`POC_PASSWORD`** ← **required, or `/poc` is public**
-   - For live sending: `BENMP_MESSAGING_PROVIDER=twilio`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`, `TWILIO_WHATSAPP_SENDER`
+   - For the Vonage demo sandbox: `BENMP_MESSAGING_PROVIDER=vonage`, `VONAGE_API_KEY`, `VONAGE_API_SECRET`, `VONAGE_WHATSAPP_SENDER`, and `BENMP_SEND_ALLOWLIST`
 3. **Deploy.** After this, every push to `main` auto-deploys.
 4. Share `https://<project>.vercel.app/poc` + the password with the team.
 

@@ -118,6 +118,7 @@ export function DirectoryClient({ partners }: { partners: DirectoryRow[] }) {
   }
 
   const selectable = useMemo(() => partners.filter((p) => p.messageable), [partners]);
+  const attached = useMemo(() => assets.find((a) => a.id === mediaId) ?? null, [assets, mediaId]);
   const allSelected = selectable.length > 0 && selectable.every((p) => selected.has(p.id));
 
   function toggle(id: string) {
@@ -329,6 +330,28 @@ export function DirectoryClient({ partners }: { partners: DirectoryRow[] }) {
 
         {summary && (
           <div className="mt-3 rounded-xl border border-border bg-background p-3">
+            {/* The preview must show the attachment too — otherwise "what will be sent"
+                is only half the answer. */}
+            {attached && (
+              <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
+                {attached.kind === "image" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={attached.url}
+                    alt={attached.filename}
+                    className="h-11 w-11 flex-none rounded-md object-cover"
+                  />
+                ) : (
+                  <span className="grid h-11 w-11 flex-none place-items-center rounded-md bg-background text-lg">
+                    {attached.kind === "video" ? "🎬" : attached.kind === "audio" ? "🎵" : "📄"}
+                  </span>
+                )}
+                <span className="text-[13px]">
+                  <b>{attached.filename}</b>
+                  <span className="text-muted-foreground"> · {bytes(attached.sizeBytes)} · attached to every message</span>
+                </span>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
               <b className="text-foreground tabular-nums">{summary.sendable}</b> will be sent
               {summary.skippedNoPhone > 0 && ` · ${summary.skippedNoPhone} have no phone`}

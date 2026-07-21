@@ -46,7 +46,7 @@ describe("summarizePlan", () => {
 
   it("handles an empty plan", () => {
     const s = summarizePlan([]);
-    expect(s).toMatchObject({ total: 0, sendable: 0, skippedNoPhone: 0, optedOut: 0, thankYou: 0, reminder: 0 });
+    expect(s).toMatchObject({ total: 0, sendable: 0, skippedNoPhone: 0, optedOut: 0, thankYou: 0, reminder: 0, direct: 0 });
     expect(s.sample).toEqual([]);
   });
 });
@@ -65,5 +65,18 @@ describe("filterByKind", () => {
   it("filters to one queue", () => {
     expect(filterByKind(plan, "thank_you").map((m) => m.partnerRef)).toEqual(["a"]);
     expect(filterByKind(plan, "reminder")).toHaveLength(2);
+  });
+});
+
+describe("summarizePlan — directory messages", () => {
+  it("counts direct messages as their own kind, not as reminders", () => {
+    const s = summarizePlan([
+      msg({ kind: "direct" }),
+      msg({ kind: "direct" }),
+      msg({ kind: "reminder" }),
+    ]);
+    expect(s.direct).toBe(2);
+    expect(s.reminder).toBe(1);
+    expect(s.thankYou).toBe(0);
   });
 });

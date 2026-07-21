@@ -17,6 +17,8 @@ export type PlanSummary = {
   optedOut: number;
   thankYou: number;
   reminder: number;
+  /** Staff-composed directory messages — neither of the two planned queues. */
+  direct: number;
   /** A few examples for the preview — never the whole list. */
   sample: Array<{ kind: PlannedMessage["kind"]; name: string; to: string | null; body: string }>;
 };
@@ -35,13 +37,17 @@ export function summarizePlan(messages: PlannedMessage[], opts: SummarizeOptions
   let optedOut = 0;
   let thankYou = 0;
   let reminder = 0;
+  let direct = 0;
 
   for (const m of messages) {
     if (!m.sendable || m.to === null) skippedNoPhone++;
     else if (optedOutSet.has(m.to)) optedOut++;
     else sendable++;
+    // Count each kind explicitly — an "everything else is a reminder" fallback silently
+    // mis-labelled directory messages as reminders.
     if (m.kind === "thank_you") thankYou++;
-    else reminder++;
+    else if (m.kind === "reminder") reminder++;
+    else direct++;
   }
 
   return {
@@ -51,6 +57,7 @@ export function summarizePlan(messages: PlannedMessage[], opts: SummarizeOptions
     optedOut,
     thankYou,
     reminder,
+    direct,
     sample: messages.slice(0, sampleSize).map((m) => ({
       kind: m.kind,
       name: m.name,

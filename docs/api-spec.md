@@ -323,3 +323,39 @@ When routes become externally consumed by benmp.com or another service, add:
 - source system identity
 - replay prevention
 - integration-specific audit logs
+
+## 12. POC routes (Decision 0008/0009)
+
+Everything under `/api/poc/*` requires the `poc_session` cookie (`src/proxy.ts`); unauthenticated calls get `401`.
+
+### `POST /api/poc/ask`
+AI answer over the reconciled period. Body `{ question: string }`.
+
+### `POST /api/poc/send`
+Preview or send the **planned** queues (thank-yous, reminders) derived from reconciliation.
+Body `{ confirm?: boolean, kind?: "thank_you" | "reminder" | "all" }`. `confirm` falsy → preview only.
+
+### `POST /api/poc/directory/send`
+Preview or send a **staff-composed** message to specific partners chosen in `/poc/directory`.
+
+Body: `{ partnerIds: string[], message: string, confirm?: boolean }`
+
+- `partnerIds` — 1–200 partner UUIDs. Re-read from the database server-side; the request body is never trusted for phone numbers.
+- `message` — 1–1000 chars. `{name}` is replaced per recipient with their first name, or `Friend` when the record has no usable name.
+- `confirm` — omit/false to **preview** (renders every recipient's exact body, sends nothing); `true` to **send**.
+
+Responses:
+
+```jsonc
+// preview
+{ "ok": true, "data": { "mode": "preview", "summary": { "total": 2, "sendable": 2, "skippedNoPhone": 0, "optedOut": 0, "direct": 2, "sample": [ { "kind": "direct", "name": "Charles", "to": "+2439...", "body": "Hi Charles, ..." } ] } } }
+// send
+{ "ok": true, "data": { "mode": "sent", "report": { "total": 2, "sent": 1, "skipped": 1, "failed": 0, "skippedByReason": { "not in allowlist": 1 } }, "audited": true } }
+```
+
+Errors: `400` empty selection / empty or over-long message / >200 recipients · `404` no matching partners · `401` no session.
+
+Gates (unchanged from 0008 §6): `opt_outs` is enforced, `BENMP_SEND_ALLOWLIST` restricts real delivery, and every attempt — sent, skipped or failed — is written to `sent_messages`.
+
+### Pages
+`/poc` (console) · `/poc/directory` (search + send) · `/poc/giving` (filterable ledger). The directory and giving pages take their filters as **GET query params** (`q`, `branch`, `page`; `from`, `to`, `name`, `branch`) so a filtered view is linkable and works without JavaScript.

@@ -19,7 +19,12 @@ import type { MessageCategory, MessagingChannel } from "./messaging/types";
 /** Gifts at or above this (GHS) get the warmer "VIP" thank-you (matches the high-touch tier). */
 export const VIP_THRESHOLD_MINOR = 100_00;
 
-export type MessageKind = "thank_you" | "reminder";
+/**
+ * "direct" is a staff-composed message to specific partners chosen in the directory,
+ * as opposed to the two planned queues that fall out of reconciliation. It never
+ * originates from planMessages() — only from the directory send path.
+ */
+export type MessageKind = "thank_you" | "reminder" | "direct";
 
 export type PlannedMessage = {
   kind: MessageKind;

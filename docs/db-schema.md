@@ -624,3 +624,30 @@ Minimum live seed should include:
 - Minimal message template drafts for acknowledgement and monthly reminder, not auto-send.
 
 Do not seed real partner exports or statements into git.
+
+## POC as-built: `partners` in practice (2026-07-21, Decision 0009)
+
+The POC reads the provisioned `partners` table directly. What is actually populated differs from the MVP contract above, and the directory/giving pages are built against reality:
+
+| Column | State | Notes |
+| --- | --- | --- |
+| `full_name` | populated | Not all are names. A sense gate (`isSensibleName()`) rejects three shapes: the literal `"No Name"` placeholder (14), a bare number (`"1.0"`), and sheet reference codes (`"FL73"`, `"FL1061"` — 44, from the column-shifted rows). These display as "Unknown" and get a neutral greeting, so no one is addressed as "Hi 1.0". The gate is narrow by design — it must never reject a real name. |
+| `whatsapp_number` | 13,200 / 15,329 | **This is the phone**, already E.164. `mobile_number` and `email` are empty for every row. |
+| `church` | all rows | **This is the branch.** ~730 distinct values. The 927 Qodesh registrants were null until backfilled to `'Qodesh'`. |
+| `country` | all rows | Ghana throughout. |
+| `city`, `partner_since`, `notes` | empty | Not supplied by the import. |
+| `lifetime_giving_minor` | `0` | Not maintained; giving is computed from `payments` by phone match, not read from this column. |
+
+Two populations share the table: `source = 'qodesh_registration'` (927, branch `Qodesh`) and the bulk branch import (~14,400). `source = 'send_test'` marks the single record used to prove the send path.
+
+**Reading it**: PostgREST caps responses at 1000 rows *silently* — `limit=20000` returns 1000 and no error. Any query spanning the whole table must page (`fetchAllRows()` in `src/lib/poc/directory.ts`).
+
+**Giving → branch** is derived, not stored: `payments.payer_phone_e164` → `partners.whatsapp_number` → `partners.church`. There is no FK. Unmatched giving is reported as `Unattributed` and still counted in every total.
+
+### Branch (`partners.church`) data quality — 2026-07-21
+
+- **682 distinct usable values → 552 real branches.** 130 are spelling variants of a branch already present (case, punctuation, doubled spaces). Grouped at read time by `normalizeBranchKey()`; the rows are unchanged.
+- **45 rows had shifted columns** from the import (row number in `full_name`, phone in `church`, real name in `whatsapp_number`). Verified to have zero giving, then **deleted** (migration 0004, archived to `partners_archive`). `isValidBranch()` and `isSensibleName()` remain as the guard if a future import repeats the fault.
+- **~200 values are used by a single partner** and some read as people's names or notes rather than places — likely data entry into the wrong field. Not yet triaged.
+
+**Confirmed merges (2026-07-21)**: 12 spelling groups were confirmed by staff and are merged at read time via `BRANCH_MERGES` in `src/lib/poc/directory.ts` — e.g. `KORLE GONNO`+`korlegonno` (580), `MIGHTY GOD CATHEDRAL`+`MIGTHY GOD CATHEDRAL` (110), `HOHOE MISSION`+`HOHOE` (120). Branch count: 552 → 537. Staff explicitly kept `NEW TAFO`/`OLD TAFO`/`TAFO`, `Abeka Main`/`Abeka`, `BEREKUM`/`Berekuso` and the `TESHIE *` congregations separate. `Qodesh` (928) and `QADISH` (381) are confirmed separate branches despite the two-character similarity.

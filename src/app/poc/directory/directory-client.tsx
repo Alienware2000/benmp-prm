@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export type DirectoryRow = {
   id: string;
@@ -63,6 +63,18 @@ function formatPhone(phone: string | null): string {
 
 const DEFAULT_MESSAGE = "Hi {name}, God bless you from all of us at BENMP.";
 
+type MediaAsset = {
+  id: string;
+  filename: string;
+  kind: string;
+  url: string;
+  sizeBytes: number;
+};
+
+function bytes(n: number): string {
+  return n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`;
+}
+
 export function DirectoryClient({ partners }: { partners: DirectoryRow[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
@@ -70,6 +82,40 @@ export function DirectoryClient({ partners }: { partners: DirectoryRow[] }) {
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"preview" | "send" | null>(null);
+  const [assets, setAssets] = useState<MediaAsset[]>([]);
+  const [mediaId, setMediaId] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
+
+  // Vault contents load on first use of the panel, not on every page render.
+  useEffect(() => {
+    fetch("/api/poc/media")
+      .then((r) => r.json())
+      .then((j) => setAssets(j?.data?.assets ?? []))
+      .catch(() => setAssets([]));
+  }, []);
+
+  async function upload(file: File) {
+    setUploading(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/poc/media", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!json.ok) {
+        setError(json.error?.message ?? "Upload failed.");
+        return;
+      }
+      const list = await fetch("/api/poc/media").then((r) => r.json());
+      setAssets(list?.data?.assets ?? []);
+      setMediaId(json.data.id);
+      setSummary(null);
+    } catch {
+      setError("Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const selectable = useMemo(() => partners.filter((p) => p.messageable), [partners]);
   const allSelected = selectable.length > 0 && selectable.every((p) => selected.has(p.id));
@@ -99,7 +145,12 @@ export function DirectoryClient({ partners }: { partners: DirectoryRow[] }) {
       const res = await fetch("/api/poc/directory/send", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ partnerIds: [...selected], message, confirm }),
+        body: JSON.stringify({
+          partnerIds: [...selected],
+          message,
+          confirm,
+          ...(mediaId ? { mediaAssetId: mediaId } : {}),
+        }),
       });
       const json = (await res.json()) as {
         ok: boolean;
@@ -210,6 +261,48 @@ export function DirectoryClient({ partners }: { partners: DirectoryRow[] }) {
           }}
           className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-success"
         />
+
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background p-2.5">
+          <label htmlFor="media" className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Attach
+          </label>
+          <select
+            id="media"
+            value={mediaId}
+            onChange={(e) => {
+              setMediaId(e.target.value);
+              setSummary(null);
+            }}
+            className="min-w-[180px] flex-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[13px] outline-none focus:border-success"
+          >
+            <option value="">No attachment</option>
+            {assets.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.kind === "video" ? "🎬" : a.kind === "image" ? "🖼" : "📄"} {a.filename} ({bytes(a.sizeBytes)})
+              </option>
+            ))}
+          </select>
+          <label className="cursor-pointer rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold transition hover:bg-background">
+            {uploading ? "Uploading…" : "Upload"}
+            <input
+              type="file"
+              className="hidden"
+              accept="image/jpeg,image/png,video/mp4,video/3gpp,audio/mpeg,audio/ogg,application/pdf"
+              disabled={uploading}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void upload(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+
+        {mediaId && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Every recipient gets this attachment with their message. WhatsApp allows one per message.
+          </p>
+        )}
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button

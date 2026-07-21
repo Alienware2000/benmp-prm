@@ -37,6 +37,8 @@ export type PlannedMessage = {
   channel: MessagingChannel;
   category: MessageCategory;
   sendable: boolean;
+  /** Optional attachment URL — see OutboundMessage.mediaUrl. */
+  mediaUrl?: string;
 };
 
 export type Templates = {

@@ -48,6 +48,7 @@ export function validateTemplate(template: string): TemplateProblem | null {
 export function buildDirectMessages(
   partners: DirectoryPartner[],
   template: string,
+  mediaUrl?: string,
 ): PlannedMessage[] {
   return partners.map((p) => {
     const name = greetingFor(p);
@@ -60,6 +61,7 @@ export function buildDirectMessages(
       channel: "whatsapp" as const,
       category: "utility" as const,
       sendable: p.phone !== null,
+      ...(mediaUrl ? { mediaUrl } : {}),
     };
   });
 }

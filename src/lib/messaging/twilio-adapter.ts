@@ -20,6 +20,8 @@ export type TwilioCreateInput = {
   body: string;
   from?: string;
   messagingServiceSid?: string;
+  /** Twilio's API takes a list, but WhatsApp delivers only the first item. */
+  mediaUrl?: string[];
 };
 
 export type TwilioCreateResult = { sid: string; status: string };
@@ -70,6 +72,8 @@ export class TwilioMessagingAdapter implements MessagingAdapter {
     }
 
     const input: TwilioCreateInput = { to: message.to, body: message.body };
+    // Twilio pulls the file from this URL at send time; extra URLs are ignored by WhatsApp.
+    if (message.mediaUrl) input.mediaUrl = [message.mediaUrl];
 
     if (message.channel === "whatsapp") {
       if (!this.cfg.whatsappSender) return failed("TWILIO_WHATSAPP_SENDER not set");
@@ -108,6 +112,7 @@ export class TwilioMessagingAdapter implements MessagingAdapter {
         body: input.body,
         ...(input.messagingServiceSid ? { messagingServiceSid: input.messagingServiceSid } : {}),
         ...(input.from ? { from: input.from } : {}),
+        ...(input.mediaUrl ? { mediaUrl: input.mediaUrl } : {}),
       });
       return { sid: msg.sid, status: msg.status };
     };

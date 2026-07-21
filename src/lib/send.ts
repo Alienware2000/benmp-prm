@@ -101,6 +101,7 @@ export async function sendPlanned(
         body: m.body,
         category: m.category,
         partnerId: m.partnerRef,
+        ...(m.mediaUrl ? { mediaUrl: m.mediaUrl } : {}),
       });
       const outcome: SendOutcome =
         res.status === "failed"

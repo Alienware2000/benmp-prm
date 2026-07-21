@@ -209,8 +209,8 @@ export function DirectoryClient({ partners }: { partners: DirectoryRow[] }) {
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
+        <table className="w-full min-w-[680px] text-sm">
           <thead>
             <tr className="border-b border-border text-left text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               <th className="w-10 px-4 py-2.5">
@@ -376,7 +376,7 @@ export function DirectoryClient({ partners }: { partners: DirectoryRow[] }) {
                     {attached.kind === "video" ? "🎬" : attached.kind === "audio" ? "🎵" : "📄"}
                   </span>
                 )}
-                <span className="text-[13px]">
+                <span className="min-w-0 break-words text-[13px]">
                   <b>{attached.filename}</b>
                   <span className="text-muted-foreground"> · {bytes(attached.sizeBytes)} · attached to every message</span>
                 </span>

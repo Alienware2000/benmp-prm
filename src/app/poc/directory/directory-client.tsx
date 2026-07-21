@@ -94,21 +94,51 @@ export function DirectoryClient({ partners }: { partners: DirectoryRow[] }) {
       .catch(() => setAssets([]));
   }, []);
 
+  /**
+   * Three steps, because the file must NOT pass through the app server: request bodies
+   * are capped there (10 MB locally with middleware, ~4.5 MB on Vercel), so a video
+   * would never arrive. The browser PUTs straight to storage with a signed URL.
+   *   1. sign    — server validates type/size and returns a one-shot upload URL
+   *   2. PUT     — browser uploads directly to Supabase Storage
+   *   3. confirm — server verifies the object and catalogues it
+   */
   async function upload(file: File) {
     setUploading(true);
     setError(null);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/poc/media", { method: "POST", body: fd });
-      const json = await res.json();
-      if (!json.ok) {
-        setError(json.error?.message ?? "Upload failed.");
+      const signed = await fetch("/api/poc/media/sign", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ filename: file.name, mimeType: file.type, sizeBytes: file.size }),
+      }).then((r) => r.json());
+      if (!signed.ok) {
+        setError(signed.error?.message ?? "Upload failed.");
         return;
       }
+
+      const put = await fetch(signed.data.uploadUrl, {
+        method: "PUT",
+        headers: { "content-type": file.type },
+        body: file,
+      });
+      if (!put.ok) {
+        setError("Upload failed while transferring the file.");
+        return;
+      }
+
+      const done = await fetch("/api/poc/media/confirm", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: signed.data.path, filename: file.name }),
+      }).then((r) => r.json());
+      if (!done.ok) {
+        setError(done.error?.message ?? "Upload failed.");
+        return;
+      }
+
       const list = await fetch("/api/poc/media").then((r) => r.json());
       setAssets(list?.data?.assets ?? []);
-      setMediaId(json.data.id);
+      setMediaId(done.data.id);
       setSummary(null);
     } catch {
       setError("Upload failed.");
@@ -118,6 +148,7 @@ export function DirectoryClient({ partners }: { partners: DirectoryRow[] }) {
   }
 
   const selectable = useMemo(() => partners.filter((p) => p.messageable), [partners]);
+  const attached = useMemo(() => assets.find((a) => a.id === mediaId) ?? null, [assets, mediaId]);
   const allSelected = selectable.length > 0 && selectable.every((p) => selected.has(p.id));
 
   function toggle(id: string) {
@@ -329,6 +360,28 @@ export function DirectoryClient({ partners }: { partners: DirectoryRow[] }) {
 
         {summary && (
           <div className="mt-3 rounded-xl border border-border bg-background p-3">
+            {/* The preview must show the attachment too — otherwise "what will be sent"
+                is only half the answer. */}
+            {attached && (
+              <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
+                {attached.kind === "image" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={attached.url}
+                    alt={attached.filename}
+                    className="h-11 w-11 flex-none rounded-md object-cover"
+                  />
+                ) : (
+                  <span className="grid h-11 w-11 flex-none place-items-center rounded-md bg-background text-lg">
+                    {attached.kind === "video" ? "🎬" : attached.kind === "audio" ? "🎵" : "📄"}
+                  </span>
+                )}
+                <span className="text-[13px]">
+                  <b>{attached.filename}</b>
+                  <span className="text-muted-foreground"> · {bytes(attached.sizeBytes)} · attached to every message</span>
+                </span>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
               <b className="text-foreground tabular-nums">{summary.sendable}</b> will be sent
               {summary.skippedNoPhone > 0 && ` · ${summary.skippedNoPhone} have no phone`}

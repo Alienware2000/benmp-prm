@@ -85,7 +85,7 @@ export default async function PocPage() {
   const ringC = 2 * Math.PI * 30;
   const configuredProvider = process.env.BENMP_MESSAGING_PROVIDER;
   const provider =
-    configuredProvider === "twilio" || configuredProvider === "meta-cloud-api"
+    configuredProvider === "twilio" || configuredProvider === "meta-cloud-api" || configuredProvider === "infobip"
       ? configuredProvider
       : "mock";
 

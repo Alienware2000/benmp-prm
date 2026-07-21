@@ -1,3 +1,4 @@
+import { InfobipMessagingAdapter } from "./infobip-adapter";
 import { MockMessagingAdapter } from "./mock-adapter";
 import { MetaCloudMessagingAdapter } from "./meta-cloud-adapter";
 import { TwilioMessagingAdapter } from "./twilio-adapter";
@@ -6,7 +7,11 @@ import type { MessagingAdapter, MessagingProvider } from "./types";
 function getMessagingProvider(): MessagingProvider {
   const provider = process.env.BENMP_MESSAGING_PROVIDER;
 
-  if (provider === "twilio" || provider === "meta-cloud-api") {
+  if (
+    provider === "twilio" ||
+    provider === "meta-cloud-api" ||
+    provider === "infobip"
+  ) {
     return provider;
   }
 
@@ -22,6 +27,10 @@ export function getMessagingAdapter(): MessagingAdapter {
 
   if (provider === "mock") {
     return new MockMessagingAdapter();
+  }
+
+  if (provider === "infobip") {
+    return new InfobipMessagingAdapter();
   }
 
   return new MetaCloudMessagingAdapter();

@@ -647,7 +647,7 @@ Two populations share the table: `source = 'qodesh_registration'` (927, branch `
 ### Branch (`partners.church`) data quality — 2026-07-21
 
 - **682 distinct usable values → 552 real branches.** 130 are spelling variants of a branch already present (case, punctuation, doubled spaces). Grouped at read time by `normalizeBranchKey()`; the rows are unchanged.
-- **45 rows have shifted columns** from the import: the row number is in `full_name`, the phone is in `church` (`"233242743986.0"`), and the real name is in `whatsapp_number`. `isValidBranch()` keeps these out of the branch column and filter; the records themselves are **not yet repaired**.
+- **45 rows had shifted columns** from the import (row number in `full_name`, phone in `church`, real name in `whatsapp_number`). Verified to have zero giving, then **deleted** (migration 0004, archived to `partners_archive`). `isValidBranch()` and `isSensibleName()` remain as the guard if a future import repeats the fault.
 - **~200 values are used by a single partner** and some read as people's names or notes rather than places — likely data entry into the wrong field. Not yet triaged.
 
 **Confirmed merges (2026-07-21)**: 12 spelling groups were confirmed by staff and are merged at read time via `BRANCH_MERGES` in `src/lib/poc/directory.ts` — e.g. `KORLE GONNO`+`korlegonno` (580), `MIGHTY GOD CATHEDRAL`+`MIGTHY GOD CATHEDRAL` (110), `HOHOE MISSION`+`HOHOE` (120). Branch count: 552 → 537. Staff explicitly kept `NEW TAFO`/`OLD TAFO`/`TAFO`, `Abeka Main`/`Abeka`, `BEREKUM`/`Berekuso` and the `TESHIE *` congregations separate. `Qodesh` (928) and `QADISH` (381) are confirmed separate branches despite the two-character similarity.

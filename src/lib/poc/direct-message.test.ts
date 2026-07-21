@@ -38,7 +38,9 @@ describe("greetingFor", () => {
 
 describe("renderTemplate", () => {
   it("substitutes every {name} occurrence", () => {
-    expect(renderTemplate("Hi {name}, thanks {name}!", "Ama")).toBe("Hi Ama, thanks Ama!");
+    expect(renderTemplate("Hi {name}, thanks {name}!", "Ama")).toBe(
+      "Hi Ama, thanks Ama!",
+    );
   });
 
   it("is case-insensitive on the token", () => {
@@ -46,7 +48,9 @@ describe("renderTemplate", () => {
   });
 
   it("leaves a template without the token alone", () => {
-    expect(renderTemplate("Service resumes Sunday.", "Ama")).toBe("Service resumes Sunday.");
+    expect(renderTemplate("Service resumes Sunday.", "Ama")).toBe(
+      "Service resumes Sunday.",
+    );
   });
 });
 
@@ -68,7 +72,10 @@ describe("validateTemplate", () => {
 describe("buildDirectMessages", () => {
   it("renders one message per selected partner", () => {
     const msgs = buildDirectMessages(
-      [partner(), partner({ id: "2", name: "Kofi Mensah", phone: "+233240000002" })],
+      [
+        partner(),
+        partner({ id: "2", name: "Kofi Mensah", phone: "+233240000002" }),
+      ],
       "Hi {name}, God bless you.",
     );
     expect(msgs).toHaveLength(2);
@@ -81,11 +88,29 @@ describe("buildDirectMessages", () => {
   });
 
   it("carries the partner id so the audit row points at a person", () => {
-    expect(buildDirectMessages([partner()], "hi")[0].partnerRef).toBe(partner().id);
+    expect(buildDirectMessages([partner()], "hi")[0].partnerRef).toBe(
+      partner().id,
+    );
+  });
+
+  it("carries trusted attachment metadata to the provider boundary", () => {
+    const [m] = buildDirectMessages([partner()], "hi", {
+      url: "https://cdn.example.org/crusade.jpg",
+      mimeType: "image/jpeg",
+      filename: "Crusade update.jpg",
+    });
+    expect(m).toMatchObject({
+      mediaUrl: "https://cdn.example.org/crusade.jpg",
+      mediaType: "image/jpeg",
+      mediaFilename: "Crusade update.jpg",
+    });
   });
 
   it("keeps phoneless partners visible but not sendable", () => {
-    const [m] = buildDirectMessages([partner({ phone: null, name: "Unknown" })], "Hi {name}");
+    const [m] = buildDirectMessages(
+      [partner({ phone: null, name: "Unknown" })],
+      "Hi {name}",
+    );
     expect(m.sendable).toBe(false);
     expect(m.to).toBeNull();
     expect(m.body).toBe(`Hi ${NAME_FALLBACK}`);

@@ -14,6 +14,7 @@
 import type { PlannedMessage } from "../messages";
 import { firstName } from "../messages";
 import { hasRealName, type DirectoryPartner } from "./directory";
+import type { MediaAsset } from "./media";
 
 /** Greeting used when we have no usable name for the partner. */
 export const NAME_FALLBACK = "Friend";
@@ -48,7 +49,7 @@ export function validateTemplate(template: string): TemplateProblem | null {
 export function buildDirectMessages(
   partners: DirectoryPartner[],
   template: string,
-  mediaUrl?: string,
+  media?: Pick<MediaAsset, "url" | "mimeType" | "filename">,
 ): PlannedMessage[] {
   return partners.map((p) => {
     const name = greetingFor(p);
@@ -61,7 +62,13 @@ export function buildDirectMessages(
       channel: "whatsapp" as const,
       category: "utility" as const,
       sendable: p.phone !== null,
-      ...(mediaUrl ? { mediaUrl } : {}),
+      ...(media
+        ? {
+            mediaUrl: media.url,
+            mediaType: media.mimeType,
+            mediaFilename: media.filename,
+          }
+        : {}),
     };
   });
 }

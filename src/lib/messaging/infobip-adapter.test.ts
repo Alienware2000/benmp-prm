@@ -71,6 +71,118 @@ describe("InfobipMessagingAdapter", () => {
     expect(await adapter.send(message())).toMatchObject({ status: "sent" });
   });
 
+  it("sends an image with the personalized message as its caption", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          messageId: "image-123",
+          status: { groupName: "PENDING" },
+        }),
+        { status: 200 },
+      ),
+    );
+    const adapter = new InfobipMessagingAdapter({
+      apiKey: "api-key",
+      baseUrl: "example.api.infobip.com",
+      whatsappSender: "447860099299",
+      fetcher,
+    });
+
+    const result = await adapter.send(
+      message({
+        mediaUrl: "https://cdn.example.org/crusade.jpg",
+        mediaType: "image/jpeg",
+        mediaFilename: "Crusade.jpg",
+      }),
+    );
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0][0]).toBe(
+      "https://example.api.infobip.com/whatsapp/1/message/image",
+    );
+    const init = fetcher.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(String(init.body)).content).toEqual({
+      mediaUrl: "https://cdn.example.org/crusade.jpg",
+      caption: "Thank you for partnering with BENMP.",
+    });
+    expect(result).toMatchObject({
+      status: "queued",
+      providerMessageId: "image-123",
+    });
+  });
+
+  it("keeps text with captionless document messages", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            messageId: "text-123",
+            status: { groupName: "PENDING" },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            messageId: "document-123",
+            status: { groupName: "PENDING" },
+          }),
+          { status: 200 },
+        ),
+      );
+    const adapter = new InfobipMessagingAdapter({
+      apiKey: "api-key",
+      baseUrl: "example.api.infobip.com",
+      whatsappSender: "447860099299",
+      fetcher,
+    });
+
+    const result = await adapter.send(
+      message({
+        mediaUrl: "https://cdn.example.org/ministry-update.pdf",
+        mediaType: "application/pdf",
+        mediaFilename: "Ministry update.pdf",
+      }),
+    );
+
+    expect(fetcher.mock.calls.map((call) => call[0])).toEqual([
+      "https://example.api.infobip.com/whatsapp/1/message/text",
+      "https://example.api.infobip.com/whatsapp/1/message/document",
+    ]);
+    const documentInit = fetcher.mock.calls[1][1] as RequestInit;
+    expect(JSON.parse(String(documentInit.body)).content).toEqual({
+      mediaUrl: "https://cdn.example.org/ministry-update.pdf",
+      filename: "Ministry update.pdf",
+    });
+    expect(result).toMatchObject({
+      status: "queued",
+      providerMessageId: "text-123,document-123",
+    });
+  });
+
+  it("fails before calling Infobip for an unsupported attachment", async () => {
+    const fetcher = vi.fn();
+    const adapter = new InfobipMessagingAdapter({
+      apiKey: "api-key",
+      baseUrl: "example.api.infobip.com",
+      whatsappSender: "447860099299",
+      fetcher,
+    });
+
+    const result = await adapter.send(
+      message({
+        mediaUrl: "https://cdn.example.org/archive.zip",
+        mediaType: "application/zip",
+      }),
+    );
+
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ status: "failed" });
+    expect(result.errorMessage).toContain("attachment type");
+  });
+
   it("returns API errors without leaking credentials", async () => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(

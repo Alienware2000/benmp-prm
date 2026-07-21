@@ -52,7 +52,9 @@ export type SendOptions = {
  * set of E.164 phones. Returns null when the variable is unset, empty, or contains no
  * usable number — meaning "no restriction". Unparseable entries are dropped.
  */
-export function parseAllowlist(raw: string | undefined | null): Set<string> | null {
+export function parseAllowlist(
+  raw: string | undefined | null,
+): Set<string> | null {
   if (!raw || !raw.trim()) return null;
   const phones = raw
     .split(/[,\s]+/)
@@ -76,19 +78,31 @@ export async function sendPlanned(
     const base = { partnerRef: m.partnerRef, to: m.to, kind: m.kind };
 
     if (!m.sendable || m.to === null) {
-      const outcome: SendOutcome = { ...base, status: "skipped", reason: "no phone" };
+      const outcome: SendOutcome = {
+        ...base,
+        status: "skipped",
+        reason: "no phone",
+      };
       outcomes.push(outcome);
       log({ evt: "poc_send", ...outcome });
       continue;
     }
     if (optedOut.has(m.to)) {
-      const outcome: SendOutcome = { ...base, status: "skipped", reason: "opted out" };
+      const outcome: SendOutcome = {
+        ...base,
+        status: "skipped",
+        reason: "opted out",
+      };
       outcomes.push(outcome);
       log({ evt: "poc_send", ...outcome });
       continue;
     }
     if (allowlist && !allowlist.has(m.to)) {
-      const outcome: SendOutcome = { ...base, status: "skipped", reason: "not in allowlist" };
+      const outcome: SendOutcome = {
+        ...base,
+        status: "skipped",
+        reason: "not in allowlist",
+      };
       outcomes.push(outcome);
       log({ evt: "poc_send", ...outcome });
       continue;
@@ -102,11 +116,22 @@ export async function sendPlanned(
         category: m.category,
         partnerId: m.partnerRef,
         ...(m.mediaUrl ? { mediaUrl: m.mediaUrl } : {}),
+        ...(m.mediaType ? { mediaType: m.mediaType } : {}),
+        ...(m.mediaFilename ? { mediaFilename: m.mediaFilename } : {}),
       });
       const outcome: SendOutcome =
         res.status === "failed"
-          ? { ...base, status: "failed", providerMessageId: res.providerMessageId, reason: res.errorMessage }
-          : { ...base, status: res.status, providerMessageId: res.providerMessageId };
+          ? {
+              ...base,
+              status: "failed",
+              providerMessageId: res.providerMessageId,
+              reason: res.errorMessage,
+            }
+          : {
+              ...base,
+              status: res.status,
+              providerMessageId: res.providerMessageId,
+            };
       outcomes.push(outcome);
       log({ evt: "poc_send", provider: adapter.provider, ...outcome });
     } catch (err) {

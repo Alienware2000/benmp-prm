@@ -18,6 +18,9 @@ export interface OutboundMessage {
    * allows one attachment per message.
    */
   mediaUrl?: string;
+  /** MIME type and original filename let each provider choose its media endpoint safely. */
+  mediaType?: string;
+  mediaFilename?: string;
   category: MessageCategory;
   subject?: string;
   partnerId?: string;

@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
-import { loadOptOuts, recordSentMessages, toSentMessageRows } from "@/lib/poc/db";
+import {
+  loadOptOuts,
+  recordSentMessages,
+  toSentMessageRows,
+} from "@/lib/poc/db";
 import { loadPartnersByIds } from "@/lib/poc/directory";
-import { buildDirectMessages, validateTemplate } from "@/lib/poc/direct-message";
+import {
+  buildDirectMessages,
+  validateTemplate,
+} from "@/lib/poc/direct-message";
 import { summarizePlan } from "@/lib/poc/dispatch";
 import { loadMediaAsset } from "@/lib/poc/media";
 import { parseAllowlist, sendPlanned } from "@/lib/send";
@@ -41,44 +48,65 @@ export async function POST(req: Request) {
     : [];
   const message = typeof body.message === "string" ? body.message : "";
   const confirm = body.confirm === true;
-  const mediaAssetId = typeof body.mediaAssetId === "string" ? body.mediaAssetId : null;
+  const mediaAssetId =
+    typeof body.mediaAssetId === "string" ? body.mediaAssetId : null;
 
   if (partnerIds.length === 0) {
-    return NextResponse.json({ ok: false, error: { message: "Select at least one partner." } }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: { message: "Select at least one partner." } },
+      { status: 400 },
+    );
   }
   if (partnerIds.length > MAX_RECIPIENTS) {
     return NextResponse.json(
-      { ok: false, error: { message: `Select at most ${MAX_RECIPIENTS} partners at a time.` } },
+      {
+        ok: false,
+        error: {
+          message: `Select at most ${MAX_RECIPIENTS} partners at a time.`,
+        },
+      },
       { status: 400 },
     );
   }
 
   const problem = validateTemplate(message);
   if (problem === "empty") {
-    return NextResponse.json({ ok: false, error: { message: "Write a message first." } }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: { message: "Write a message first." } },
+      { status: 400 },
+    );
   }
   if (problem === "too_long") {
-    return NextResponse.json({ ok: false, error: { message: "Message is too long." } }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: { message: "Message is too long." } },
+      { status: 400 },
+    );
   }
 
   const partners = await loadPartnersByIds(partnerIds);
   if (partners.length === 0) {
-    return NextResponse.json({ ok: false, error: { message: "No matching partners found." } }, { status: 404 });
+    return NextResponse.json(
+      { ok: false, error: { message: "No matching partners found." } },
+      { status: 404 },
+    );
   }
 
   // Resolve the attachment from its id server-side — the client never supplies the URL a
   // provider will fetch, so a tampered payload can't make us broadcast an arbitrary file.
-  let mediaUrl: string | undefined;
+  let media: Awaited<ReturnType<typeof loadMediaAsset>> = null;
   if (mediaAssetId) {
     const asset = await loadMediaAsset(mediaAssetId);
     if (!asset) {
-      return NextResponse.json({ ok: false, error: { message: "Attachment not found." } }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: { message: "Attachment not found." } },
+        { status: 404 },
+      );
     }
-    mediaUrl = asset.url;
+    media = asset;
   }
 
   const optedOut = await loadOptOuts();
-  const messages = buildDirectMessages(partners, message, mediaUrl);
+  const messages = buildDirectMessages(partners, message, media ?? undefined);
 
   if (!confirm) {
     return NextResponse.json({
@@ -87,7 +115,10 @@ export async function POST(req: Request) {
         mode: "preview",
         // Show every recipient: the directory selection is small and deliberate, unlike
         // the bulk queues where only a sample is useful.
-        summary: summarizePlan(messages, { optedOut, sampleSize: messages.length }),
+        summary: summarizePlan(messages, {
+          optedOut,
+          sampleSize: messages.length,
+        }),
       },
     });
   }
@@ -97,7 +128,12 @@ export async function POST(req: Request) {
     optedOut,
     allowlist: parseAllowlist(process.env.BENMP_SEND_ALLOWLIST),
   });
-  const audited = await recordSentMessages(toSentMessageRows(messages, report.outcomes));
+  const audited = await recordSentMessages(
+    toSentMessageRows(messages, report.outcomes),
+  );
 
-  return NextResponse.json({ ok: true, data: { mode: "sent", report, audited } });
+  return NextResponse.json({
+    ok: true,
+    data: { mode: "sent", report, audited },
+  });
 }

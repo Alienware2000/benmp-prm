@@ -26,18 +26,59 @@ export type InfobipConfig = {
   fetcher?: typeof fetch;
 };
 
-function failed(errorMessage: string): MessageSendResult {
+type InfobipMessageType = "text" | "image" | "video" | "audio" | "document";
+
+function failed(
+  errorMessage: string,
+  providerMessageId = "",
+): MessageSendResult {
   return {
     provider: "infobip",
-    providerMessageId: "",
+    providerMessageId,
     status: "failed",
     errorMessage,
   };
 }
 
-function endpoint(baseUrl: string): string {
+function endpoint(baseUrl: string, type: InfobipMessageType): string {
   const normalized = baseUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "");
-  return `https://${normalized}/whatsapp/1/message/text`;
+  return `https://${normalized}/whatsapp/1/message/${type}`;
+}
+
+function attachmentType(
+  message: OutboundMessage,
+): Exclude<InfobipMessageType, "text"> | null {
+  const mime = message.mediaType?.toLowerCase().trim();
+  if (mime?.startsWith("image/")) return "image";
+  if (mime?.startsWith("video/")) return "video";
+  if (mime?.startsWith("audio/")) return "audio";
+  if (mime === "application/pdf") return "document";
+
+  const pathname = (() => {
+    try {
+      return new URL(message.mediaUrl ?? "").pathname.toLowerCase();
+    } catch {
+      return "";
+    }
+  })();
+  if (/\.(jpe?g|png)$/.test(pathname)) return "image";
+  if (/\.(mp4|3gp)$/.test(pathname)) return "video";
+  if (/\.(aac|m4a|amr|mp3|ogg)$/.test(pathname)) return "audio";
+  if (/\.pdf$/.test(pathname)) return "document";
+  return null;
+}
+
+function documentFilename(message: OutboundMessage): string {
+  if (message.mediaFilename?.trim())
+    return message.mediaFilename.trim().slice(0, 240);
+  try {
+    const name = decodeURIComponent(
+      new URL(message.mediaUrl ?? "").pathname.split("/").pop() ?? "",
+    );
+    return (name || "document.pdf").slice(0, 240);
+  } catch {
+    return "document.pdf";
+  }
 }
 
 function acceptedStatus(
@@ -83,50 +124,93 @@ export class InfobipMessagingAdapter implements MessagingAdapter {
     if (!to) return failed("WhatsApp recipient is invalid");
     if (!from) return failed("Infobip WhatsApp sender is invalid");
 
-    try {
-      const response = await fetcher!(endpoint(baseUrl), {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          Authorization: `App ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from,
-          to,
-          content: { text: message.body },
-        }),
+    const mediaType = message.mediaUrl ? attachmentType(message) : null;
+    if (message.mediaUrl && !mediaType) {
+      return failed("Infobip does not support this attachment type");
+    }
+
+    const requests: Array<{
+      type: InfobipMessageType;
+      content: Record<string, string>;
+    }> = [];
+    if (!mediaType) {
+      requests.push({ type: "text", content: { text: message.body } });
+    } else if (mediaType === "image" || mediaType === "video") {
+      requests.push({
+        type: mediaType,
+        content: { mediaUrl: message.mediaUrl!, caption: message.body },
       });
-      const data = (await response.json()) as InfobipResponse;
+    } else {
+      // Infobip's audio and document endpoints do not support captions. Keep the staff
+      // message intact by sending the text first, followed by the attachment.
+      requests.push({ type: "text", content: { text: message.body } });
+      requests.push({
+        type: mediaType,
+        content: {
+          mediaUrl: message.mediaUrl!,
+          ...(mediaType === "document"
+            ? { filename: documentFilename(message) }
+            : {}),
+        },
+      });
+    }
 
-      if (!response.ok) {
-        const detail =
-          data.requestError?.serviceException?.text ??
-          data.status?.description ??
-          `HTTP ${response.status}`;
-        return failed(`Infobip: ${detail}`);
-      }
+    const providerMessageIds: string[] = [];
+    const statuses: Array<"queued" | "sent"> = [];
 
-      if (!data.messageId) {
-        return failed("Infobip accepted the request without a message id");
-      }
+    try {
+      for (const request of requests) {
+        const response = await fetcher!(endpoint(baseUrl, request.type), {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            Authorization: `App ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ from, to, content: request.content }),
+        });
+        const data = (await response.json()) as InfobipResponse;
 
-      const status = acceptedStatus(data.status?.groupName);
-      if (!status) {
-        const detail =
-          data.status?.description ??
-          data.status?.name ??
-          "Infobip rejected the message";
-        return failed(detail);
+        if (!response.ok) {
+          const detail =
+            data.requestError?.serviceException?.text ??
+            data.status?.description ??
+            `HTTP ${response.status}`;
+          return failed(`Infobip: ${detail}`, providerMessageIds.join(","));
+        }
+
+        if (!data.messageId) {
+          return failed(
+            "Infobip accepted the request without a message id",
+            providerMessageIds.join(","),
+          );
+        }
+
+        const status = acceptedStatus(data.status?.groupName);
+        if (!status) {
+          const detail =
+            data.status?.description ??
+            data.status?.name ??
+            "Infobip rejected the message";
+          return failed(detail, providerMessageIds.join(","));
+        }
+
+        providerMessageIds.push(data.messageId);
+        statuses.push(status);
       }
 
       return {
         provider: this.provider,
-        providerMessageId: data.messageId,
-        status,
+        providerMessageId: providerMessageIds.join(","),
+        status: statuses.every((status) => status === "sent")
+          ? "sent"
+          : "queued",
       };
     } catch (error) {
-      return failed(error instanceof Error ? error.message : String(error));
+      return failed(
+        error instanceof Error ? error.message : String(error),
+        providerMessageIds.join(","),
+      );
     }
   }
 }

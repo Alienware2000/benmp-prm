@@ -39,6 +39,8 @@ export type PlannedMessage = {
   sendable: boolean;
   /** Optional attachment URL — see OutboundMessage.mediaUrl. */
   mediaUrl?: string;
+  mediaType?: string;
+  mediaFilename?: string;
 };
 
 export type Templates = {

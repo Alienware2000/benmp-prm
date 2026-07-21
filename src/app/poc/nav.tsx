@@ -9,14 +9,18 @@ const TABS = [
   { href: "/poc", label: "Console" },
   { href: "/poc/directory", label: "Partner directory" },
   { href: "/poc/giving", label: "Giving" },
+  { href: "/poc/messages", label: "Messages" },
 ] as const;
 
 export type PocTab = (typeof TABS)[number]["href"];
 
 export function PocNav({ current }: { current: PocTab }) {
   return (
-    <nav className="flex gap-1 border-b border-border bg-surface px-5" aria-label="Workspace sections">
-      <div className="mx-auto flex w-full max-w-4xl gap-1">
+    <nav
+      className="overflow-x-auto border-b border-border bg-surface px-3 sm:px-5"
+      aria-label="Workspace sections"
+    >
+      <div className="mx-auto flex w-full min-w-max max-w-4xl gap-1">
         {TABS.map((t) => {
           const active = t.href === current;
           return (
@@ -56,7 +60,10 @@ export function PocShell({
     <div className="min-h-screen bg-background pb-14 text-foreground">
       <header className="border-b border-border bg-surface">
         <div className="mx-auto flex h-14 max-w-4xl items-center justify-between gap-4 px-5">
-          <Link href="/poc" className="flex items-center gap-2.5 text-sm font-semibold">
+          <Link
+            href="/poc"
+            className="flex items-center gap-2.5 text-sm font-semibold"
+          >
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-success text-[13px] font-bold text-white">
               B
             </span>

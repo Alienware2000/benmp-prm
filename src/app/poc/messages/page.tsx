@@ -1,14 +1,14 @@
 import {
   PartnerWorkspace,
   type PartnerSearchParams,
-} from "./partner-workspace";
+} from "../directory/partner-workspace";
 
 export const dynamic = "force-dynamic";
 
-export default function DirectoryPage({
+export default function MessagesPage({
   searchParams,
 }: {
   searchParams: PartnerSearchParams;
 }) {
-  return <PartnerWorkspace searchParams={searchParams} mode="directory" />;
+  return <PartnerWorkspace searchParams={searchParams} mode="messages" />;
 }

@@ -5,6 +5,7 @@ import { normalizePhone } from "@/lib/phone";
 import { AskHero } from "./ask-hero";
 import { PartnersTable, type PartnerRow, type TableData } from "./partners-table";
 import { MessageCenter } from "./message-center";
+import { PocNav } from "./nav";
 
 export const dynamic = "force-dynamic";
 
@@ -104,13 +105,13 @@ export default async function PocPage() {
               B
             </span>
             Global Crusade Partners
-            <span className="font-normal text-muted-foreground/80">· Qodesh</span>
           </span>
           <span className="whitespace-nowrap rounded-full border border-border bg-background px-3 py-1 text-xs tabular-nums text-muted-foreground">
             {periodLabel}
           </span>
         </div>
       </header>
+      <PocNav current="/poc" />
 
       <main className="mx-auto max-w-4xl px-5">
         <section className="pt-8">

@@ -8,10 +8,16 @@ import {
   summarizeGiving,
 } from "@/lib/poc/giving";
 import { PocShell } from "../nav";
+import { GivingNav } from "./giving-nav";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{ from?: string; to?: string; name?: string; branch?: string }>;
+type SearchParams = Promise<{
+  from?: string;
+  to?: string;
+  name?: string;
+  branch?: string;
+}>;
 
 /** "2026-06-15T09:20:00+00:00" -> "15 Jun 2026" (Ghana is UTC year-round). */
 function formatDate(iso: string): string {
@@ -22,7 +28,10 @@ function formatDate(iso: string): string {
 }
 
 function ghs(minor: number): string {
-  return (minor / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (minor / 100).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 const FIELD =
@@ -30,7 +39,11 @@ const FIELD =
 const LABEL =
   "mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground";
 
-export default async function GivingPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function GivingPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const sp = await searchParams;
   const filters = {
     from: (sp.from ?? "").trim(),
@@ -43,7 +56,9 @@ export default async function GivingPage({ searchParams }: { searchParams: Searc
   const rows = sortByDateDesc(filterGiving(ledger, filters));
   const totals = summarizeGiving(rows);
   const ledgerTotal = summarizeGiving(ledger);
-  const isFiltered = Boolean(filters.from || filters.to || filters.name || filters.branch);
+  const isFiltered = Boolean(
+    filters.from || filters.to || filters.name || filters.branch,
+  );
   const branches = branchOptions(ledger);
   const unattributed = totals.byBranch.find((b) => b.branch === UNATTRIBUTED);
 
@@ -53,25 +68,62 @@ export default async function GivingPage({ searchParams }: { searchParams: Searc
       title="Giving"
       subtitle="Every recorded gift. Filter by date, name or branch — the total below always reflects what you're looking at."
     >
-      <form method="GET" className="grid gap-2.5 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-5">
+      <GivingNav current="ledger" />
+      <form
+        method="GET"
+        className="grid gap-2.5 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-5"
+      >
         <div>
-          <label htmlFor="from" className={LABEL}>From</label>
-          <input type="date" id="from" name="from" defaultValue={filters.from} className={FIELD} />
+          <label htmlFor="from" className={LABEL}>
+            From
+          </label>
+          <input
+            type="date"
+            id="from"
+            name="from"
+            defaultValue={filters.from}
+            className={FIELD}
+          />
         </div>
         <div>
-          <label htmlFor="to" className={LABEL}>To</label>
-          <input type="date" id="to" name="to" defaultValue={filters.to} className={FIELD} />
+          <label htmlFor="to" className={LABEL}>
+            To
+          </label>
+          <input
+            type="date"
+            id="to"
+            name="to"
+            defaultValue={filters.to}
+            className={FIELD}
+          />
         </div>
         <div>
-          <label htmlFor="name" className={LABEL}>Name</label>
-          <input id="name" name="name" defaultValue={filters.name} placeholder="Payer name…" className={FIELD} />
+          <label htmlFor="name" className={LABEL}>
+            Name
+          </label>
+          <input
+            id="name"
+            name="name"
+            defaultValue={filters.name}
+            placeholder="Payer name…"
+            className={FIELD}
+          />
         </div>
         <div>
-          <label htmlFor="branch" className={LABEL}>Branch</label>
-          <select id="branch" name="branch" defaultValue={filters.branch} className={FIELD}>
+          <label htmlFor="branch" className={LABEL}>
+            Branch
+          </label>
+          <select
+            id="branch"
+            name="branch"
+            defaultValue={filters.branch}
+            className={FIELD}
+          >
             <option value="">All branches</option>
             {branches.map((b) => (
-              <option key={b} value={b}>{b}</option>
+              <option key={b} value={b}>
+                {b}
+              </option>
             ))}
           </select>
         </div>
@@ -110,16 +162,24 @@ export default async function GivingPage({ searchParams }: { searchParams: Searc
         </div>
         <div className="rounded-2xl border border-border bg-surface p-4">
           <p className="text-[13px] font-medium text-muted-foreground">Gifts</p>
-          <p className="mt-2 text-[27px] font-semibold leading-none tracking-tight tabular-nums">{totals.count}</p>
+          <p className="mt-2 text-[27px] font-semibold leading-none tracking-tight tabular-nums">
+            {totals.count}
+          </p>
           <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
-            from <b className="font-semibold tabular-nums text-foreground">{totals.givers}</b> givers
+            from{" "}
+            <b className="font-semibold tabular-nums text-foreground">
+              {totals.givers}
+            </b>{" "}
+            givers
             {totals.statementCount > 0 && (
               <> · {totals.statementCount} bank rows</>
             )}
           </p>
         </div>
         <div className="rounded-2xl border border-border bg-surface p-4">
-          <p className="text-[13px] font-medium text-muted-foreground">Branches</p>
+          <p className="text-[13px] font-medium text-muted-foreground">
+            Branches
+          </p>
           <p className="mt-2 text-[27px] font-semibold leading-none tracking-tight tabular-nums">
             {totals.byBranch.filter((b) => b.branch !== UNATTRIBUTED).length}
           </p>
@@ -170,13 +230,19 @@ export default async function GivingPage({ searchParams }: { searchParams: Searc
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                <td
+                  colSpan={4}
+                  className="px-4 py-8 text-center text-sm text-muted-foreground"
+                >
                   No gifts match those filters.
                 </td>
               </tr>
             )}
             {rows.map((r) => (
-              <tr key={r.reference} className="border-b border-border/60 last:border-0">
+              <tr
+                key={r.reference}
+                className="border-b border-border/60 last:border-0"
+              >
                 <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-muted-foreground">
                   {formatDate(r.paidAt)}
                 </td>
@@ -206,7 +272,10 @@ export default async function GivingPage({ searchParams }: { searchParams: Searc
           {rows.length > 0 && (
             <tfoot>
               <tr className="border-t border-border bg-background">
-                <td colSpan={3} className="px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                <td
+                  colSpan={3}
+                  className="px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+                >
                   {isFiltered ? "Filtered total" : "Total"}
                 </td>
                 <td className="px-4 py-2.5 text-right text-sm font-semibold tabular-nums">
@@ -220,10 +289,11 @@ export default async function GivingPage({ searchParams }: { searchParams: Searc
 
       {unattributed && (
         <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-          <b className="text-foreground">Unattributed</b> means the gift isn&apos;t tied to a branch
-          yet — either the payer&apos;s number isn&apos;t on a partner record, or the partner it matches
-          has no branch set. The money is still counted in every total; assigning those partners a
-          branch is what moves it out of this bucket.
+          <b className="text-foreground">Unattributed</b> means the gift
+          isn&apos;t tied to a branch yet — either the payer&apos;s number
+          isn&apos;t on a partner record, or the partner it matches has no
+          branch set. The money is still counted in every total; assigning those
+          partners a branch is what moves it out of this bucket.
         </p>
       )}
     </PocShell>

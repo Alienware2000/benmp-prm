@@ -55,13 +55,19 @@ export type Fetcher = <T>(pathAndQuery: string) => Promise<T[]>;
 export function supabaseRestFetcher(): Fetcher {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Supabase env not set (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)");
-  return async <T,>(pathAndQuery: string): Promise<T[]> => {
+  if (!url || !key)
+    throw new Error(
+      "Supabase env not set (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)",
+    );
+  return async <T>(pathAndQuery: string): Promise<T[]> => {
     const r = await fetch(`${url}/rest/v1/${pathAndQuery}`, {
       headers: { apikey: key, Authorization: `Bearer ${key}` },
       cache: "no-store",
     });
-    if (!r.ok) throw new Error(`Supabase ${pathAndQuery}: ${r.status} ${await r.text()}`);
+    if (!r.ok)
+      throw new Error(
+        `Supabase ${pathAndQuery}: ${r.status} ${await r.text()}`,
+      );
     return (await r.json()) as T[];
   };
 }
@@ -84,8 +90,17 @@ export type SentMessageRow = {
  * sendPlanned emits exactly one outcome per planned message, in order.
  */
 export function toSentMessageRows(
-  messages: Array<{ partnerRef: string; kind: string; to: string | null; body: string }>,
-  outcomes: Array<{ status: string; reason?: string; providerMessageId?: string }>,
+  messages: Array<{
+    partnerRef: string;
+    kind: string;
+    to: string | null;
+    body: string;
+  }>,
+  outcomes: Array<{
+    status: string;
+    reason?: string;
+    providerMessageId?: string;
+  }>,
 ): SentMessageRow[] {
   return messages.map((m, i) => ({
     partner_ref: m.partnerRef,
@@ -103,7 +118,10 @@ export type Inserter = (table: string, rows: unknown[]) => Promise<void>;
 export function supabaseRestInserter(): Inserter {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Supabase env not set (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)");
+  if (!url || !key)
+    throw new Error(
+      "Supabase env not set (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)",
+    );
   return async (table, rows) => {
     for (let i = 0; i < rows.length; i += 500) {
       const r = await fetch(`${url}/rest/v1/${table}`, {
@@ -116,7 +134,10 @@ export function supabaseRestInserter(): Inserter {
         },
         body: JSON.stringify(rows.slice(i, i + 500)),
       });
-      if (!r.ok) throw new Error(`Supabase insert ${table}: ${r.status} ${await r.text()}`);
+      if (!r.ok)
+        throw new Error(
+          `Supabase insert ${table}: ${r.status} ${await r.text()}`,
+        );
     }
   };
 }
@@ -135,22 +156,65 @@ export async function recordSentMessages(
     await (inserter ?? supabaseRestInserter())("sent_messages", rows);
     return true;
   } catch (err) {
-    console.error(JSON.stringify({ evt: "poc_audit_write_failed", error: err instanceof Error ? err.message : String(err) }));
+    console.error(
+      JSON.stringify({
+        evt: "poc_audit_write_failed",
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
     return false;
   }
 }
 
 /** E.164 phones that must never be messaged — the consent gate before any send. */
-export async function loadOptOuts(fetcher: Fetcher = supabaseRestFetcher()): Promise<Set<string>> {
+export async function loadOptOuts(
+  fetcher: Fetcher = supabaseRestFetcher(),
+): Promise<Set<string>> {
   const rows = await fetcher<DbOptOut>("opt_outs?select=phone_e164&limit=5000");
-  return new Set(rows.map((r) => r.phone_e164).filter((p): p is string => Boolean(p)));
+  return new Set(
+    rows.map((r) => r.phone_e164).filter((p): p is string => Boolean(p)),
+  );
+}
+
+export type SentMessageLookup = {
+  body: string;
+  status: string;
+  reason: string | null;
+  providerMessageId: string | null;
+};
+
+type DbSentMessageLookup = {
+  body: string | null;
+  status: string | null;
+  reason: string | null;
+  provider_message_id: string | null;
+};
+
+/** Find a prior accepted attempt so retrying the same test cannot send twice. */
+export async function findSentMessageByPartnerRef(
+  partnerRef: string,
+  fetcher: Fetcher = supabaseRestFetcher(),
+): Promise<SentMessageLookup | null> {
+  const rows = await fetcher<DbSentMessageLookup>(
+    `sent_messages?select=body,status,reason,provider_message_id&partner_ref=eq.${encodeURIComponent(partnerRef)}&order=created_at.desc&limit=1`,
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    body: row.body ?? "",
+    status: row.status ?? "unknown",
+    reason: row.reason,
+    providerMessageId: row.provider_message_id,
+  };
 }
 
 export async function loadReconciliation(
   fetcher: Fetcher = supabaseRestFetcher(),
 ): Promise<ReconciliationResult> {
   const [regs, pays] = await Promise.all([
-    fetcher<DbRegistration>("registrations?select=id,full_name,phone_raw,phone_e164&limit=5000"),
+    fetcher<DbRegistration>(
+      "registrations?select=id,full_name,phone_raw,phone_e164&limit=5000",
+    ),
     fetcher<DbPayment>(
       "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at,status&status=eq.Successful&limit=5000",
     ),

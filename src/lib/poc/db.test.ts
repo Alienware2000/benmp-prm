@@ -4,6 +4,7 @@ import {
   mapPayments,
   loadReconciliation,
   loadOptOuts,
+  findSentMessageByPartnerRef,
   toSentMessageRows,
   recordSentMessages,
   type Fetcher,
@@ -100,5 +101,35 @@ describe("sent_messages audit trail", () => {
     const inserter = vi.fn(async () => {}) as Inserter;
     expect(await recordSentMessages([], inserter)).toBe(true);
     expect(inserter).not.toHaveBeenCalled();
+  });
+
+  it("finds the latest send for an idempotency reference", async () => {
+    const fetcher = vi.fn(async () => [
+      {
+        body: "Hi David, thank you.",
+        status: "queued",
+        reason: null,
+        provider_message_id: "abc-123",
+      },
+    ]) as Fetcher;
+
+    await expect(
+      findSentMessageByPartnerRef("gift-test:request + 1", fetcher),
+    ).resolves.toEqual({
+      body: "Hi David, thank you.",
+      status: "queued",
+      reason: null,
+      providerMessageId: "abc-123",
+    });
+    expect(fetcher).toHaveBeenCalledWith(
+      "sent_messages?select=body,status,reason,provider_message_id&partner_ref=eq.gift-test%3Arequest%20%2B%201&order=created_at.desc&limit=1",
+    );
+  });
+
+  it("returns null when an idempotency reference has not been sent", async () => {
+    const fetcher = (async () => []) as Fetcher;
+    await expect(
+      findSentMessageByPartnerRef("gift-test:new", fetcher),
+    ).resolves.toBeNull();
   });
 });

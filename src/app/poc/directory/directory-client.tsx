@@ -94,21 +94,51 @@ export function DirectoryClient({ partners }: { partners: DirectoryRow[] }) {
       .catch(() => setAssets([]));
   }, []);
 
+  /**
+   * Three steps, because the file must NOT pass through the app server: request bodies
+   * are capped there (10 MB locally with middleware, ~4.5 MB on Vercel), so a video
+   * would never arrive. The browser PUTs straight to storage with a signed URL.
+   *   1. sign    — server validates type/size and returns a one-shot upload URL
+   *   2. PUT     — browser uploads directly to Supabase Storage
+   *   3. confirm — server verifies the object and catalogues it
+   */
   async function upload(file: File) {
     setUploading(true);
     setError(null);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/poc/media", { method: "POST", body: fd });
-      const json = await res.json();
-      if (!json.ok) {
-        setError(json.error?.message ?? "Upload failed.");
+      const signed = await fetch("/api/poc/media/sign", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ filename: file.name, mimeType: file.type, sizeBytes: file.size }),
+      }).then((r) => r.json());
+      if (!signed.ok) {
+        setError(signed.error?.message ?? "Upload failed.");
         return;
       }
+
+      const put = await fetch(signed.data.uploadUrl, {
+        method: "PUT",
+        headers: { "content-type": file.type },
+        body: file,
+      });
+      if (!put.ok) {
+        setError("Upload failed while transferring the file.");
+        return;
+      }
+
+      const done = await fetch("/api/poc/media/confirm", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: signed.data.path, filename: file.name }),
+      }).then((r) => r.json());
+      if (!done.ok) {
+        setError(done.error?.message ?? "Upload failed.");
+        return;
+      }
+
       const list = await fetch("/api/poc/media").then((r) => r.json());
       setAssets(list?.data?.assets ?? []);
-      setMediaId(json.data.id);
+      setMediaId(done.data.id);
       setSummary(null);
     } catch {
       setError("Upload failed.");

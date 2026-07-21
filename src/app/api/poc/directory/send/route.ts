@@ -3,6 +3,7 @@ import { loadOptOuts, recordSentMessages, toSentMessageRows } from "@/lib/poc/db
 import { loadPartnersByIds } from "@/lib/poc/directory";
 import { buildDirectMessages, validateTemplate } from "@/lib/poc/direct-message";
 import { summarizePlan } from "@/lib/poc/dispatch";
+import { loadMediaAsset } from "@/lib/poc/media";
 import { parseAllowlist, sendPlanned } from "@/lib/send";
 import { getMessagingAdapter } from "@/lib/messaging";
 
@@ -32,6 +33,7 @@ export async function POST(req: Request) {
     partnerIds?: unknown;
     message?: unknown;
     confirm?: unknown;
+    mediaAssetId?: unknown;
   };
 
   const partnerIds = Array.isArray(body.partnerIds)
@@ -39,6 +41,7 @@ export async function POST(req: Request) {
     : [];
   const message = typeof body.message === "string" ? body.message : "";
   const confirm = body.confirm === true;
+  const mediaAssetId = typeof body.mediaAssetId === "string" ? body.mediaAssetId : null;
 
   if (partnerIds.length === 0) {
     return NextResponse.json({ ok: false, error: { message: "Select at least one partner." } }, { status: 400 });
@@ -63,8 +66,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: { message: "No matching partners found." } }, { status: 404 });
   }
 
+  // Resolve the attachment from its id server-side — the client never supplies the URL a
+  // provider will fetch, so a tampered payload can't make us broadcast an arbitrary file.
+  let mediaUrl: string | undefined;
+  if (mediaAssetId) {
+    const asset = await loadMediaAsset(mediaAssetId);
+    if (!asset) {
+      return NextResponse.json({ ok: false, error: { message: "Attachment not found." } }, { status: 404 });
+    }
+    mediaUrl = asset.url;
+  }
+
   const optedOut = await loadOptOuts();
-  const messages = buildDirectMessages(partners, message);
+  const messages = buildDirectMessages(partners, message, mediaUrl);
 
   if (!confirm) {
     return NextResponse.json({

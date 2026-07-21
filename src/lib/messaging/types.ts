@@ -9,6 +9,14 @@ export interface OutboundMessage {
   channel: MessagingChannel;
   to: string;
   body: string;
+  /**
+   * Publicly reachable URL of one attachment (image, video, audio or PDF).
+   *
+   * The provider FETCHES this URL — media is never uploaded through the API — so it must
+   * be reachable from the public internet and serve a matching Content-Type. WhatsApp
+   * allows one attachment per message.
+   */
+  mediaUrl?: string;
   category: MessageCategory;
   subject?: string;
   partnerId?: string;

@@ -83,7 +83,7 @@ function documentFilename(message: OutboundMessage): string {
 
 function acceptedStatus(
   groupName?: string,
-): MessageSendResult["status"] | undefined {
+): "queued" | "sent" | undefined {
   const normalized = groupName?.toUpperCase();
   if (normalized === "DELIVERED") return "sent";
   if (normalized === "PENDING") return "queued";

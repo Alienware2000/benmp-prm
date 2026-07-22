@@ -3,6 +3,7 @@ import { MockMessagingAdapter } from "./mock-adapter";
 import { MetaCloudMessagingAdapter } from "./meta-cloud-adapter";
 import { TwilioMessagingAdapter } from "./twilio-adapter";
 import { VonageMessagingAdapter } from "./vonage-adapter";
+import { WhatChimpMessagingAdapter } from "./whatchimp-adapter";
 import type { MessagingAdapter, MessagingProvider } from "./types";
 
 function getMessagingProvider(): MessagingProvider {
@@ -12,7 +13,8 @@ function getMessagingProvider(): MessagingProvider {
     provider === "twilio" ||
     provider === "meta-cloud-api" ||
     provider === "infobip" ||
-    provider === "vonage"
+    provider === "vonage" ||
+    provider === "whatchimp"
   ) {
     return provider;
   }
@@ -37,6 +39,10 @@ export function getMessagingAdapter(): MessagingAdapter {
 
   if (provider === "vonage") {
     return new VonageMessagingAdapter();
+  }
+
+  if (provider === "whatchimp") {
+    return new WhatChimpMessagingAdapter();
   }
 
   return new MetaCloudMessagingAdapter();

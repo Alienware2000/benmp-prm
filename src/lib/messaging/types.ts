@@ -1,5 +1,5 @@
 export type MessagingProvider =
-  "mock" | "twilio" | "meta-cloud-api" | "infobip" | "vonage";
+  "mock" | "twilio" | "meta-cloud-api" | "infobip" | "vonage" | "whatchimp";
 
 export type MessagingChannel = "whatsapp" | "sms" | "email";
 

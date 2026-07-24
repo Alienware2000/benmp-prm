@@ -203,3 +203,19 @@ This amends **0004** (removes the Ghana/diaspora payment rails) and supersedes *
 **Why**: staff asked for two things the console can't do — find a specific partner and message them, and interrogate giving by date/name/branch with a total that follows the filter. Both are read paths over data already provisioned; neither needs new intake.
 
 **Said no to**: rewriting `partners.church` in place (read-time grouping first, so nothing is lost while the canonical branch list is still unconfirmed) · a top-level `/directory` route (would mean loosening the proxy gate) · fuzzy name-matching payments to partners for branch attribution (mis-attributes money; phone match only) · hiding unattributed giving to make the branch breakdown look complete.
+
+## 0010 — WaliChat for the WhatsApp pilot
+
+*2026-07-24*
+
+**Decided**: use **WaliChat** as the current WhatsApp provider for the BENMP-owned business number, through the existing `MessagingAdapter` (`BENMP_MESSAGING_PROVIDER=wali`). This is a pilot provider choice, not a coupling: Meta Cloud API remains the long-term direct path and the other adapters remain available.
+
+1. The Wali API key and device ID are server-only environment variables. They never enter client bundles, logs, or git.
+2. All sends use the existing application workflow. Preview is the default; a real send requires explicit confirmation and still passes the opt-out and `BENMP_SEND_ALLOWLIST` gates.
+3. Every attempted result is written to `sent_messages`, including skipped and failed sends.
+4. Wali templates are used for business-initiated conversations when Meta requires them. Free-form text is only valid inside WhatsApp's open customer-service window.
+5. The local `npm run wali:check` command verifies that the configured BENMP sender is operative without sending a message.
+
+**Why**: BENMP now controls a working WhatsApp Business number and Wali exposes it through an authenticated API. That removes the trial-sandbox and onboarding blockers encountered with the earlier providers while preserving the adapter boundary and the application's safety controls.
+
+**Said no to**: bypassing the application with dashboard-only broadcasts · committing credentials · removing the allowlist for the first live test · rewriting messaging around Wali-specific concepts · treating a successful API request as delivery confirmation.

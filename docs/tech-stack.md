@@ -63,7 +63,7 @@ Last updated: 2026-07-09. Companion to `docs/decisions.md` (the *why*) and `docs
 
 ## Messaging
 
-**Twilio** (WhatsApp + SMS) + **Resend** (email), behind `MessagingAdapter` (`BENMP_MESSAGING_PROVIDER`). Meta Cloud API is the long-term direct WhatsApp path (Decision 0004) evaluated in Phase 10. All PLANNED (Phase 7). Every send passes a consent check; bulk sends need a recorded approver.
+**WaliChat** is the current WhatsApp pilot provider for the BENMP-owned sender, behind `MessagingAdapter` (`BENMP_MESSAGING_PROVIDER=wali`). Meta Cloud API remains the long-term direct ownership path; Twilio and the other adapters remain available as fallbacks rather than application dependencies. Every real send passes explicit confirmation, opt-out, allowlist, and audit gates (Decision 0010). **Resend** remains the planned email provider.
 
 ## AI
 
@@ -113,7 +113,10 @@ SUPABASE_SERVICE_ROLE_KEY=   # server-only (CSV import commit, seeds)
 
 # Providers (behind adapters) — no payment provider (Decision 0007)
 BENMP_DATA_PROVIDER=mock|supabase
-BENMP_MESSAGING_PROVIDER=mock|twilio
+BENMP_MESSAGING_PROVIDER=mock|wali|twilio|meta-cloud-api|infobip|vonage|whatchimp
+WALI_API_KEY=
+WALI_DEVICE_ID=
+WALI_API_URL=https://api.wali.chat/v1/messages
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
 RESEND_API_KEY=

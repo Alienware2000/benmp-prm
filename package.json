@@ -14,7 +14,8 @@
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "send:test": "node --env-file=.env.local scripts/send-test.mjs"
+    "send:test": "node --env-file=.env.local scripts/send-test.mjs",
+    "wali:check": "node --env-file=.env.local scripts/wali-check.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.12",

@@ -160,6 +160,9 @@ Current `.env.example` keys include:
 - `TWILIO_AUTH_TOKEN`
 - `TWILIO_MESSAGING_SERVICE_SID`
 - `TWILIO_WHATSAPP_SENDER`
+- `WALI_API_KEY` (server only)
+- `WALI_DEVICE_ID`
+- `WALI_API_URL`
 - `RESEND_API_KEY`
 
 Planned keys should be added only when the integration lands, for example Meta Cloud API (messaging). There are no payment-provider keys — intake is CSV (Decision 0007).

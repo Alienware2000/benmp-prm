@@ -88,7 +88,7 @@ Current keys from `.env.example`:
 | ------------------------------- | -------------- | ------------------------------------------------------- |
 | `NEXT_PUBLIC_APP_URL`           | All            | Public app base URL.                                    |
 | `BENMP_DATA_PROVIDER`           | All            | `mock`, `supabase`, or future `postgres`. Default mock. |
-| `BENMP_MESSAGING_PROVIDER`      | All            | `mock`, `twilio`, `meta-cloud-api`, `infobip`, or `vonage`. |
+| `BENMP_MESSAGING_PROVIDER`      | All            | `mock`, `wali`, `twilio`, `meta-cloud-api`, `infobip`, `vonage`, or `whatchimp`. |
 | `NEXT_PUBLIC_SUPABASE_URL`      | Supabase envs  | Public Supabase URL.                                    |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase envs  | Public anon key; RLS backstops data.                    |
 | `SUPABASE_SERVICE_ROLE_KEY`     | Server only    | Never expose to client bundles. Bypasses RLS — trusted server code only. |
@@ -107,6 +107,9 @@ Current keys from `.env.example`:
 | `VONAGE_API_SECRET`             | Messaging envs | Server only; sandbox account API secret.                |
 | `VONAGE_WHATSAPP_SENDER`        | Messaging envs | Sandbox sender shown in the Vonage dashboard.           |
 | `VONAGE_MESSAGES_API_URL`       | Messaging envs | Optional; defaults to the Vonage v1 sandbox endpoint.   |
+| `WALI_API_KEY`                  | Messaging envs | Server-only Wali API key.                               |
+| `WALI_DEVICE_ID`                | Messaging envs | Wali device for the BENMP-owned WhatsApp number.        |
+| `WALI_API_URL`                  | Messaging envs | Optional; defaults to `https://api.wali.chat/v1/messages`. |
 | `RESEND_API_KEY`                | Messaging envs | Server only.                                            |
 
 Add later when implemented:
@@ -255,7 +258,7 @@ redirects to `/poc` for everyone, so the old demo pages never show; only `/login
    - `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `GOOGLE_GENERATIVE_AI_API_KEY`
    - `POC_USER` (e.g. `benmp`) and **`POC_PASSWORD`** ← **required, or `/poc` is public**
-   - For the Vonage demo sandbox: `BENMP_MESSAGING_PROVIDER=vonage`, `VONAGE_API_KEY`, `VONAGE_API_SECRET`, `VONAGE_WHATSAPP_SENDER`, and `BENMP_SEND_ALLOWLIST`
+   - For the current BENMP WhatsApp pilot: `BENMP_MESSAGING_PROVIDER=wali`, `WALI_API_KEY`, `WALI_DEVICE_ID`, and `BENMP_SEND_ALLOWLIST`
 3. **Deploy.** After this, every push to `main` auto-deploys.
 4. Share `https://<project>.vercel.app/poc` + the password with the team.
 
@@ -268,4 +271,4 @@ npx vercel link           # link this repo to a Vercel project
 npx vercel --prod         # deploy
 ```
 
-**Before sharing publicly, verify:** opening `/poc` prompts for the password (no prompt = `POC_PASSWORD` not set). Trial Twilio still can't send at volume — the console previews correctly regardless.
+**Before sharing publicly, verify:** opening `/poc` prompts for the password (no prompt = `POC_PASSWORD` not set), run `npm run wali:check` against the environment, and keep `BENMP_SEND_ALLOWLIST` set until leadership approves broader sends.

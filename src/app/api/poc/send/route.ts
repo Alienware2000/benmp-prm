@@ -12,8 +12,8 @@ export const dynamic = "force-dynamic";
  *
  * POST { confirm?: boolean, kind?: "thank_you" | "reminder" | "all" }
  *  - confirm falsy (default): PREVIEW — plan the messages and return a summary, no sending.
- *  - confirm true: SEND — dispatch through the configured messaging adapter (mock until
- *    BENMP_MESSAGING_PROVIDER=twilio) and return the send report.
+ *  - confirm true: SEND — dispatch through the configured messaging adapter and return
+ *    the send report.
  *  - kind (default "all"): restrict the preview/send to one queue so the Message Center
  *    can operate thank-yous and reminders independently.
  *

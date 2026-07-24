@@ -11,7 +11,8 @@ export default function GiftAcknowledgementTestPage() {
     configuredProvider === "meta-cloud-api" ||
     configuredProvider === "infobip" ||
     configuredProvider === "vonage" ||
-    configuredProvider === "whatchimp"
+    configuredProvider === "whatchimp" ||
+    configuredProvider === "wali"
       ? configuredProvider
       : "mock";
 

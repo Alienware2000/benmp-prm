@@ -22,6 +22,7 @@ type SendResult = {
 };
 
 function providerLabel(provider: string): string {
+  if (provider === "wali") return "WaliChat WhatsApp";
   if (provider === "whatchimp") return "WhatChimp WhatsApp";
   if (provider === "vonage") return "Vonage WhatsApp Sandbox";
   if (provider === "infobip") return "Infobip WhatsApp";

@@ -4,7 +4,7 @@
  * The /poc console previews the planned messages first (summarizePlan) and only dispatches
  * on an explicit confirm, so a click can never accidentally blast real partners. Actual
  * sending goes through the existing send loop (sendPlanned) and whatever messaging adapter
- * is configured (mock until BENMP_MESSAGING_PROVIDER=twilio).
+ * is configured.
  */
 
 import type { PlannedMessage } from "../messages";

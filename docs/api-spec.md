@@ -57,13 +57,13 @@ Error shape:
 
 ### Auth Modes
 
-| Route Type               | Auth                                                   |
-| ------------------------ | ------------------------------------------------------ |
-| Staff pages              | Supabase staff session.                                |
-| Staff API/server actions | Supabase staff session and role check.                 |
+| Route Type               | Auth                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------- |
+| Staff pages              | Supabase staff session.                                                               |
+| Staff API/server actions | Supabase staff session and role check.                                                |
 | CSV payment import       | Supabase staff session and finance/admin role (no provider webhooks — Decision 0007). |
-| Messaging webhooks       | Provider signature or verify token, not staff session. |
-| AI chat                  | Supabase staff session.                                |
+| Messaging webhooks       | Provider signature or verify token, not staff session.                                |
+| AI chat                  | Supabase staff session.                                                               |
 
 ### Idempotency
 
@@ -329,13 +329,16 @@ When routes become externally consumed by benmp.com or another service, add:
 Everything under `/api/poc/*` requires the `poc_session` cookie (`src/proxy.ts`); unauthenticated calls get `401`.
 
 ### `POST /api/poc/ask`
+
 AI answer over the reconciled period. Body `{ question: string }`.
 
 ### `POST /api/poc/send`
+
 Preview or send the **planned** queues (thank-yous, reminders) derived from reconciliation.
 Body `{ confirm?: boolean, kind?: "thank_you" | "reminder" | "all" }`. `confirm` falsy → preview only.
 
 ### `POST /api/poc/directory/send`
+
 Preview or send a **staff-composed** message to specific partners chosen in `/poc/directory`.
 
 Body: `{ partnerIds: string[], message: string, confirm?: boolean }`
@@ -355,7 +358,16 @@ Responses:
 
 Errors: `400` empty selection / empty or over-long message / >200 recipients · `404` no matching partners · `401` no session.
 
-Gates (unchanged from 0008 §6): `opt_outs` is enforced, `BENMP_SEND_ALLOWLIST` restricts real delivery, and every attempt — sent, skipped or failed — is written to `sent_messages`.
+Gates (unchanged from 0008 §6): `opt_outs` is enforced, `BENMP_SEND_ALLOWLIST` restricts real delivery when configured, and every attempt — sent, skipped or failed — is written to `sent_messages`.
 
 ### Pages
-`/poc` (console) · `/poc/directory` (search + send) · `/poc/giving` (filterable ledger). The directory and giving pages take their filters as **GET query params** (`q`, `branch`, `page`; `from`, `to`, `name`, `branch`) so a filtered view is linkable and works without JavaScript.
+
+`/poc` (dashboard) · `/poc/giving` (filterable ledger) · `/poc/messages` (send to one number or selected partners). `/poc/directory` redirects to the selected-partners mode in Messages, and `/poc/giving/test` redirects to the single-number mode. Giving and partner search take their filters as **GET query params** so filtered views remain linkable.
+
+### `POST /api/poc/messages/direct`
+
+Sends one staff-composed WhatsApp message to any valid international number.
+
+Body: `{ idempotencyKey: string, fullName?: string, phone: string, message: string, mediaAssetId?: string }`
+
+The phone is normalized server-side. A real send still requires the staff confirmation in the Messages UI, enforces opt-outs and any configured allowlist, validates the attachment against the active provider, and writes the outcome to `sent_messages`.

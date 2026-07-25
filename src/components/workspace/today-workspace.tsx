@@ -439,7 +439,7 @@ export function TodayWorkspace({
                 Today
               </p>
               <h2 className="mt-1 text-lg font-semibold text-foreground">
-                Operations Console
+                Dashboard
               </h2>
             </div>
             <button
@@ -640,7 +640,12 @@ function GiftForm({
         <SelectField
           name="provider"
           label="Source"
-          options={["MoMo statement", "Bank CSV", "Remittance export", "Manual entry"]}
+          options={[
+            "MoMo statement",
+            "Bank CSV",
+            "Remittance export",
+            "Manual entry",
+          ]}
         />
         <TextField name="providerReference" label="Source ref" />
         <TextField name="campaignName" label="Campaign" defaultValue="Banjul" />

@@ -5,13 +5,16 @@ import {
   ImageIcon,
   LoaderCircle,
   MessageCircle,
+  Paperclip,
+  Pencil,
+  Repeat2,
   RotateCcw,
   ShieldCheck,
+  Upload,
   Video,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { FeedbackNotice } from "@/components/feedback-notice";
-import { buildThankYouMessage } from "@/lib/messages";
 import {
   attachmentExceedsProviderLimit,
   attachmentLimitBytes,
@@ -40,10 +43,10 @@ type SendResult = {
   };
 };
 
-function providerLabel(provider: string): string {
+function providerLabel(provider: MessagingProvider): string {
   if (provider === "wali") return "WaliChat WhatsApp";
   if (provider === "whatchimp") return "WhatChimp WhatsApp";
-  if (provider === "vonage") return "Vonage WhatsApp Sandbox";
+  if (provider === "vonage") return "Vonage WhatsApp";
   if (provider === "infobip") return "Infobip WhatsApp";
   if (provider === "meta-cloud-api") return "Meta Cloud API";
   if (provider === "twilio") return "Twilio WhatsApp";
@@ -63,36 +66,33 @@ function cleanProviderError(message: string): string {
   );
 }
 
-export function GiftAcknowledgementClient({
+export function DirectMessageClient({
   provider,
+  initialName = "",
+  initialPhone = "",
+  initialMessage = "",
 }: {
   provider: MessagingProvider;
+  initialName?: string;
+  initialPhone?: string;
+  initialMessage?: string;
 }) {
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [amount, setAmount] = useState("");
-  const [messageOverride, setMessageOverride] = useState<string | null>(null);
+  const [fullName, setFullName] = useState(initialName);
+  const [phone, setPhone] = useState(initialPhone);
+  const [message, setMessage] = useState(initialMessage);
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [mediaId, setMediaId] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SendResult | null>(null);
-  const donorNameRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const messageRef = useRef<HTMLTextAreaElement>(null);
   const attachmentRef = useRef<HTMLSelectElement>(null);
 
   const destination = normalizePhone(phone);
-  const amountMinor = Math.round(Number(amount) * 100);
-  const suggestedMessage = useMemo(
-    () =>
-      fullName.trim().length >= 2 &&
-      Number.isFinite(amountMinor) &&
-      amountMinor > 0
-        ? buildThankYouMessage(fullName, amountMinor)
-        : "",
-    [amountMinor, fullName],
-  );
   const attached = useMemo(
     () => assets.find((asset) => asset.id === mediaId) ?? null,
     [assets, mediaId],
@@ -114,7 +114,6 @@ export function GiftAcknowledgementClient({
         .sort((a, b) => b.sizeBytes - a.sizeBytes)[0] ?? null
     );
   }, [assets, attached, attachmentTooLarge, provider]);
-  const message = messageOverride ?? suggestedMessage;
   const ready = Boolean(destination && message.trim());
   const canSend =
     provider !== "mock" &&
@@ -135,22 +134,30 @@ export function GiftAcknowledgementClient({
       .catch(() => {});
   }, []);
 
-  function resetConfirmation() {
+  function resetSendState() {
     setConfirmed(false);
     setResult(null);
     setError(null);
     setIdempotencyKey("");
   }
 
-  function startAnotherTest() {
-    setConfirmed(false);
-    setResult(null);
-    setError(null);
-    setIdempotencyKey("");
+  function startAnother() {
+    resetSendState();
+  }
+
+  function editMessage() {
+    resetSendState();
+    requestAnimationFrame(() => {
+      messageRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      messageRef.current?.focus();
+    });
   }
 
   function changeAttachment() {
-    startAnotherTest();
+    resetSendState();
     requestAnimationFrame(() => {
       attachmentRef.current?.scrollIntoView({
         behavior: "smooth",
@@ -163,14 +170,69 @@ export function GiftAcknowledgementClient({
   function startFresh() {
     setFullName("");
     setPhone("");
-    setAmount("");
-    setMessageOverride(null);
+    setMessage("");
     setMediaId("");
-    setConfirmed(false);
-    setResult(null);
+    resetSendState();
+    requestAnimationFrame(() => nameRef.current?.focus());
+  }
+
+  async function upload(file: File) {
+    setUploading(true);
     setError(null);
-    setIdempotencyKey("");
-    requestAnimationFrame(() => donorNameRef.current?.focus());
+    try {
+      const signed = await fetch("/api/poc/media/sign", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+        }),
+      }).then((response) => response.json());
+      if (!signed.ok) {
+        setError(
+          signed.error?.message ?? "The attachment could not be uploaded.",
+        );
+        return;
+      }
+
+      const transferred = await fetch(signed.data.uploadUrl, {
+        method: "PUT",
+        headers: { "content-type": file.type },
+        body: file,
+      });
+      if (!transferred.ok) {
+        setError("The attachment could not be transferred to the media vault.");
+        return;
+      }
+
+      const confirmedUpload = await fetch("/api/poc/media/confirm", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          path: signed.data.path,
+          filename: file.name,
+        }),
+      }).then((response) => response.json());
+      if (!confirmedUpload.ok) {
+        setError(
+          confirmedUpload.error?.message ??
+            "The attachment could not be added to the media vault.",
+        );
+        return;
+      }
+
+      const list = await fetch("/api/poc/media").then((response) =>
+        response.json(),
+      );
+      setAssets(list?.data?.assets ?? []);
+      setMediaId(confirmedUpload.data.id);
+      resetSendState();
+    } catch {
+      setError("The attachment upload was interrupted. Try again.");
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function send(event: FormEvent) {
@@ -182,14 +244,13 @@ export function GiftAcknowledgementClient({
     setIdempotencyKey(requestKey);
 
     try {
-      const response = await fetch("/api/poc/giving/test-acknowledgement", {
+      const response = await fetch("/api/poc/messages/direct", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           idempotencyKey: requestKey,
           fullName,
           phone: destination,
-          amountGhs: amount,
           message: message.trim(),
           ...(mediaId ? { mediaAssetId: mediaId } : {}),
         }),
@@ -214,93 +275,118 @@ export function GiftAcknowledgementClient({
   return (
     <form
       onSubmit={send}
-      className="grid items-start gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(340px,1.1fr)]"
+      className="grid items-start gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(340px,1.05fr)]"
     >
-      <section className="rounded-lg border border-border bg-surface">
+      <section className="min-w-0 rounded-lg border border-border bg-surface">
         <div className="border-b border-border px-4 py-3.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold">Test gift details</h2>
+            <h2 className="text-sm font-semibold">Compose message</h2>
             <span className="text-xs font-medium text-success">
               {providerLabel(provider)}
             </span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            This sends the acknowledgement only. It does not add a gift to the
-            ledger.
-          </p>
         </div>
 
         <div className="grid gap-4 p-4">
           <label className="grid gap-1.5 text-xs font-semibold">
-            Donor name
+            Recipient name{" "}
+            <span className="font-normal text-muted-foreground">optional</span>
             <input
-              ref={donorNameRef}
+              ref={nameRef}
               value={fullName}
               onChange={(event) => {
                 setFullName(event.target.value);
-                resetConfirmation();
+                resetSendState();
               }}
               placeholder="David Antwi"
               autoComplete="name"
-              className="h-11 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
+              className="h-11 min-w-0 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
             />
           </label>
+
           <label className="grid gap-1.5 text-xs font-semibold">
-            Destination WhatsApp number
+            WhatsApp number
             <input
               type="tel"
               value={phone}
               onChange={(event) => {
                 setPhone(event.target.value);
-                resetConfirmation();
+                resetSendState();
               }}
-              placeholder="+1 475 365 9443"
+              placeholder="+233 24 000 0000"
               autoComplete="tel"
-              className="h-11 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
+              className="h-11 min-w-0 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
             />
           </label>
+
           <label className="grid gap-1.5 text-xs font-semibold">
-            Gift amount (GHS)
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={amount}
+            Message
+            <textarea
+              ref={messageRef}
+              value={message}
               onChange={(event) => {
-                setAmount(event.target.value);
-                resetConfirmation();
+                setMessage(event.target.value);
+                resetSendState();
               }}
-              placeholder="60"
-              className="h-11 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
+              maxLength={1000}
+              rows={6}
+              placeholder="Write the exact WhatsApp message..."
+              className="min-h-36 min-w-0 w-full resize-y rounded-md border border-border bg-background px-3 py-3 text-sm font-normal leading-6 outline-none focus:border-success"
             />
+            <span className="text-right font-normal tabular-nums text-muted-foreground">
+              {message.length}/1000
+            </span>
           </label>
+
           <div className="grid gap-1.5 text-xs font-semibold">
-            <label htmlFor="acknowledgement-attachment">Attachment</label>
-            <select
-              ref={attachmentRef}
-              id="acknowledgement-attachment"
-              value={mediaId}
-              onChange={(event) => {
-                setMediaId(event.target.value);
-                resetConfirmation();
-              }}
-              className="h-11 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
-            >
-              <option value="">No attachment</option>
-              {assets.map((asset) => (
-                <option key={asset.id} value={asset.id}>
-                  {asset.kind === "image"
-                    ? "Image"
-                    : asset.kind === "video"
-                      ? "Video"
-                      : "File"}{" "}
-                  — {asset.filename}
-                  {attachmentExceedsProviderLimit(provider, asset.sizeBytes)
-                    ? " — needs compression"
-                    : ""}
-                </option>
-              ))}
-            </select>
+            <label htmlFor="direct-message-attachment">Attachment</label>
+            <div className="flex items-center gap-2">
+              <select
+                ref={attachmentRef}
+                id="direct-message-attachment"
+                value={mediaId}
+                onChange={(event) => {
+                  setMediaId(event.target.value);
+                  resetSendState();
+                }}
+                className="h-11 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
+              >
+                <option value="">No attachment</option>
+                {assets.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.kind === "image"
+                      ? "Image"
+                      : asset.kind === "video"
+                        ? "Video"
+                        : "File"}{" "}
+                    — {asset.filename}
+                    {attachmentExceedsProviderLimit(provider, asset.sizeBytes)
+                      ? " — needs compression"
+                      : ""}
+                  </option>
+                ))}
+              </select>
+              <label className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-surface px-3 text-xs font-semibold transition hover:bg-background">
+                {uploading ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <Upload className="h-4 w-4" aria-hidden />
+                )}
+                {uploading ? "Uploading" : "Upload"}
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/jpeg,image/png,video/mp4,video/3gpp,audio/mpeg,audio/ogg,application/pdf"
+                  disabled={uploading}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void upload(file);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+
             {attachmentTooLarge && (
               <FeedbackNotice
                 tone="warning"
@@ -312,7 +398,7 @@ export function GiftAcknowledgementClient({
                         label: `Use ${compatibleAlternative.filename} (${formatFileSize(compatibleAlternative.sizeBytes)})`,
                         onClick: () => {
                           setMediaId(compatibleAlternative.id);
-                          resetConfirmation();
+                          resetSendState();
                         },
                       }
                     : undefined
@@ -336,18 +422,20 @@ export function GiftAcknowledgementClient({
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-border bg-surface">
+      <section className="min-w-0 overflow-hidden rounded-lg border border-border bg-surface">
         <div className="border-b border-border px-4 py-3.5">
-          <h2 className="text-sm font-semibold">Review before sending</h2>
+          <h2 className="text-sm font-semibold">Review and send</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Check the destination and exact message together.
+            Nothing is sent until the destination is confirmed below.
           </p>
         </div>
 
         <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-3 border-b border-border px-4 py-4 text-sm">
-          <dt className="text-xs font-medium text-muted-foreground">Donor</dt>
+          <dt className="text-xs font-medium text-muted-foreground">
+            Recipient
+          </dt>
           <dd className="text-right font-semibold">
-            {fullName.trim() || "Not entered"}
+            {fullName.trim() || "Name not provided"}
           </dd>
           <dt className="text-xs font-medium text-muted-foreground">
             WhatsApp destination
@@ -355,47 +443,19 @@ export function GiftAcknowledgementClient({
           <dd className="break-all text-right font-semibold tabular-nums text-success">
             {destination ?? "Enter an international number"}
           </dd>
-          <dt className="text-xs font-medium text-muted-foreground">Amount</dt>
-          <dd className="text-right font-semibold tabular-nums">
-            {Number.isFinite(amountMinor) && amountMinor > 0
-              ? `GHS ${(amountMinor / 100).toFixed(2)}`
-              : "Not entered"}
-          </dd>
         </dl>
 
         <div className="px-4 py-4">
-          <div className="mb-1.5 flex items-center justify-between gap-3">
-            <label
-              htmlFor="acknowledgement-message"
-              className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
-            >
-              Exact WhatsApp message
-            </label>
-            <button
-              type="button"
-              onClick={() => {
-                setMessageOverride(null);
-                resetConfirmation();
-              }}
-              disabled={!suggestedMessage || messageOverride === null}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-success disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-              Reset
-            </button>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Exact WhatsApp message
+          </p>
+          <div className="mt-1.5 min-h-28 whitespace-pre-wrap rounded-md border border-border bg-background px-3 py-3 text-sm leading-6">
+            {message.trim() || (
+              <span className="text-muted-foreground">
+                Write a message to preview it here.
+              </span>
+            )}
           </div>
-          <textarea
-            id="acknowledgement-message"
-            value={message}
-            onChange={(event) => {
-              setMessageOverride(event.target.value);
-              resetConfirmation();
-            }}
-            maxLength={4096}
-            rows={5}
-            placeholder="Complete the donor name and gift amount to generate the message."
-            className="min-h-28 w-full resize-y rounded-md border border-border bg-background px-3 py-3 text-sm leading-6 outline-none focus:border-success"
-          />
 
           {attached && (
             <div className="mt-3 overflow-hidden rounded-md border border-border bg-background">
@@ -417,8 +477,10 @@ export function GiftAcknowledgementClient({
               <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
                 {attached.kind === "image" ? (
                   <ImageIcon className="h-3.5 w-3.5" aria-hidden />
-                ) : (
+                ) : attached.kind === "video" ? (
                   <Video className="h-3.5 w-3.5" aria-hidden />
+                ) : (
+                  <Paperclip className="h-3.5 w-3.5" aria-hidden />
                 )}
                 <span className="truncate">{attached.filename}</span>
               </div>
@@ -444,7 +506,7 @@ export function GiftAcknowledgementClient({
               tone="error"
               className="mt-4"
               title="Message was not sent"
-              supportingText="Your details are still here. Review them and try again."
+              supportingText="Your recipient, message and attachment are still here."
               onDismiss={() => setError(null)}
             >
               {cleanProviderError(error)}
@@ -467,29 +529,37 @@ export function GiftAcknowledgementClient({
                     Attachment: {attached.filename}
                   </p>
                 )}
-                <p className="mt-1 text-emerald-800/80">
-                  Your details remain available. No refresh is needed.
-                </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={startAnotherTest}
-                    className="min-h-8 rounded-md bg-emerald-800 px-2.5 py-1 font-semibold text-white transition hover:bg-emerald-900"
+                    onClick={startAnother}
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-md bg-emerald-800 px-2.5 py-1 font-semibold text-white transition hover:bg-emerald-900"
                   >
+                    <Repeat2 className="h-3.5 w-3.5" aria-hidden />
                     Send another
                   </button>
                   <button
                     type="button"
-                    onClick={changeAttachment}
-                    className="min-h-8 rounded-md border border-emerald-300 bg-white px-2.5 py-1 font-semibold text-emerald-950 transition hover:bg-emerald-100"
+                    onClick={editMessage}
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-emerald-300 bg-white px-2.5 py-1 font-semibold text-emerald-950 transition hover:bg-emerald-100"
                   >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden />
+                    Edit message
+                  </button>
+                  <button
+                    type="button"
+                    onClick={changeAttachment}
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-emerald-300 bg-white px-2.5 py-1 font-semibold text-emerald-950 transition hover:bg-emerald-100"
+                  >
+                    <Paperclip className="h-3.5 w-3.5" aria-hidden />
                     Change attachment
                   </button>
                   <button
                     type="button"
                     onClick={startFresh}
-                    className="min-h-8 px-1.5 py-1 font-semibold text-emerald-900 underline underline-offset-2"
+                    className="inline-flex min-h-8 items-center gap-1.5 px-1.5 py-1 font-semibold text-emerald-900 underline underline-offset-2"
                   >
+                    <RotateCcw className="h-3.5 w-3.5" aria-hidden />
                     Start fresh
                   </button>
                 </div>
@@ -521,7 +591,8 @@ export function GiftAcknowledgementClient({
 
         <div className="flex items-center gap-2 border-t border-border bg-background/60 px-4 py-2.5 text-[11px] text-muted-foreground">
           <ShieldCheck className="h-3.5 w-3.5 text-success" aria-hidden />
-          Opt-outs and the demo allowlist are checked before delivery.
+          Opt-outs, confirmation and message auditing stay active for every
+          number.
         </div>
       </section>
     </form>

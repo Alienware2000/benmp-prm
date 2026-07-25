@@ -241,98 +241,116 @@ export function DirectoryClient({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
-        <table
-          className={`w-full text-sm ${messaging ? "min-w-[680px]" : "min-w-[620px]"}`}
-        >
-          <thead>
-            <tr className="border-b border-border text-left text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
-              {messaging && (
-                <th className="w-10 px-4 py-2.5">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={toggleAll}
-                    disabled={selectable.length === 0}
-                    aria-label="Select all messageable partners on this page"
-                    className="h-4 w-4 accent-[var(--success)]"
-                  />
-                </th>
-              )}
-              <th className="px-2 py-2.5 font-semibold">Partner</th>
-              <th className="px-2 py-2.5 font-semibold">Branch</th>
-              <th className="px-2 py-2.5 font-semibold">WhatsApp</th>
-              <th className="px-4 py-2.5 text-right font-semibold">Given</th>
-            </tr>
-          </thead>
-          <tbody>
-            {partners.length === 0 && (
-              <tr>
-                <td
-                  colSpan={messaging ? 5 : 4}
-                  className="px-4 py-8 text-center text-sm text-muted-foreground"
-                >
-                  No partners to show.
-                </td>
-              </tr>
-            )}
-            {partners.map((p) => (
-              <tr
-                key={p.id}
-                className="border-b border-border/60 last:border-0"
-              >
+      <section className="overflow-hidden rounded-lg border border-border bg-surface">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5">
+          <div>
+            <h2 className="text-sm font-semibold">1. Choose recipients</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Select one or more partners with a WhatsApp number.
+            </p>
+          </div>
+          <span className="text-xs font-medium tabular-nums text-success">
+            {selected.size} selected
+          </span>
+        </div>
+        <div className="max-h-[440px] overflow-auto border-t border-border">
+          <table
+            className={`w-full text-sm ${messaging ? "min-w-[680px]" : "min-w-[620px]"}`}
+          >
+            <thead className="sticky top-0 z-10 bg-surface">
+              <tr className="border-b border-border text-left text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
                 {messaging && (
-                  <td className="px-4 py-2.5">
+                  <th className="w-10 px-4 py-2.5">
                     <input
                       type="checkbox"
-                      checked={selected.has(p.id)}
-                      onChange={() => toggle(p.id)}
-                      disabled={!p.messageable}
-                      aria-label={`Select ${p.name}`}
-                      className="h-4 w-4 accent-[var(--success)] disabled:opacity-30"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      disabled={selectable.length === 0}
+                      aria-label="Select all messageable partners on this page"
+                      className="h-4 w-4 accent-[var(--success)]"
                     />
-                  </td>
+                  </th>
                 )}
-                <td className="px-2 py-2.5">
-                  <span
-                    className={
-                      p.name === "Unknown"
-                        ? "text-muted-foreground italic"
-                        : "font-medium"
-                    }
-                  >
-                    {p.name}
-                  </span>
-                </td>
-                <td className="px-2 py-2.5 text-muted-foreground">
-                  {p.branch}
-                </td>
-                <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-muted-foreground">
-                  {p.messageable ? (
-                    formatPhone(p.phone)
-                  ) : (
-                    <span className="text-muted-foreground/60">
-                      {messaging ? "no phone - can't message" : "no phone"}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-2.5 text-right tabular-nums">
-                  {p.givenMinor > 0 ? (
-                    `GHS ${ghs(p.givenMinor)}`
-                  ) : (
-                    <span className="text-muted-foreground/50">—</span>
-                  )}
-                </td>
+                <th className="px-2 py-2.5 font-semibold">Partner</th>
+                <th className="px-2 py-2.5 font-semibold">Branch</th>
+                <th className="px-2 py-2.5 font-semibold">WhatsApp</th>
+                <th className="px-4 py-2.5 text-right font-semibold">Given</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {partners.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={messaging ? 5 : 4}
+                    className="px-4 py-8 text-center text-sm text-muted-foreground"
+                  >
+                    No partners to show.
+                  </td>
+                </tr>
+              )}
+              {partners.map((p) => (
+                <tr
+                  key={p.id}
+                  className="border-b border-border/60 last:border-0"
+                >
+                  {messaging && (
+                    <td className="px-4 py-2.5">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(p.id)}
+                        onChange={() => toggle(p.id)}
+                        disabled={!p.messageable}
+                        aria-label={`Select ${p.name}`}
+                        className="h-4 w-4 accent-[var(--success)] disabled:opacity-30"
+                      />
+                    </td>
+                  )}
+                  <td className="px-2 py-2.5">
+                    <span
+                      className={
+                        p.name === "Unknown"
+                          ? "text-muted-foreground italic"
+                          : "font-medium"
+                      }
+                    >
+                      {p.name}
+                    </span>
+                  </td>
+                  <td className="px-2 py-2.5 text-muted-foreground">
+                    {p.branch}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-muted-foreground">
+                    {p.messageable ? (
+                      formatPhone(p.phone)
+                    ) : (
+                      <span className="text-muted-foreground/60">
+                        {messaging ? "no phone - can't message" : "no phone"}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">
+                    {p.givenMinor > 0 ? (
+                      `GHS ${ghs(p.givenMinor)}`
+                    ) : (
+                      <span className="text-muted-foreground/50">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {messaging && (
-        <div className="mt-4 rounded-2xl border border-border bg-surface p-4">
+        <section className="mt-4 rounded-lg border border-border bg-surface p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold">Send a message</h3>
+            <div>
+              <h2 className="text-sm font-semibold">2. Compose and review</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Preview the personalized result before anything is sent.
+              </p>
+            </div>
             <span className="text-xs tabular-nums text-muted-foreground">
               {selected.size} selected
             </span>
@@ -377,8 +395,12 @@ export function DirectoryClient({
               <option value="">No attachment</option>
               {assets.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.kind === "video" ? "🎬" : a.kind === "image" ? "🖼" : "📄"}{" "}
-                  {a.filename} ({bytes(a.sizeBytes)})
+                  {a.kind === "video"
+                    ? "Video"
+                    : a.kind === "image"
+                      ? "Image"
+                      : "File"}{" "}
+                  — {a.filename} ({bytes(a.sizeBytes)})
                 </option>
               ))}
             </select>
@@ -450,12 +472,12 @@ export function DirectoryClient({
                       className="h-11 w-11 flex-none rounded-md object-cover"
                     />
                   ) : (
-                    <span className="grid h-11 w-11 flex-none place-items-center rounded-md bg-background text-lg">
+                    <span className="grid h-11 min-w-11 flex-none place-items-center rounded-md bg-background px-2 text-[10px] font-semibold uppercase text-muted-foreground">
                       {attached.kind === "video"
-                        ? "🎬"
+                        ? "Video"
                         : attached.kind === "audio"
-                          ? "🎵"
-                          : "📄"}
+                          ? "Audio"
+                          : "File"}
                     </span>
                   )}
                   <span className="min-w-0 break-words text-[13px]">
@@ -499,7 +521,7 @@ export function DirectoryClient({
               {reportLine(report)}
             </p>
           )}
-        </div>
+        </section>
       )}
     </>
   );

@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { MessageCircle } from "lucide-react";
 import {
+  type GivingEntry,
   UNATTRIBUTED,
   branchOptions,
   filterGiving,
@@ -8,7 +10,6 @@ import {
   summarizeGiving,
 } from "@/lib/poc/giving";
 import { PocShell } from "../nav";
-import { GivingNav } from "./giving-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,18 @@ function ghs(minor: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function thankYouHref(entry: GivingEntry): string | null {
+  if (entry.isStatement || !entry.phone) return null;
+  const params = new URLSearchParams({
+    mode: "number",
+    template: "thank-you",
+    name: entry.name,
+    phone: entry.phone,
+    amountMinor: String(entry.amountMinor),
+  });
+  return `/poc/messages?${params.toString()}`;
 }
 
 const FIELD =
@@ -66,9 +79,8 @@ export default async function GivingPage({
     <PocShell
       current="/poc/giving"
       title="Giving"
-      subtitle="Every recorded gift. Filter by date, name or branch — the total below always reflects what you're looking at."
+      subtitle="Review received gifts, reconcile unmatched records, and start a personal thank-you from any giver's record."
     >
-      <GivingNav current="ledger" />
       <form
         method="GET"
         className="grid gap-2.5 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-5"
@@ -218,56 +230,73 @@ export default async function GivingPage({
         {isFiltered ? "Matching gifts" : "All gifts"}
       </p>
       <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
-        <table className="w-full min-w-[560px] text-sm">
+        <table className="w-full min-w-[680px] text-sm">
           <thead>
             <tr className="border-b border-border text-left text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               <th className="px-4 py-2.5 font-semibold">Date</th>
               <th className="px-2 py-2.5 font-semibold">Giver</th>
               <th className="px-2 py-2.5 font-semibold">Branch</th>
               <th className="px-4 py-2.5 text-right font-semibold">Amount</th>
+              <th className="px-4 py-2.5 text-right font-semibold">Action</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   className="px-4 py-8 text-center text-sm text-muted-foreground"
                 >
                   No gifts match those filters.
                 </td>
               </tr>
             )}
-            {rows.map((r) => (
-              <tr
-                key={r.reference}
-                className="border-b border-border/60 last:border-0"
-              >
-                <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-muted-foreground">
-                  {formatDate(r.paidAt)}
-                </td>
-                <td className="px-2 py-2.5 font-medium">
-                  {r.name}
-                  {r.isStatement && (
-                    <span className="ml-2 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
-                      bank transfer
-                    </span>
-                  )}
-                </td>
-                <td className="px-2 py-2.5">
-                  {r.attributed ? (
-                    <span className="text-muted-foreground">{r.branch}</span>
-                  ) : (
-                    <span className="text-muted-foreground/60 italic">
-                      {r.isStatement ? "not a person" : UNATTRIBUTED}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-2.5 text-right tabular-nums">
-                  {r.currency} {ghs(r.amountMinor)}
-                </td>
-              </tr>
-            ))}
+            {rows.map((r) => {
+              const messageHref = thankYouHref(r);
+              return (
+                <tr
+                  key={r.reference}
+                  className="border-b border-border/60 last:border-0"
+                >
+                  <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-muted-foreground">
+                    {formatDate(r.paidAt)}
+                  </td>
+                  <td className="px-2 py-2.5 font-medium">
+                    {r.name}
+                    {r.isStatement && (
+                      <span className="ml-2 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                        bank transfer
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-2 py-2.5">
+                    {r.attributed ? (
+                      <span className="text-muted-foreground">{r.branch}</span>
+                    ) : (
+                      <span className="text-muted-foreground/60 italic">
+                        {r.isStatement ? "not a person" : UNATTRIBUTED}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">
+                    {r.currency} {ghs(r.amountMinor)}
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    {messageHref ? (
+                      <Link
+                        href={messageHref}
+                        className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-foreground transition hover:bg-background"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+                        Thank
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground/40">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
           {rows.length > 0 && (
             <tfoot>
@@ -281,6 +310,7 @@ export default async function GivingPage({
                 <td className="px-4 py-2.5 text-right text-sm font-semibold tabular-nums">
                   {totals.currency} {ghs(totals.totalMinor)}
                 </td>
+                <td aria-hidden />
               </tr>
             </tfoot>
           )}

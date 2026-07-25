@@ -6,11 +6,12 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 
 ## 0001 — Foundation first, AI autonomy in stages
 
-*2026-07-07*
+_2026-07-07_
 
 **Decided**: build the PRM data foundation before AI workflows. AI capability grows in steps — read → draft → act → workflow — each step behind staff approval.
 
 **Why**:
+
 - **An AI over messy data confidently gives wrong answers.** One wrong "who paid this month" destroys the office's trust in the whole system, permanently.
 - **The client's pain is operational, not conversational.** Reliable partner/giving records solve the stated problem; chat is the interface to them, not a substitute for them.
 - **Approval gates make early AI safe to ship.** The assistant can appear early (which the client expects) because it can't touch anything until the data underneath earns trust.
@@ -21,11 +22,12 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 
 ## 0002 — Adapter-first everything
 
-*2026-07-07*
+_2026-07-07_
 
 **Decided**: data, payments, messaging, and AI models each sit behind a swappable adapter (`BENMP_DATA_PROVIDER`, `BENMP_PAYMENT_PROVIDER`, `BENMP_MESSAGING_PROVIDER`, model registry). The mock MVP ran with zero credentials.
 
 **Why**:
+
 - **Vendors were undecided; workflows weren't.** The board could validate the product on mocks while provider choices stayed open.
 - **Provider swaps become cheap.** When Flutterwave was later demoted (see 0004), it cost a paragraph — not a rewrite.
 - **It's what makes parallel work possible.** Payments and AI teams build against mocks/fixtures from day one and flip an env var when the real backend lands.
@@ -36,15 +38,17 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 
 ## 0003 — Monthly cycle, region blocks, AI positioning
 
-*2026-07-08*
+_2026-07-08_
 
 **Decided**:
+
 1. The **monthly cycle** is the core product loop: remind → receive → acknowledge → **close on the 1st** with a frozen per-region snapshot.
 2. Reporting groups by **seven region blocks** — Ghana, Rest of Africa, Europe, UK, America, South America, Australia/Asia — as a configurable lookup (pending office confirmation). One block per partner, derived from country, overridable.
 3. The **AI ships early but read-only first** (the analyst), gaining autonomy per 0001.
 
 **Why**:
-- **The month-end answer *is* the product.** "Who paid, per region, without asking any church" is the exact question the office can't answer today — sometimes for weeks.
+
+- **The month-end answer _is_ the product.** "Who paid, per region, without asking any church" is the exact question the office can't answer today — sometimes for weeks.
 - **Frozen snapshots keep history honest.** "How did March look?" must have one answer forever, even as data gets corrected later.
 - **Blocks match how the office already manages** (from the board meetings); a lookup table means the list can change without a schema migration.
 - **The client thinks of the product as "the AI".** It must be visible from the first demo — read-only makes that safe.
@@ -55,24 +59,25 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 
 ## 0004 — Providers and platform
 
-*2026-07-08*
+_2026-07-08_
 
 > **Partially superseded by [0007](#0007--csv-only-payment-intake-no-live-payment-rails) (2026-07-09).** The Ghana rail (Paystack/Hubtel) and diaspora rail (Stripe) below are **removed** — the system takes no live payments. Supabase, clean CSV partner import, USD thresholds, messaging, and data-access rows still stand.
 
 **Decided**:
 
-| Area | Choice |
-| --- | --- |
-| Backend | **Supabase** (managed Postgres + auth + RLS), behind the repository adapter |
-| Ghana rail | **Paystack** (charge API + cards), **Hubtel** for USSD |
-| Diaspora rail | **Stripe** payment links — one-time *and* subscription |
-| Messaging | **Twilio** pilot (WhatsApp/SMS) + **Resend** (email); Meta Cloud API is the long-term direct path |
-| Partner data | **Clean CSV import** (office Excel + benmp.com export); this system becomes source of truth |
-| Thresholds | **USD-equivalent at gift-date FX** ($60/yr active, $100 high-touch), admin-configurable |
-| Data access | **All staff see all** initially; region scoping schema-ready but deferred |
+| Area          | Choice                                                                                            |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| Backend       | **Supabase** (managed Postgres + auth + RLS), behind the repository adapter                       |
+| Ghana rail    | **Paystack** (charge API + cards), **Hubtel** for USSD                                            |
+| Diaspora rail | **Stripe** payment links — one-time _and_ subscription                                            |
+| Messaging     | **Twilio** pilot (WhatsApp/SMS) + **Resend** (email); Meta Cloud API is the long-term direct path |
+| Partner data  | **Clean CSV import** (office Excel + benmp.com export); this system becomes source of truth       |
+| Thresholds    | **USD-equivalent at gift-date FX** ($60/yr active, $100 high-touch), admin-configurable           |
+| Data access   | **All staff see all** initially; region scoping schema-ready but deferred                         |
 
 **Why**:
-- **Supabase**: the team debated MySQL vs Supabase vs GCP Postgres — but "Supabase vs Postgres" is a false choice (Supabase *is* Postgres), and it bundles the auth/RLS/storage we'd otherwise assemble by hand. MySQL adds nothing for a relational, permission-heavy domain. The adapter keeps Neon/Aurora as real exits.
+
+- **Supabase**: the team debated MySQL vs Supabase vs GCP Postgres — but "Supabase vs Postgres" is a false choice (Supabase _is_ Postgres), and it bundles the auth/RLS/storage we'd otherwise assemble by hand. MySQL adds nothing for a relational, permission-heavy domain. The adapter keeps Neon/Aurora as real exits.
 - **Paystack over Flutterwave**: Bank of Ghana suspended Flutterwave's remittance partnerships (Sept 2025) and its Kenya licensing is unconfirmed — a ministry must be reputationally conservative. Paystack covers the same three Ghana networks at 1.95%, explicitly supports nonprofits/religious bodies, and is Stripe-owned (consistent engineering with the diaspora rail).
 - **Stripe with both modes**: subscriptions give true auto-recurring for card countries, but not everyone can or will subscribe — so one-time links stay alongside.
 - **Twilio first**: fastest route to actually sending; Meta Business verification takes weeks and runs in parallel; the adapter makes the later swap cheap.
@@ -85,31 +90,34 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 
 ## 0005 — Merchant-first channels + remittance handling
 
-*2026-07-08, amended same day*
+_2026-07-08, amended same day_
 
-> **Superseded by [0007](#0007--csv-only-payment-intake-no-live-payment-rails) (2026-07-09).** The three published giving channels, all webhook/merchant machinery, and the prefilled-invoice recurring loop below are **removed**. The one durable idea that survives — a CSV/statement import as the trustworthy ledger — is now the *sole* intake. Kept for the reasoning (why SMS parsing and consumer-wallet detection were rejected), which still holds.
+> **Superseded by [0007](#0007--csv-only-payment-intake-no-live-payment-rails) (2026-07-09).** The three published giving channels, all webhook/merchant machinery, and the prefilled-invoice recurring loop below are **removed**. The one durable idea that survives — a CSV/statement import as the trustworthy ledger — is now the _sole_ intake. Kept for the reasoning (why SMS parsing and consumer-wallet detection were rejected), which still holds.
 
 **Decided**: publish **three giving channels**, everything webhook-confirmed where physics allows:
 
-| Channel | Serves | How the system knows |
-| --- | --- | --- |
-| Ghana merchant USSD code (Hubtel `*713*NNN#`) | Ghana — the majority of volume | Signed webhook, seconds |
-| Stripe giving link | Card countries (Europe/UK/America) | Signed webhook, seconds |
+| Channel                                         | Serves                                                  | How the system knows       |
+| ----------------------------------------------- | ------------------------------------------------------- | -------------------------- |
+| Ghana merchant USSD code (Hubtel `*713*NNN#`)   | Ghana — the majority of volume                          | Signed webhook, seconds    |
+| Stripe giving link                              | Card countries (Europe/UK/America)                      | Signed webhook, seconds    |
 | Ministry-registered merchant-tier wallet number | Remittance apps worldwide (Sendwave, WorldRemit, Wise…) | **Daily statement import** |
 
 **SMS parsing is permanently rejected** as an intake mechanism. pawaPay (rest-of-Africa in-country rail) deferred.
 
 **Why**:
+
 - **Consumer wallets have no payment-notification API.** Money landing in a wallet tells no software anything — the only automatic detection is parsing the SMS on the SIM-holding phone, which is hardware-dependent, format-fragile per network/country, unverifiable, and exactly where the office prototype got stuck. Merchant rails exist precisely to notify a server with signed, verifiable webhooks.
 - **The wallet number must still exist** because remittance apps can only deliver to wallet numbers — drop it and the diaspora remittance channel dies. Statement import is its trustworthy ledger; the office is never more than ~24h behind.
-- **Recurring MoMo mandates don't exist anywhere** (verified against provider docs) — so the monthly reminder *is* the recurring mechanism. This validates the monthly-cycle design rather than complicating it.
+- **Recurring MoMo mandates don't exist anywhere** (verified against provider docs) — so the monthly reminder _is_ the recurring mechanism. This validates the monthly-cycle design rather than complicating it.
 
 **Verified recurring mechanism (2026-07-09, confirmed against live Paystack docs)**: Paystack reusable authorizations exist only for **cards (all markets)** and **direct debit (Nigeria only)** — Ghana MoMo authorizations are one-time, and the Subscriptions API supports **card + Nigerian direct debit only**. So MoMo recurring is impossible as an auto-pull. The mechanism we build (the transcript's "invoice database + cron" workaround): a monthly **cron** reads each `recurring_commitments` pledge → writes an `invoices` row → issues a **server-side prefilled** payment (Paystack **Charge API** with `mobile_money {phone, provider}` from the partner record, or a Paystack **Payment Request/Invoice** link) so the partner **only enters OTP+PIN** → the `charge.success`/`paymentrequest.success` webhook marks the invoice paid and promotes a contribution. Cards (Stripe subscriptions / `invoice.paid`) remain the only zero-touch rail. New `invoices` table + reconciled `recurring_commitments` land in Phase 1 (see `db-schema.md` §7); the cron loop is Phase 10. Sources: paystack.com/docs/payments/recurring-charges, /subscriptions, /api/charge, /blog Payment Requests.
+
 - **Merchant-tier registration is non-negotiable at scale**: 40k × $5/month breaches consumer wallet caps, and ministry money should settle to BENMP's bank with an audit trail, not sit on one person's phone.
 
 **Said no to**: bare wallet number as the main channel (blind + fragile) · SMS parsing (rejected as ledger forever) · one provider for everything (none covers Ghana USSD + pan-Africa MoMo + diaspora cards).
 
 **Deferred with triggers**:
+
 - **WhatsApp claim loop** (partner messages "I gave" → instant provisional thank-you → claim auto-matches the statement) — build only if the office reports remittance-app giving is a significant share.
 - **pawaPay** — add only if rest-of-Africa in-country volume justifies upgrading those partners from the wallet channel to a true merchant rail.
 
@@ -117,14 +125,16 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 
 ## 0006 — Full tech stack: just Supabase + Claude-on-Vertex
 
-*2026-07-09*
+_2026-07-09_
 
 **Decided** (from the Jmills meeting transcript; full detail in `docs/tech-stack.md`):
+
 1. **Next.js full-stack in TypeScript**, deployed on **Vercel** — the REST API is Next route handlers, **not** a separate Python/FastAPI service.
 2. **Data layer is Supabase directly** — `@supabase/supabase-js` + `@supabase/ssr` behind `PrmRepository`, schema as SQL migrations under `supabase/migrations/`, types via `supabase gen types typescript`. **No ORM** (no Prisma, no Drizzle).
 3. AI model is **Anthropic Claude via GCP Vertex AI**, behind the AI SDK model registry.
 
 **Why**:
+
 - **Next.js full-stack**: the tech lead explicitly rejected Python/FastAPI — "it will not be in Python… Next.js is both front-end and back-end." One deployable, one language, one type system end-to-end.
 - **Just Supabase (reversed from an interim Prisma decision)**: it's the shipped codebase (zero rework), and — decisively — the Supabase client runs queries under the user's JWT so **RLS works as the authorization gate exactly as `db-schema.md`/`security.md` already designed**. An ORM (Prisma) would connect as one role and bypass RLS, forcing authorization up into the repository layer for no benefit here. `supabase gen types` gives type safety without an ORM; money stays integer minor units + `numeric` (returned as strings, no float). The only thing that had argued for Prisma — a "profile" NPM package said to require it — is **not a hard dependency** (nothing in the repo uses it; the partner profile is built natively on the existing `partners` tables).
 - **Claude on Vertex**: "Vertex already has Claude" — consolidates the AI credential on GCP while the registry keeps a swap to the direct Anthropic API cheap.
@@ -133,13 +143,13 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 
 **Said no to**: Python/FastAPI backend · Prisma / Drizzle / any ORM (the Supabase client + RLS covers it with less complexity) · direct Anthropic API as the primary path (Vertex chosen; direct stays a config-level fallback).
 
-**Trigger to revisit**: only if the "profile" NPM package (or similar) turns out to be mandatory *and* genuinely Prisma-only.
+**Trigger to revisit**: only if the "profile" NPM package (or similar) turns out to be mandatory _and_ genuinely Prisma-only.
 
 ---
 
 ## 0007 — CSV-only payment intake, no live payment rails
 
-*2026-07-09*
+_2026-07-09_
 
 **Decided**: the system takes **no live payments and integrates no payment provider.** There are no payment-provider webhooks, no signature verification, no hosted charges, and no recurring-charge/prefilled-invoice loop. Instead:
 
@@ -148,10 +158,11 @@ One file, all decisions. Each entry: **what we decided → why → what we said 
 3. **"Paid" means a contribution exists for the period.** Once a row is matched, the partner is ticked as having paid for that period; the monthly cycle, region reports, active-year and high-touch classification all read from those contributions as before.
 4. **`recurring_commitments` stays as pledge records** (each partner's expected monthly amount/cadence) — the thing that powers "who hasn't paid this month" and the reminder list. But the **`invoices` table and the cron that issued prefilled charges are removed** — there is nothing to charge.
 
-This amends **0004** (removes the Ghana/diaspora payment rails) and supersedes **0005** (removes the three channels and the recurring-charge loop; keeps only its statement-import idea, now promoted to the only intake). The **adapter-first** principle (0002) still holds for **data, messaging, and AI**; the *payment* adapter is retired rather than swapped.
+This amends **0004** (removes the Ghana/diaspora payment rails) and supersedes **0005** (removes the three channels and the recurring-charge loop; keeps only its statement-import idea, now promoted to the only intake). The **adapter-first** principle (0002) still holds for **data, messaging, and AI**; the _payment_ adapter is retired rather than swapped.
 
 **Why**:
-- **It matches how the office actually reconciles.** Money lands wherever it lands (wallets, bank, remittance apps); the office already exports a statement/CSV per period. Turning that CSV into matched, ticked contributions *is* the operational win — the same "who paid, per region, without asking any church" answer, with none of the merchant-onboarding, KYC, or webhook-security surface.
+
+- **It matches how the office actually reconciles.** Money lands wherever it lands (wallets, bank, remittance apps); the office already exports a statement/CSV per period. Turning that CSV into matched, ticked contributions _is_ the operational win — the same "who paid, per region, without asking any church" answer, with none of the merchant-onboarding, KYC, or webhook-security surface.
 - **It removes the biggest cost and risk centre.** No merchant-tier registration, no Paystack/Stripe/Hubtel business docs, no signature/replay security, no provider outages, no PCI-adjacent surface. The one-week path to value stops depending on calendar-time provider approvals.
 - **Nothing important is lost.** Contributions still carry amount/currency/date/method, so all reporting, thresholds, thank-yous, and follow-up work unchanged. Reconciliation — already built for the remittance channel — becomes the primary workflow rather than the exception.
 
@@ -159,22 +170,22 @@ This amends **0004** (removes the Ghana/diaspora payment rails) and supersedes *
 
 **Documented target (per the Jmills planning meeting — where payments go next, not "never")**: CSV import is **step one and the permanent reconciliation floor**, not the end state. The intended live-giving flow is **pre-filled Paystack links** (the monthly reminder carries a link pre-populated from the partner's profile — name + expected amount — they tap, choose MoMo, pay) for Africa, and **Stripe subscriptions** (monitorable by webhook) for overseas cards, re-introducing the `invoices`/reminder loop then. Both land behind the retained `payment_events` pipeline, so nothing built now is wasted. Sequencing only: CSV-first because it has zero calendar-time blockers; the link-based flow follows once the foundation ships.
 
-**Trigger to build the target**: the CSV MVP is shipped and the office wants giving to originate *from* the app (reminder → link → pay) rather than only be reconciled after the fact.
+**Trigger to build the target**: the CSV MVP is shipped and the office wants giving to originate _from_ the app (reminder → link → pay) rather than only be reconciled after the fact.
 
 ---
 
 ## 0008 — POC scope: Ghana + MoMo, Qodesh BENMP
 
-*2026-07-10*
+_2026-07-10_
 
 **Decided**: the first deliverable is a proof of concept scoped to **Ghana, MoMo only, on Qodesh BENMP** (not the full multi-region MVP). Within that POC:
 
 1. **Skip GDPR** — once the data is provisioned, POC data governance is out of scope (no Europe partners in play).
 2. **Skip registration** — no new-partner sign-up flow; work from the provisioned registration + payment data.
-3. **Bishop Ebo's rule (load-bearing)**: in the reconciliation of the registration table against the payment table, a person who **has paid but is not on the registration table is still included and messaged like everyone else** — the payment makes them a partner. Reconciliation therefore has three buckets: registered-and-paid, **paid-but-unregistered (include + message)**, and registered-but-unpaid (the reminder targets). Implemented in `src/lib/reconcile.ts`. *(2026-07-11)* Unregistered payments are grouped by phone — one person gets **one** thank-you covering their total (VIP tier judged on the total), same as registered partners; no-phone payments stay separate entries since there is nothing to group by.
+3. **Bishop Ebo's rule (load-bearing)**: in the reconciliation of the registration table against the payment table, a person who **has paid but is not on the registration table is still included and messaged like everyone else** — the payment makes them a partner. Reconciliation therefore has three buckets: registered-and-paid, **paid-but-unregistered (include + message)**, and registered-but-unpaid (the reminder targets). Implemented in `src/lib/reconcile.ts`. _(2026-07-11)_ Unregistered payments are grouped by phone — one person gets **one** thank-you covering their total (VIP tier judged on the total), same as registered partners; no-phone payments stay separate entries since there is nothing to group by.
 4. **AI model**: use **Gemini 2.5** on the fresh Vertex account (Claude isn't available immediately on a new GCP project; no need to wait for it for the POC).
 5. **No cron / no subscriptions**: MoMo is push, so there is no recurring-charge model to schedule. Reminders are a **basic event-driven script** — when a due date passes and no payment is recognized for a partner, send a message. (This is the registered-but-unpaid bucket above.)
-6. **Real-send safety gates** *(2026-07-11)*: three gates sit in front of any real message. (a) **Statement-noise filter**: bank/interop rows on the MoMo statement ("Ecobank MobileApp", "INTEROPERABILITY PULL [OVA]", "Interpush OVA", "Quickpay pull", "CalSEND", "ZenithSend") are real money but not people — kept in giving totals, excluded from people counts, **never messaged**; a fourth reconcile bucket `statementRows` (in `src/lib/reconcile.ts`) sets them aside for finance review. Phone-match wins over the name check, so a registered partner paying via bank rails stays matched. (b) **Opt-outs**: the Supabase `opt_outs` table is enforced in both the send preview and the send loop. (c) **Allowlist training wheels**: when `BENMP_SEND_ALLOWLIST` is set (comma/space-separated numbers), real sends only reach those numbers — lets Twilio go live with zero blast risk; delete the variable when leadership approves full sends.
+6. **Real-send safety gates** _(2026-07-11)_: three gates sit in front of any real message. (a) **Statement-noise filter**: bank/interop rows on the MoMo statement ("Ecobank MobileApp", "INTEROPERABILITY PULL [OVA]", "Interpush OVA", "Quickpay pull", "CalSEND", "ZenithSend") are real money but not people — kept in giving totals, excluded from people counts, **never messaged**; a fourth reconcile bucket `statementRows` (in `src/lib/reconcile.ts`) sets them aside for finance review. Phone-match wins over the name check, so a registered partner paying via bank rails stays matched. (b) **Opt-outs**: the Supabase `opt_outs` table is enforced in both the send preview and the send loop. (c) **Allowlist training wheels**: when `BENMP_SEND_ALLOWLIST` is set (comma/space-separated numbers), real sends only reach those numbers — lets Twilio go live with zero blast risk; delete the variable when leadership approves full sends.
 
 **Why**: proves the core loop (reconcile → who paid / who didn't / who paid unregistered → message) on one campus with real data, with zero calendar-time blockers (no merchant onboarding, no GDPR build, no Claude-on-Vertex wait, no cron infra). Everything here is a narrowing of scope, not a new direction — the full MVP (0004–0007) resumes after the POC proves out.
 
@@ -182,23 +193,23 @@ This amends **0004** (removes the Ghana/diaspora payment rails) and supersedes *
 
 ## 0009 — Directory + giving pages on the standing `partners` table
 
-*2026-07-21*
+_2026-07-21_
 
 **Decided**: the POC grows from one console page to three — the existing ask-first console (`/poc`), a **partner directory** (`/poc/directory`), and a **giving ledger** (`/poc/giving`). All three live under `/poc` so `src/proxy.ts` keeps gating them; nothing moves to a top-level route while the pre-POC shell is still redirected away.
 
 1. **Two partner populations, one table.** `partners` (15,329 rows) holds the 927 Qodesh registrants **and** ~14,400 branch members. Phones live in `whatsapp_number` (already E.164), branch lives in `church`. The Qodesh cohort carried a null branch, so its giving reported as unattributed; backfilled to `'Qodesh'` in `supabase/poc/0002_qodesh_branch_and_test_partner.sql`.
-2. **The directory reads `partners`, the console reads `registrations`.** They answer different questions: the console reconciles one campaign period, the directory is the standing address book staff search to reach *one* person. No attempt to merge them for the POC.
+2. **The directory reads `partners`, the console reads `registrations`.** They answer different questions: the console reconciles one campaign period, the directory is the standing address book staff search to reach _one_ person. No attempt to merge them for the POC.
 3. **Branch on giving is derived, not stored.** `payments` has no branch column and no FK to a partner. Branch is resolved by matching `payments.payer_phone_e164` → `partners.whatsapp_number`. Giving that matches no partner is bucketed as **Unattributed** and still counted, so a filtered total always reconciles to the ledger total. As of the backfill: GHS 4,125 of GHS 19,794 attributes to a branch; the remaining 115 payer phones are givers not yet on any partner record.
 4. **Directory sends are on demand only.** `POST /api/poc/directory/send` previews by default and dispatches only on `confirm: true`. Recipients are re-read from the database by id rather than trusted from the request body, so a tampered payload cannot redirect a message. The 0008 §6 gates (opt-outs, allowlist) and the `sent_messages` audit apply unchanged. A new `direct` message kind keeps these out of the thank-you/reminder counts.
-5. **PostgREST paging is mandatory above 1000 rows.** Supabase caps every response at 1000 rows and does so *silently* — `limit=20000` returns 1000 with no error. Any read spanning the whole `partners` table pages via `fetchAllRows()` (`src/lib/poc/directory.ts`). This was a live bug: the branch map saw only the first 1000 partners and reported all Qodesh giving as unattributed.
+5. **PostgREST paging is mandatory above 1000 rows.** Supabase caps every response at 1000 rows and does so _silently_ — `limit=20000` returns 1000 with no error. Any read spanning the whole `partners` table pages via `fetchAllRows()` (`src/lib/poc/directory.ts`). This was a live bug: the branch map saw only the first 1000 partners and reported all Qodesh giving as unattributed.
 
-6. **Branch names are canonicalised at read time** *(2026-07-21)*: the source sheets spell one branch many ways — `Mankessim`/`MANKESSIM`, `Kent City` in six casings, `Tema Comm 22`/`Tema Comm. 22`, `NSAWAM`/`NSAWAM .`. Left alone these read as separate branches, splitting both the filter list and the giving subtotals (`Asokwa` was reported as two branches of 372 and 140). `normalizeBranchKey()` (uppercase, strip accents/punctuation, collapse spaces) groups the spellings; the label shown is the **most-used** spelling, not an invented canonical form, so staff recognise it. 682 raw values collapse to 552. The directory filter matches every variant via `church=in.(...)`, so picking a branch returns all its partners. This is a **read-time** fix — the underlying rows are untouched, pending a decision on cleaning the column itself.
+6. **Branch names are canonicalised at read time** _(2026-07-21)_: the source sheets spell one branch many ways — `Mankessim`/`MANKESSIM`, `Kent City` in six casings, `Tema Comm 22`/`Tema Comm. 22`, `NSAWAM`/`NSAWAM .`. Left alone these read as separate branches, splitting both the filter list and the giving subtotals (`Asokwa` was reported as two branches of 372 and 140). `normalizeBranchKey()` (uppercase, strip accents/punctuation, collapse spaces) groups the spellings; the label shown is the **most-used** spelling, not an invented canonical form, so staff recognise it. 682 raw values collapse to 552. The directory filter matches every variant via `church=in.(...)`, so picking a branch returns all its partners. This is a **read-time** fix — the underlying rows are untouched, pending a decision on cleaning the column itself.
 
-7. **Confirmed branch merges are an explicit list, never fuzzy matching** *(2026-07-21)*: normalization catches case/punctuation, but not real misspellings (`MIGTHY GOD CATHEDRAL` vs `MIGHTY GOD CATHEDRAL` — 110 partners split near-evenly), letter swaps (`ASSIN FOSO`/`ASSIN FOSU`), or decorative qualifiers (`Bunkpurugu` / `Bunkpurugu Mission`). A similarity scan proposed 117 candidate pairs; **staff confirmed each one individually** and the accepted merges live in `BRANCH_MERGES` (`src/lib/poc/directory.ts`). No distance threshold runs at runtime: any threshold loose enough to merge `MIGTHY`/`MIGHTY` also merges `NEW TAFO`/`OLD TAFO`, `Savelugu north`/`south`, `BEREKUM`/`Berekuso` and `ENCHI`/`Wenchi` — all separate branches. A test asserts those stay apart, so a future merge can't silently combine two real congregations. `Qodesh` (928) and `QADISH` (381) are two characters apart but were **confirmed by staff as separate branches** (2026-07-21) and must never be merged.
+7. **Confirmed branch merges are an explicit list, never fuzzy matching** _(2026-07-21)_: normalization catches case/punctuation, but not real misspellings (`MIGTHY GOD CATHEDRAL` vs `MIGHTY GOD CATHEDRAL` — 110 partners split near-evenly), letter swaps (`ASSIN FOSO`/`ASSIN FOSU`), or decorative qualifiers (`Bunkpurugu` / `Bunkpurugu Mission`). A similarity scan proposed 117 candidate pairs; **staff confirmed each one individually** and the accepted merges live in `BRANCH_MERGES` (`src/lib/poc/directory.ts`). No distance threshold runs at runtime: any threshold loose enough to merge `MIGTHY`/`MIGHTY` also merges `NEW TAFO`/`OLD TAFO`, `Savelugu north`/`south`, `BEREKUM`/`Berekuso` and `ENCHI`/`Wenchi` — all separate branches. A test asserts those stay apart, so a future merge can't silently combine two real congregations. `Qodesh` (928) and `QADISH` (381) are two characters apart but were **confirmed by staff as separate branches** (2026-07-21) and must never be merged.
 
-8. **Sense gate on partner names** *(2026-07-21)*: `full_name` is not guaranteed to hold a name. `isSensibleName()` rejects the `"No Name"` placeholder, values with fewer than two letters (`"1.0"`), and short-prefix-plus-digits reference codes (`"FL73"`). Rejected values render as "Unknown" and receive a neutral greeting rather than being interpolated into a message. Applied to the giving ledger's payer names too, since they come from the same class of source data. Deliberately narrow: the code rule is anchored so a real name containing a digit still passes.
+8. **Sense gate on partner names** _(2026-07-21)_: `full_name` is not guaranteed to hold a name. `isSensibleName()` rejects the `"No Name"` placeholder, values with fewer than two letters (`"1.0"`), and short-prefix-plus-digits reference codes (`"FL73"`). Rejected values render as "Unknown" and receive a neutral greeting rather than being interpolated into a message. Applied to the giving ledger's payer names too, since they come from the same class of source data. Deliberately narrow: the code rule is anchored so a real name containing a digit still passes.
 
-9. **A record without a phone or a usable name is not a partner** *(2026-07-21)*: staff decided the table should hold only reachable, identifiable people. Two deletions, each archived to `public.partners_archive` with a runnable undo: **2,128** rows with a blank `whatsapp_number` (migration 0003) and **45** column-shifted rows with no usable name (migration 0004, confirmed to have zero giving before removal). 15,329 -> 13,156 partners; branch count 537 -> 515; the giving ledger is unchanged at GHS 19,794 since none of the removed records matched a payment. Rows with a *non-phone value* in `whatsapp_number` were deliberately excluded from 0003 so recoverable numbers weren't discarded before that check ran.
+9. **A record without a phone or a usable name is not a partner** _(2026-07-21)_: staff decided the table should hold only reachable, identifiable people. Two deletions, each archived to `public.partners_archive` with a runnable undo: **2,128** rows with a blank `whatsapp_number` (migration 0003) and **45** column-shifted rows with no usable name (migration 0004, confirmed to have zero giving before removal). 15,329 -> 13,156 partners; branch count 537 -> 515; the giving ledger is unchanged at GHS 19,794 since none of the removed records matched a payment. Rows with a _non-phone value_ in `whatsapp_number` were deliberately excluded from 0003 so recoverable numbers weren't discarded before that check ran.
 
 **Why**: staff asked for two things the console can't do — find a specific partner and message them, and interrogate giving by date/name/branch with a total that follows the filter. Both are read paths over data already provisioned; neither needs new intake.
 
@@ -206,7 +217,7 @@ This amends **0004** (removes the Ghana/diaspora payment rails) and supersedes *
 
 ## 0010 — WaliChat for the WhatsApp pilot
 
-*2026-07-24*
+_2026-07-24_
 
 **Decided**: use **WaliChat** as the current WhatsApp provider for the BENMP-owned business number, through the existing `MessagingAdapter` (`BENMP_MESSAGING_PROVIDER=wali`). This is a pilot provider choice, not a coupling: Meta Cloud API remains the long-term direct path and the other adapters remain available.
 
@@ -219,3 +230,15 @@ This amends **0004** (removes the Ghana/diaspora payment rails) and supersedes *
 **Why**: BENMP now controls a working WhatsApp Business number and Wali exposes it through an authenticated API. That removes the trial-sandbox and onboarding blockers encountered with the earlier providers while preserving the adapter boundary and the application's safety controls.
 
 **Said no to**: bypassing the application with dashboard-only broadcasts · committing credentials · removing the allowlist for the first live test · rewriting messaging around Wali-specific concepts · treating a successful API request as delivery confirmation.
+
+## 0011 — One messaging workspace; Giving stays a ledger
+
+_2026-07-25_
+
+**Decided**: staff compose and send from one `/poc/messages` workspace. Its two recipient modes are **Single number** (any valid international WhatsApp number) and **Choose partners** (search and select records already in `partners`). The old directory and acknowledgement-test URLs redirect into the matching Messages mode instead of maintaining duplicate sending surfaces.
+
+Giving remains the financial ledger: filter gifts, inspect totals, and identify unattributed records. A person-level gift has a **Thank** action that opens Messages with the giver, destination and personalized amount-based thank-you prefilled; staff review and send it there. Statement-only rows cannot be messaged.
+
+The allowlist is now an optional operational switch rather than a product limitation. When configured it still restricts delivery; when unset, any valid international destination may be used. Opt-outs, explicit confirmation, provider attachment checks, idempotency and message auditing remain mandatory in both recipient modes.
+
+**Why**: separate money review from communication while giving staff one predictable place to contact people. This removes redundant pages without removing partner search or the safety controls around real sends.

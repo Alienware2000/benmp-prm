@@ -6,8 +6,7 @@ import Link from "next/link";
  * these pages inherit the password gate rather than punching a hole in it.
  */
 const TABS = [
-  { href: "/poc", label: "Console" },
-  { href: "/poc/directory", label: "Partner directory" },
+  { href: "/poc", label: "Dashboard" },
   { href: "/poc/giving", label: "Giving" },
   { href: "/poc/messages", label: "Messages" },
 ] as const;

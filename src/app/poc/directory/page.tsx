@@ -1,14 +1,5 @@
-import {
-  PartnerWorkspace,
-  type PartnerSearchParams,
-} from "./partner-workspace";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default function DirectoryPage({
-  searchParams,
-}: {
-  searchParams: PartnerSearchParams;
-}) {
-  return <PartnerWorkspace searchParams={searchParams} mode="directory" />;
+export default function DirectoryPage() {
+  redirect("/poc/messages?mode=partners");
 }

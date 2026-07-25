@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { buildThankYouMessage, type PlannedMessage } from "@/lib/messages";
+import { firstName, type PlannedMessage } from "@/lib/messages";
 import { getMessagingAdapter } from "@/lib/messaging";
 import { normalizePhone } from "@/lib/phone";
 import {
@@ -16,10 +16,9 @@ export const dynamic = "force-dynamic";
 
 const requestSchema = z.object({
   idempotencyKey: z.uuid(),
-  fullName: z.string().trim().min(2).max(120),
+  fullName: z.string().trim().max(120).optional(),
   phone: z.string().trim().min(8).max(30),
-  amountGhs: z.coerce.number().positive().max(10_000_000),
-  message: z.string().trim().min(1).max(4096).optional(),
+  message: z.string().trim().min(1).max(1000),
   mediaAssetId: z.uuid().optional(),
 });
 
@@ -31,7 +30,9 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         ok: false,
-        error: { message: "Check the donor, destination, and gift amount." },
+        error: {
+          message: "Check the destination number and write a message first.",
+        },
       },
       { status: 400 },
     );
@@ -48,11 +49,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const amountMinor = Math.round(parsed.data.amountGhs * 100);
-  const body =
-    parsed.data.message ??
-    buildThankYouMessage(parsed.data.fullName, amountMinor);
-  const partnerRef = `gift-test:${parsed.data.idempotencyKey}:${to}`;
+  const body = parsed.data.message;
+  const partnerRef = `direct:${parsed.data.idempotencyKey}:${to}`;
   const previous = await findSentMessageByPartnerRef(partnerRef);
 
   if (
@@ -64,7 +62,7 @@ export async function POST(request: Request) {
         {
           ok: false,
           error: {
-            message: "Start a new test before changing a sent message.",
+            message: "Start a new message before changing one already sent.",
           },
         },
         { status: 409 },
@@ -111,9 +109,9 @@ export async function POST(request: Request) {
   }
 
   const planned: PlannedMessage = {
-    kind: "thank_you",
+    kind: "direct",
     to,
-    name: parsed.data.fullName,
+    name: firstName(parsed.data.fullName ?? ""),
     body,
     partnerRef,
     channel: "whatsapp",

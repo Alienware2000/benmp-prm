@@ -6,7 +6,8 @@ import {
   resolveBranchKey,
   searchDirectory,
 } from "@/lib/poc/directory";
-import { PocShell, type PocTab } from "../nav";
+import { PocShell } from "../nav";
+import { MessagesNav } from "../messages/messages-nav";
 import { DirectoryClient } from "./directory-client";
 
 export type PartnerSearchParams = Promise<{
@@ -15,39 +16,19 @@ export type PartnerSearchParams = Promise<{
   page?: string;
 }>;
 
-type WorkspaceMode = "directory" | "messages";
-
-const WORKSPACE: Record<
-  WorkspaceMode,
-  { path: PocTab; title: string; subtitle: string }
-> = {
-  directory: {
-    path: "/poc/directory",
-    title: "Partner directory",
-    subtitle: "Search and review every partner on record.",
-  },
-  messages: {
-    path: "/poc/messages",
-    title: "Messages",
-    subtitle:
-      "Choose partners, personalize the message, preview it, then confirm the send.",
-  },
-};
-
 function PageLink({
-  basePath,
   params,
   page,
   children,
   disabled,
 }: {
-  basePath: string;
   params: { q: string; branch: string };
   page: number;
   children: React.ReactNode;
   disabled: boolean;
 }) {
   const qs = new URLSearchParams();
+  qs.set("mode", "partners");
   if (params.q) qs.set("q", params.q);
   if (params.branch) qs.set("branch", params.branch);
   if (page > 1) qs.set("page", String(page));
@@ -58,7 +39,7 @@ function PageLink({
       : "text-foreground hover:bg-background");
   if (disabled) return <span className={cls}>{children}</span>;
   return (
-    <Link href={`${basePath}?${qs.toString()}`} className={cls}>
+    <Link href={`/poc/messages?${qs.toString()}`} className={cls}>
       {children}
     </Link>
   );
@@ -66,17 +47,13 @@ function PageLink({
 
 export async function PartnerWorkspace({
   searchParams,
-  mode,
 }: {
   searchParams: PartnerSearchParams;
-  mode: WorkspaceMode;
 }) {
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const branch = (sp.branch ?? "").trim();
   const page = Math.max(1, Number(sp.page) || 1);
-  const workspace = WORKSPACE[mode];
-
   const branches = await listBranchGroups();
   const selected = branches.find((group) => group.key === branch);
   const result = await searchDirectory({
@@ -94,14 +71,16 @@ export async function PartnerWorkspace({
 
   return (
     <PocShell
-      current={workspace.path}
-      title={workspace.title}
-      subtitle={workspace.subtitle}
+      current="/poc/messages"
+      title="Messages"
+      subtitle="Send to one WhatsApp number or choose partners from the ministry records."
     >
+      <MessagesNav current="partners" />
       <form
         method="GET"
         className="flex flex-wrap items-end gap-2.5 rounded-2xl border border-border bg-surface p-4"
       >
+        <input type="hidden" name="mode" value="partners" />
         <div className="min-w-[190px] flex-1">
           <label
             htmlFor="q"
@@ -146,7 +125,7 @@ export async function PartnerWorkspace({
         </button>
         {filtered && (
           <Link
-            href={workspace.path}
+            href="/poc/messages?mode=partners"
             className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
           >
             Clear
@@ -174,7 +153,7 @@ export async function PartnerWorkspace({
 
       <div className="mt-3">
         <DirectoryClient
-          messaging={mode === "messages"}
+          messaging
           partners={result.partners.map((partner) => ({
             ...partner,
             branch:
@@ -187,19 +166,13 @@ export async function PartnerWorkspace({
 
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-between gap-3">
-          <PageLink
-            basePath={workspace.path}
-            params={{ q, branch }}
-            page={page - 1}
-            disabled={page <= 1}
-          >
+          <PageLink params={{ q, branch }} page={page - 1} disabled={page <= 1}>
             Previous
           </PageLink>
           <span className="text-xs tabular-nums text-muted-foreground">
             Page {page} of {totalPages.toLocaleString("en-US")}
           </span>
           <PageLink
-            basePath={workspace.path}
             params={{ q, branch }}
             page={page + 1}
             disabled={page >= totalPages}

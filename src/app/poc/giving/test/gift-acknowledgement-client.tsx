@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   ImageIcon,
   LoaderCircle,
@@ -8,10 +10,14 @@ import {
   RotateCcw,
   ShieldCheck,
   Video,
+  X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { buildThankYouMessage } from "@/lib/messages";
-import { attachmentExceedsProviderLimit } from "@/lib/messaging/media-policy";
+import {
+  attachmentExceedsProviderLimit,
+  attachmentLimitBytes,
+} from "@/lib/messaging/media-policy";
 import type { MessagingProvider } from "@/lib/messaging/types";
 import { normalizePhone } from "@/lib/phone";
 
@@ -44,6 +50,19 @@ function providerLabel(provider: string): string {
   if (provider === "meta-cloud-api") return "Meta Cloud API";
   if (provider === "twilio") return "Twilio WhatsApp";
   return "Demo mode";
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes >= 1_000_000) return `${(bytes / 1_000_000).toFixed(1)} MB`;
+  if (bytes >= 1_000) return `${Math.round(bytes / 1_000)} KB`;
+  return `${bytes} B`;
+}
+
+function cleanProviderError(message: string): string {
+  return message.replace(
+    /^(Wali|WaliChat|WhatChimp|Twilio|Vonage|Infobip|Meta)\s*:\s*/i,
+    "",
+  );
 }
 
 export function GiftAcknowledgementClient({
@@ -81,6 +100,20 @@ export function GiftAcknowledgementClient({
   const attachmentTooLarge = Boolean(
     attached && attachmentExceedsProviderLimit(provider, attached.sizeBytes),
   );
+  const attachmentLimit = attachmentLimitBytes(provider);
+  const compatibleAlternative = useMemo(() => {
+    if (!attached || !attachmentTooLarge) return null;
+    return (
+      assets
+        .filter(
+          (asset) =>
+            asset.id !== attached.id &&
+            asset.kind === attached.kind &&
+            !attachmentExceedsProviderLimit(provider, asset.sizeBytes),
+        )
+        .sort((a, b) => b.sizeBytes - a.sizeBytes)[0] ?? null
+    );
+  }, [assets, attached, attachmentTooLarge, provider]);
   const message = messageOverride ?? suggestedMessage;
   const ready = Boolean(destination && message.trim());
   const canSend =
@@ -216,9 +249,10 @@ export function GiftAcknowledgementClient({
               className="h-11 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
             />
           </label>
-          <label className="grid gap-1.5 text-xs font-semibold">
-            Attachment
+          <div className="grid gap-1.5 text-xs font-semibold">
+            <label htmlFor="acknowledgement-attachment">Attachment</label>
             <select
+              id="acknowledgement-attachment"
               value={mediaId}
               onChange={(event) => {
                 setMediaId(event.target.value);
@@ -228,14 +262,7 @@ export function GiftAcknowledgementClient({
             >
               <option value="">No attachment</option>
               {assets.map((asset) => (
-                <option
-                  key={asset.id}
-                  value={asset.id}
-                  disabled={attachmentExceedsProviderLimit(
-                    provider,
-                    asset.sizeBytes,
-                  )}
-                >
+                <option key={asset.id} value={asset.id}>
                   {asset.kind === "image"
                     ? "Image"
                     : asset.kind === "video"
@@ -243,18 +270,57 @@ export function GiftAcknowledgementClient({
                       : "File"}{" "}
                   — {asset.filename}
                   {attachmentExceedsProviderLimit(provider, asset.sizeBytes)
-                    ? " — over Wali's 3 MB limit"
+                    ? " — needs compression"
                     : ""}
                 </option>
               ))}
             </select>
             {attachmentTooLarge && (
-              <span className="font-normal text-red-700">
-                This attachment is over Wali&apos;s 3 MB limit. Choose a
-                compressed copy.
-              </span>
+              <div
+                role="status"
+                className="mt-1 flex items-start gap-2.5 rounded-md border border-amber-300 bg-amber-50 px-3 py-3 text-amber-950"
+              >
+                <AlertTriangle
+                  className="mt-0.5 h-4 w-4 flex-none text-amber-700"
+                  aria-hidden
+                />
+                <div className="min-w-0 font-normal">
+                  <p className="text-xs font-semibold">
+                    This {attached?.kind ?? "file"} cannot be sent on the
+                    current plan
+                  </p>
+                  <p className="mt-0.5 text-xs leading-5 text-amber-900/80">
+                    {attached?.filename} is{" "}
+                    {attached
+                      ? formatFileSize(attached.sizeBytes)
+                      : "too large"}
+                    . The current limit is{" "}
+                    {attachmentLimit
+                      ? formatFileSize(attachmentLimit)
+                      : "smaller than this file"}
+                    .
+                  </p>
+                  {compatibleAlternative ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMediaId(compatibleAlternative.id);
+                        resetConfirmation();
+                      }}
+                      className="mt-2 inline-flex min-h-8 items-center rounded-md border border-amber-400 bg-white px-2.5 py-1 text-xs font-semibold text-amber-950 transition hover:bg-amber-100"
+                    >
+                      Use {compatibleAlternative.filename} (
+                      {formatFileSize(compatibleAlternative.sizeBytes)})
+                    </button>
+                  ) : (
+                    <p className="mt-1 text-xs font-medium">
+                      Choose or upload a compressed copy to continue.
+                    </p>
+                  )}
+                </div>
+              </div>
             )}
-          </label>
+          </div>
         </div>
       </section>
 
@@ -362,7 +428,34 @@ export function GiftAcknowledgementClient({
           </label>
 
           {error && (
-            <p className="mt-3 text-xs font-medium text-danger">{error}</p>
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="mt-4 flex items-start gap-2.5 rounded-md border border-red-300 bg-red-50 px-3 py-3 text-red-950"
+            >
+              <AlertCircle
+                className="mt-0.5 h-4 w-4 flex-none text-red-700"
+                aria-hidden
+              />
+              <div className="min-w-0 flex-1 text-xs leading-5">
+                <p className="font-semibold">Message was not sent</p>
+                <p className="mt-0.5 text-red-900/80">
+                  {cleanProviderError(error)}
+                </p>
+                <p className="mt-1 font-medium">
+                  Your details are still here. Review them and try again.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                title="Dismiss error"
+                aria-label="Dismiss error"
+                className="grid h-7 w-7 flex-none place-items-center rounded-md text-red-800 transition hover:bg-red-100"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
           )}
 
           {result ? (
@@ -398,9 +491,13 @@ export function GiftAcknowledgementClient({
               )}
               {busy
                 ? "Sending..."
-                : destination
-                  ? `Send to ${destination}`
-                  : "Send WhatsApp"}
+                : error
+                  ? destination
+                    ? `Try again to ${destination}`
+                    : "Try sending again"
+                  : destination
+                    ? `Send to ${destination}`
+                    : "Send WhatsApp"}
             </button>
           )}
         </div>

@@ -112,7 +112,7 @@ describe("WaliMessagingAdapter", () => {
     });
   });
 
-  it("sends one public media attachment with its caption", async () => {
+  it("sends one public image attachment with its caption", async () => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: "wali-media", status: "queued" }), {
         status: 201,
@@ -126,18 +126,18 @@ describe("WaliMessagingAdapter", () => {
 
     await adapter.send(
       message({
-        mediaUrl: "https://cdn.example.org/crusade-report.pdf",
-        mediaType: "application/pdf",
-        mediaFilename: "crusade-report.pdf",
+        mediaUrl: "https://cdn.example.org/crusade.jpg",
+        mediaType: "image/jpeg",
+        mediaFilename: "crusade.jpg",
       }),
     );
 
     const init = fetcher.mock.calls[0][1] as RequestInit;
     expect(JSON.parse(String(init.body))).toMatchObject({
       media: {
-        url: "https://cdn.example.org/crusade-report.pdf",
+        url: "https://cdn.example.org/crusade.jpg",
         message: "Thank you for partnering with BENMP.",
-        filename: "crusade-report.pdf",
+        filename: "crusade.jpg",
       },
     });
   });

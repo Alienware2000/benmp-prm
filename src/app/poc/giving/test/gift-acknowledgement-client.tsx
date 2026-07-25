@@ -2,13 +2,26 @@
 
 import {
   CheckCircle2,
+  ImageIcon,
   LoaderCircle,
   MessageCircle,
+  RotateCcw,
   ShieldCheck,
+  Video,
 } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { buildThankYouMessage } from "@/lib/messages";
 import { normalizePhone } from "@/lib/phone";
+
+type MediaAsset = {
+  id: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  kind: "image" | "video" | "audio" | "document";
+  url: string;
+  caption: string | null;
+};
 
 type SendResult = {
   to: string;
@@ -35,6 +48,9 @@ export function GiftAcknowledgementClient({ provider }: { provider: string }) {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
+  const [messageOverride, setMessageOverride] = useState<string | null>(null);
+  const [assets, setAssets] = useState<MediaAsset[]>([]);
+  const [mediaId, setMediaId] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [busy, setBusy] = useState(false);
@@ -43,7 +59,7 @@ export function GiftAcknowledgementClient({ provider }: { provider: string }) {
 
   const destination = normalizePhone(phone);
   const amountMinor = Math.round(Number(amount) * 100);
-  const message = useMemo(
+  const suggestedMessage = useMemo(
     () =>
       fullName.trim().length >= 2 &&
       Number.isFinite(amountMinor) &&
@@ -52,10 +68,33 @@ export function GiftAcknowledgementClient({ provider }: { provider: string }) {
         : "",
     [amountMinor, fullName],
   );
-  const ready = Boolean(destination && message);
+  const attached = useMemo(
+    () => assets.find((asset) => asset.id === mediaId) ?? null,
+    [assets, mediaId],
+  );
+  const message = messageOverride ?? suggestedMessage;
+  const ready = Boolean(destination && message.trim());
   const canSend = provider !== "mock" && ready && confirmed && !busy && !result;
 
+  useEffect(() => {
+    fetch("/api/poc/media")
+      .then((response) => response.json())
+      .then((payload) => {
+        if (payload.ok && Array.isArray(payload.data?.assets)) {
+          setAssets(payload.data.assets);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   function resetConfirmation() {
+    setConfirmed(false);
+    setResult(null);
+    setError(null);
+    setIdempotencyKey("");
+  }
+
+  function startAnotherTest() {
     setConfirmed(false);
     setResult(null);
     setError(null);
@@ -79,6 +118,8 @@ export function GiftAcknowledgementClient({ provider }: { provider: string }) {
           fullName,
           phone: destination,
           amountGhs: amount,
+          message: message.trim(),
+          ...(mediaId ? { mediaAssetId: mediaId } : {}),
         }),
       });
       const payload = (await response.json()) as {
@@ -160,6 +201,29 @@ export function GiftAcknowledgementClient({ provider }: { provider: string }) {
               className="h-11 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
             />
           </label>
+          <label className="grid gap-1.5 text-xs font-semibold">
+            Attachment
+            <select
+              value={mediaId}
+              onChange={(event) => {
+                setMediaId(event.target.value);
+                resetConfirmation();
+              }}
+              className="h-11 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
+            >
+              <option value="">No attachment</option>
+              {assets.map((asset) => (
+                <option key={asset.id} value={asset.id}>
+                  {asset.kind === "image"
+                    ? "Image"
+                    : asset.kind === "video"
+                      ? "Video"
+                      : "File"}{" "}
+                  — {asset.filename}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </section>
 
@@ -191,13 +255,66 @@ export function GiftAcknowledgementClient({ provider }: { provider: string }) {
         </dl>
 
         <div className="px-4 py-4">
-          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Exact WhatsApp message
-          </p>
-          <p className="min-h-24 whitespace-pre-wrap rounded-md border border-border bg-background px-3 py-3 text-sm leading-6">
-            {message ||
-              "Complete the donor name and gift amount to generate the message."}
-          </p>
+          <div className="mb-1.5 flex items-center justify-between gap-3">
+            <label
+              htmlFor="acknowledgement-message"
+              className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
+            >
+              Exact WhatsApp message
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setMessageOverride(null);
+                resetConfirmation();
+              }}
+              disabled={!suggestedMessage || messageOverride === null}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-success disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+              Reset
+            </button>
+          </div>
+          <textarea
+            id="acknowledgement-message"
+            value={message}
+            onChange={(event) => {
+              setMessageOverride(event.target.value);
+              resetConfirmation();
+            }}
+            maxLength={4096}
+            rows={5}
+            placeholder="Complete the donor name and gift amount to generate the message."
+            className="min-h-28 w-full resize-y rounded-md border border-border bg-background px-3 py-3 text-sm leading-6 outline-none focus:border-success"
+          />
+
+          {attached && (
+            <div className="mt-3 overflow-hidden rounded-md border border-border bg-background">
+              {attached.kind === "image" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={attached.url}
+                  alt={attached.caption ?? attached.filename}
+                  className="max-h-52 w-full object-cover"
+                />
+              ) : attached.kind === "video" ? (
+                <video
+                  src={attached.url}
+                  controls
+                  preload="metadata"
+                  className="max-h-52 w-full bg-black object-contain"
+                />
+              ) : null}
+              <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                {attached.kind === "image" ? (
+                  <ImageIcon className="h-3.5 w-3.5" aria-hidden />
+                ) : (
+                  <Video className="h-3.5 w-3.5" aria-hidden />
+                )}
+                <span className="truncate">{attached.filename}</span>
+              </div>
+            </div>
+          )}
 
           <label className="mt-4 flex items-start gap-2.5 text-xs leading-5">
             <input
@@ -228,6 +345,13 @@ export function GiftAcknowledgementClient({ provider }: { provider: string }) {
                   Provider reference:{" "}
                   {result.outcome.providerMessageId ?? "pending"}
                 </p>
+                <button
+                  type="button"
+                  onClick={startAnotherTest}
+                  className="mt-2 font-semibold text-emerald-900 underline underline-offset-2"
+                >
+                  Prepare another test
+                </button>
               </div>
             </div>
           ) : (

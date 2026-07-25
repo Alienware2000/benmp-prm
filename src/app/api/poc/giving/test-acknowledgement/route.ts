@@ -9,6 +9,7 @@ import {
   recordSentMessages,
   toSentMessageRows,
 } from "@/lib/poc/db";
+import { loadMediaAsset } from "@/lib/poc/media";
 import { parseAllowlist, sendPlanned } from "@/lib/send";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,8 @@ const requestSchema = z.object({
   fullName: z.string().trim().min(2).max(120),
   phone: z.string().trim().min(8).max(30),
   amountGhs: z.coerce.number().positive().max(10_000_000),
+  message: z.string().trim().min(1).max(4096).optional(),
+  mediaAssetId: z.uuid().optional(),
 });
 
 export async function POST(request: Request) {
@@ -46,7 +49,9 @@ export async function POST(request: Request) {
   }
 
   const amountMinor = Math.round(parsed.data.amountGhs * 100);
-  const body = buildThankYouMessage(parsed.data.fullName, amountMinor);
+  const body =
+    parsed.data.message ??
+    buildThankYouMessage(parsed.data.fullName, amountMinor);
   const partnerRef = `gift-test:${parsed.data.idempotencyKey}:${to}`;
   const previous = await findSentMessageByPartnerRef(partnerRef);
 
@@ -80,6 +85,16 @@ export async function POST(request: Request) {
     });
   }
 
+  const media = parsed.data.mediaAssetId
+    ? await loadMediaAsset(parsed.data.mediaAssetId)
+    : null;
+  if (parsed.data.mediaAssetId && !media) {
+    return NextResponse.json(
+      { ok: false, error: { message: "Attachment not found." } },
+      { status: 404 },
+    );
+  }
+
   const planned: PlannedMessage = {
     kind: "thank_you",
     to,
@@ -89,6 +104,13 @@ export async function POST(request: Request) {
     channel: "whatsapp",
     category: "utility",
     sendable: true,
+    ...(media
+      ? {
+          mediaUrl: media.url,
+          mediaType: media.mimeType,
+          mediaFilename: media.filename,
+        }
+      : {}),
   };
   const report = await sendPlanned([planned], {
     adapter: getMessagingAdapter(),

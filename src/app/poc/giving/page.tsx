@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessageCircle } from "lucide-react";
+import { CircleDollarSign, MessageCircle } from "lucide-react";
 import {
   type GivingEntry,
   UNATTRIBUTED,
@@ -79,8 +79,23 @@ export default async function GivingPage({
     <PocShell
       current="/poc/giving"
       title="Giving"
-      subtitle="Review received gifts, reconcile unmatched records, and start a personal thank-you from any giver's record."
+      subtitle="Review verified gifts and start amount-aware acknowledgements from the financial record."
     >
+      <section className="mb-4 flex items-start gap-3 border-l-4 border-success bg-emerald-50 px-4 py-3 text-emerald-950">
+        <CircleDollarSign
+          className="mt-0.5 h-5 w-5 flex-none text-success"
+          aria-hidden
+        />
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold">Thank from the gift record</h2>
+          <p className="mt-1 text-xs leading-5 text-emerald-900/80">
+            Use <b>Thank</b> beside a person&apos;s gift. Their name, WhatsApp
+            number and that verified amount open prefilled in Messages for
+            review. Bank-only rows are never messaged.
+          </p>
+        </div>
+      </section>
+
       <form
         method="GET"
         className="grid gap-2.5 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-5"
@@ -229,9 +244,9 @@ export default async function GivingPage({
       <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         {isFiltered ? "Matching gifts" : "All gifts"}
       </p>
-      <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
+      <div className="max-h-[540px] overflow-auto rounded-lg border border-border bg-surface">
         <table className="w-full min-w-[680px] text-sm">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-surface">
             <tr className="border-b border-border text-left text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               <th className="px-4 py-2.5 font-semibold">Date</th>
               <th className="px-2 py-2.5 font-semibold">Giver</th>
@@ -299,7 +314,7 @@ export default async function GivingPage({
             })}
           </tbody>
           {rows.length > 0 && (
-            <tfoot>
+            <tfoot className="sticky bottom-0 z-10">
               <tr className="border-t border-border bg-background">
                 <td
                   colSpan={3}

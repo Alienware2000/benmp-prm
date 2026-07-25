@@ -2,6 +2,7 @@
 
 import {
   CheckCircle2,
+  CircleDollarSign,
   ImageIcon,
   LoaderCircle,
   MessageCircle,
@@ -71,11 +72,13 @@ export function DirectMessageClient({
   initialName = "",
   initialPhone = "",
   initialMessage = "",
+  contextNote,
 }: {
   provider: MessagingProvider;
   initialName?: string;
   initialPhone?: string;
   initialMessage?: string;
+  contextNote?: string;
 }) {
   const [fullName, setFullName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
@@ -275,13 +278,23 @@ export function DirectMessageClient({
   return (
     <form
       onSubmit={send}
-      className="grid items-start gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(340px,1.05fr)]"
+      className="grid w-full min-w-0 items-start gap-3 lg:grid-cols-[minmax(0,0.95fr)_minmax(340px,1.05fr)]"
     >
+      {contextNote && (
+        <div className="flex min-w-0 items-start gap-3 border-l-4 border-success bg-emerald-50 px-4 py-3 text-emerald-950 lg:col-span-2">
+          <CircleDollarSign
+            className="mt-0.5 h-5 w-5 flex-none text-success"
+            aria-hidden
+          />
+          <p className="min-w-0 text-xs leading-5">{contextNote}</p>
+        </div>
+      )}
+
       <section className="min-w-0 rounded-lg border border-border bg-surface">
         <div className="border-b border-border px-4 py-3.5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <h2 className="text-sm font-semibold">Compose message</h2>
-            <span className="text-xs font-medium text-success">
+            <span className="text-[11px] font-medium text-success sm:text-xs">
               {providerLabel(provider)}
             </span>
           </div>
@@ -300,7 +313,7 @@ export function DirectMessageClient({
               }}
               placeholder="David Antwi"
               autoComplete="name"
-              className="h-11 min-w-0 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
+              className="h-11 w-full min-w-0 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
             />
           </label>
 
@@ -315,7 +328,7 @@ export function DirectMessageClient({
               }}
               placeholder="+233 24 000 0000"
               autoComplete="tel"
-              className="h-11 min-w-0 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
+              className="h-11 w-full min-w-0 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
             />
           </label>
 
@@ -331,7 +344,7 @@ export function DirectMessageClient({
               maxLength={1000}
               rows={6}
               placeholder="Write the exact WhatsApp message..."
-              className="min-h-36 min-w-0 w-full resize-y rounded-md border border-border bg-background px-3 py-3 text-sm font-normal leading-6 outline-none focus:border-success"
+              className="min-h-32 w-full min-w-0 resize-y rounded-md border border-border bg-background px-3 py-3 text-sm font-normal leading-6 outline-none focus:border-success"
             />
             <span className="text-right font-normal tabular-nums text-muted-foreground">
               {message.length}/1000
@@ -340,7 +353,7 @@ export function DirectMessageClient({
 
           <div className="grid gap-1.5 text-xs font-semibold">
             <label htmlFor="direct-message-attachment">Attachment</label>
-            <div className="flex items-center gap-2">
+            <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <select
                 ref={attachmentRef}
                 id="direct-message-attachment"
@@ -366,7 +379,7 @@ export function DirectMessageClient({
                   </option>
                 ))}
               </select>
-              <label className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-surface px-3 text-xs font-semibold transition hover:bg-background">
+              <label className="inline-flex h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-3 text-xs font-semibold transition hover:bg-background sm:w-auto">
                 {uploading ? (
                   <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />
                 ) : (
@@ -430,26 +443,30 @@ export function DirectMessageClient({
           </p>
         </div>
 
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-3 border-b border-border px-4 py-4 text-sm">
-          <dt className="text-xs font-medium text-muted-foreground">
-            Recipient
-          </dt>
-          <dd className="text-right font-semibold">
-            {fullName.trim() || "Name not provided"}
-          </dd>
-          <dt className="text-xs font-medium text-muted-foreground">
-            WhatsApp destination
-          </dt>
-          <dd className="break-all text-right font-semibold tabular-nums text-success">
-            {destination ?? "Enter an international number"}
-          </dd>
+        <dl className="grid gap-2 border-b border-border px-4 py-4 text-sm sm:grid-cols-2">
+          <div className="min-w-0 rounded-md bg-background px-3 py-2.5">
+            <dt className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+              Recipient
+            </dt>
+            <dd className="mt-1 break-words font-semibold">
+              {fullName.trim() || "Name not provided"}
+            </dd>
+          </div>
+          <div className="min-w-0 rounded-md bg-background px-3 py-2.5">
+            <dt className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+              WhatsApp destination
+            </dt>
+            <dd className="mt-1 break-words font-semibold tabular-nums text-success">
+              {destination ?? "Enter an international number"}
+            </dd>
+          </div>
         </dl>
 
         <div className="px-4 py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Exact WhatsApp message
           </p>
-          <div className="mt-1.5 min-h-28 whitespace-pre-wrap rounded-md border border-border bg-background px-3 py-3 text-sm leading-6">
+          <div className="mt-1.5 min-h-20 whitespace-pre-wrap break-words rounded-md border border-border bg-background px-3 py-3 text-sm leading-6">
             {message.trim() || (
               <span className="text-muted-foreground">
                 Write a message to preview it here.
@@ -487,7 +504,7 @@ export function DirectMessageClient({
             </div>
           )}
 
-          <label className="mt-4 flex items-start gap-2.5 text-xs leading-5">
+          <label className="mt-4 flex min-w-0 items-start gap-2.5 text-xs leading-5">
             <input
               type="checkbox"
               checked={confirmed}
@@ -495,9 +512,8 @@ export function DirectMessageClient({
               disabled={!ready || Boolean(result)}
               className="mt-0.5 h-4 w-4 flex-none accent-[var(--success)]"
             />
-            <span>
-              I checked that this message should go to{" "}
-              <b className="break-all">{destination ?? "the number above"}</b>.
+            <span className="min-w-0">
+              I checked the recipient number and the exact message above.
             </span>
           </label>
 
@@ -579,20 +595,21 @@ export function DirectMessageClient({
               {busy
                 ? "Sending..."
                 : error
-                  ? destination
-                    ? `Try again to ${destination}`
-                    : "Try sending again"
-                  : destination
-                    ? `Send to ${destination}`
-                    : "Send WhatsApp"}
+                  ? "Try sending again"
+                  : "Send WhatsApp"}
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-2 border-t border-border bg-background/60 px-4 py-2.5 text-[11px] text-muted-foreground">
-          <ShieldCheck className="h-3.5 w-3.5 text-success" aria-hidden />
-          Opt-outs, confirmation and message auditing stay active for every
-          number.
+        <div className="flex items-start gap-2 border-t border-border bg-background/60 px-4 py-2.5 text-[11px] leading-5 text-muted-foreground">
+          <ShieldCheck
+            className="mt-0.5 h-3.5 w-3.5 flex-none text-success"
+            aria-hidden
+          />
+          <span className="min-w-0">
+            Opt-outs, confirmation and message auditing stay active for every
+            number.
+          </span>
         </div>
       </section>
     </form>

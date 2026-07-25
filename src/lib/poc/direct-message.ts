@@ -6,9 +6,9 @@
  * a message, previews exactly what will be delivered, and confirms. Pure — the route
  * does the I/O.
  *
- * The template supports one placeholder, {name}, resolved per recipient. Partners whose
- * name is missing or the import's "No Name" placeholder get a neutral greeting instead of
- * being addressed as "No".
+ * Templates support {name} and {amount}, resolved per recipient. Partners whose name is
+ * missing get a neutral greeting. Partners without recorded giving get the phrase
+ * "your support", so a giving template remains grammatical instead of inventing money.
  */
 
 import type { PlannedMessage } from "../messages";
@@ -18,6 +18,7 @@ import type { MediaAsset } from "./media";
 
 /** Greeting used when we have no usable name for the partner. */
 export const NAME_FALLBACK = "Friend";
+export const AMOUNT_FALLBACK = "your support";
 
 export const MAX_BODY_LENGTH = 1000;
 
@@ -26,9 +27,24 @@ export function greetingFor(partner: Pick<DirectoryPartner, "name">): string {
   return hasRealName(partner.name) ? firstName(partner.name) : NAME_FALLBACK;
 }
 
-/** Substitute {name} (all occurrences, case-insensitive on the token). */
-export function renderTemplate(template: string, name: string): string {
-  return template.replace(/\{name\}/gi, name);
+/** What {amount} resolves to for this partner. */
+export function amountFor(
+  partner: Pick<DirectoryPartner, "givenMinor">,
+): string {
+  if (partner.givenMinor <= 0) return AMOUNT_FALLBACK;
+  return `GHS ${(partner.givenMinor / 100).toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+/** Substitute supported tokens (all occurrences, case-insensitive). */
+export function renderTemplate(
+  template: string,
+  name: string,
+  amount = AMOUNT_FALLBACK,
+): string {
+  return template.replace(/\{name\}/gi, name).replace(/\{amount\}/gi, amount);
 }
 
 export type TemplateProblem = "empty" | "too_long";
@@ -53,11 +69,12 @@ export function buildDirectMessages(
 ): PlannedMessage[] {
   return partners.map((p) => {
     const name = greetingFor(p);
+    const amount = amountFor(p);
     return {
       kind: "direct" as const,
       to: p.phone,
       name,
-      body: renderTemplate(template, name),
+      body: renderTemplate(template, name, amount),
       partnerRef: p.id,
       channel: "whatsapp" as const,
       category: "utility" as const,

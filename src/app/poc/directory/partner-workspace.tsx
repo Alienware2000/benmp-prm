@@ -73,15 +73,15 @@ export async function PartnerWorkspace({
     <PocShell
       current="/poc/messages"
       title="Messages"
-      subtitle="Send to one WhatsApp number or choose partners from the ministry records."
+      subtitle="Choose partners from ministry records for personal updates or amount-aware giving messages."
     >
       <MessagesNav current="partners" />
       <form
         method="GET"
-        className="flex flex-wrap items-end gap-2.5 rounded-2xl border border-border bg-surface p-4"
+        className="grid gap-2.5 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_220px_auto_auto] lg:items-end"
       >
         <input type="hidden" name="mode" value="partners" />
-        <div className="min-w-[190px] flex-1">
+        <div className="min-w-0">
           <label
             htmlFor="q"
             className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
@@ -96,7 +96,7 @@ export async function PartnerWorkspace({
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-success"
           />
         </div>
-        <div className="min-w-[170px]">
+        <div className="min-w-0">
           <label
             htmlFor="branch"
             className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
@@ -119,14 +119,14 @@ export async function PartnerWorkspace({
         </div>
         <button
           type="submit"
-          className="rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+          className="h-10 rounded-md bg-success px-4 text-sm font-semibold text-white transition hover:opacity-90"
         >
           Search
         </button>
         {filtered && (
           <Link
             href="/poc/messages?mode=partners"
-            className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
+            className="inline-flex h-10 items-center justify-center rounded-md border border-border px-3 text-sm font-medium text-muted-foreground transition hover:text-foreground"
           >
             Clear
           </Link>

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  AMOUNT_FALLBACK,
   MAX_BODY_LENGTH,
   NAME_FALLBACK,
+  amountFor,
   buildDirectMessages,
   greetingFor,
   renderTemplate,
@@ -52,6 +54,29 @@ describe("renderTemplate", () => {
       "Service resumes Sunday.",
     );
   });
+
+  it("substitutes the recorded amount", () => {
+    expect(
+      renderTemplate("Hi {name}, thank you for {amount}.", "Ama", "GHS 60"),
+    ).toBe("Hi Ama, thank you for GHS 60.");
+  });
+
+  it("uses a grammatical fallback when no amount is supplied", () => {
+    expect(renderTemplate("Thank you for {amount}.", "Ama")).toBe(
+      `Thank you for ${AMOUNT_FALLBACK}.`,
+    );
+  });
+});
+
+describe("amountFor", () => {
+  it("formats recorded giving from integer minor units", () => {
+    expect(amountFor({ givenMinor: 60_00 })).toBe("GHS 60");
+    expect(amountFor({ givenMinor: 60_50 })).toBe("GHS 60.5");
+  });
+
+  it("does not invent an amount when no giving is recorded", () => {
+    expect(amountFor({ givenMinor: 0 })).toBe(AMOUNT_FALLBACK);
+  });
 });
 
 describe("validateTemplate", () => {
@@ -81,6 +106,23 @@ describe("buildDirectMessages", () => {
     expect(msgs).toHaveLength(2);
     expect(msgs[0].body).toBe("Hi Ama, God bless you.");
     expect(msgs[1].body).toBe("Hi Kofi, God bless you.");
+  });
+
+  it("personalizes from each partner's recorded giving", () => {
+    const msgs = buildDirectMessages(
+      [
+        partner({ givenMinor: 60_00 }),
+        partner({
+          id: "2",
+          name: "Kofi Mensah",
+          phone: "+233240000002",
+          givenMinor: 0,
+        }),
+      ],
+      "Hi {name}, thank you for {amount}.",
+    );
+    expect(msgs[0].body).toBe("Hi Ama, thank you for GHS 60.");
+    expect(msgs[1].body).toBe("Hi Kofi, thank you for your support.");
   });
 
   it("marks the message as direct, not as a planned queue", () => {

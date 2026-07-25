@@ -19,7 +19,11 @@ export type TableData = {
 
 const TABS = [
   { key: "gifts", label: "Top gifts", title: "Top gifts" },
-  { key: "unregistered", label: "Unregistered", title: "Unregistered givers — included & thanked" },
+  {
+    key: "unregistered",
+    label: "Unregistered",
+    title: "Unregistered givers — included & thanked",
+  },
   { key: "recent", label: "Most recent", title: "Most recent payments" },
 ] as const;
 
@@ -32,9 +36,14 @@ export function PartnersTable({ data }: { data: TableData }) {
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
-        <h3 className="text-sm font-semibold text-foreground">{active.title}</h3>
-        <div className="flex rounded-lg border border-border bg-background p-0.5" role="tablist">
+      <div className="grid gap-3 border-b border-border px-4 py-3 sm:flex sm:items-center sm:justify-between sm:px-5">
+        <h3 className="text-sm font-semibold text-foreground">
+          {active.title}
+        </h3>
+        <div
+          className="grid grid-cols-3 rounded-lg border border-border bg-background p-0.5 sm:flex"
+          role="tablist"
+        >
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -42,7 +51,7 @@ export function PartnersTable({ data }: { data: TableData }) {
               aria-selected={tab === t.key}
               onClick={() => setTab(t.key)}
               className={
-                "rounded-md px-3 py-1.5 text-xs font-semibold transition " +
+                "min-w-0 rounded-md px-2 py-1.5 text-[11px] font-semibold transition sm:px-3 sm:text-xs " +
                 (tab === t.key
                   ? "bg-surface text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground")
@@ -54,7 +63,7 @@ export function PartnersTable({ data }: { data: TableData }) {
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[600px] text-sm">
           <thead>
             <tr className="text-left text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground/80">
               <th className="px-4 pb-2 pt-3 sm:px-5">Partner</th>
@@ -67,15 +76,25 @@ export function PartnersTable({ data }: { data: TableData }) {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="border-t border-border px-4 py-6 text-sm text-muted-foreground sm:px-5">
+                <td
+                  colSpan={5}
+                  className="border-t border-border px-4 py-6 text-sm text-muted-foreground sm:px-5"
+                >
                   Nothing in this view for the period.
                 </td>
               </tr>
             ) : (
               rows.map((r, i) => (
-                <tr key={`${r.name}-${i}`} className="border-t border-border hover:bg-background/60">
-                  <td className="px-4 py-2.5 font-medium text-foreground sm:px-5">{r.name}</td>
-                  <td className="py-2.5 pr-4 font-mono text-xs text-muted-foreground">{r.phoneMasked}</td>
+                <tr
+                  key={`${r.name}-${i}`}
+                  className="border-t border-border hover:bg-background/60"
+                >
+                  <td className="px-4 py-2.5 font-medium text-foreground sm:px-5">
+                    {r.name}
+                  </td>
+                  <td className="py-2.5 pr-4 font-mono text-xs text-muted-foreground">
+                    {r.phoneMasked}
+                  </td>
                   <td className="py-2.5 pr-4">
                     <span
                       className={

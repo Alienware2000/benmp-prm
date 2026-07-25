@@ -74,6 +74,17 @@ function formatPhone(phone: string | null): string {
 }
 
 const DEFAULT_MESSAGE = "Hi {name}, God bless you from all of us at BENMP.";
+const GIVING_MESSAGE =
+  "Hi {name}, thank you for {amount}. Your partnership with BENMP means so much. God richly bless you!";
+
+const MESSAGE_PRESETS = [
+  {
+    value: "general",
+    label: "General personal message",
+    body: DEFAULT_MESSAGE,
+  },
+  { value: "giving", label: "Giving thank-you", body: GIVING_MESSAGE },
+] as const;
 
 type MediaAsset = {
   id: string;
@@ -98,6 +109,7 @@ export function DirectoryClient({
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
+  const [preset, setPreset] = useState("general");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -182,6 +194,13 @@ export function DirectoryClient({
   );
   const allSelected =
     selectable.length > 0 && selectable.every((p) => selected.has(p.id));
+  const selectedWithGiving = useMemo(
+    () =>
+      partners.filter(
+        (partner) => selected.has(partner.id) && partner.givenMinor > 0,
+      ).length,
+    [partners, selected],
+  );
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -197,6 +216,15 @@ export function DirectoryClient({
 
   function toggleAll() {
     setSelected(allSelected ? new Set() : new Set(selectable.map((p) => p.id)));
+    setSummary(null);
+    setReport(null);
+  }
+
+  function choosePreset(value: string) {
+    const next = MESSAGE_PRESETS.find((item) => item.value === value);
+    if (!next) return;
+    setPreset(next.value);
+    setMessage(next.body);
     setSummary(null);
     setReport(null);
   }
@@ -356,13 +384,39 @@ export function DirectoryClient({
             </span>
           </div>
 
+          <div className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3 sm:grid-cols-[minmax(0,240px)_1fr] sm:items-end">
+            <label className="grid gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Starting template
+              <select
+                value={preset}
+                onChange={(event) => choosePreset(event.target.value)}
+                className="h-10 min-w-0 rounded-md border border-border bg-surface px-3 text-sm font-medium normal-case tracking-normal text-foreground outline-none focus:border-success"
+              >
+                {MESSAGE_PRESETS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+                {preset === "custom" && (
+                  <option value="custom">Custom message</option>
+                )}
+              </select>
+            </label>
+            <p className="text-xs leading-5 text-muted-foreground">
+              <b className="text-foreground">{selectedWithGiving}</b> selected
+              partner{selectedWithGiving === 1 ? "" : "s"} have recorded giving.
+              In a giving thank-you, <b>{"{amount}"}</b> uses that total;
+              without one it becomes <b>your support</b>.
+            </p>
+          </div>
+
           <label
             htmlFor="message"
             className="mt-3 mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
           >
-            Message ·{" "}
+            Message · personalization:{" "}
             <span className="normal-case tracking-normal">
-              {"{name}"} becomes their first name
+              {"{name}"} and {"{amount}"}
             </span>
           </label>
           <textarea
@@ -371,12 +425,14 @@ export function DirectoryClient({
             value={message}
             onChange={(e) => {
               setMessage(e.target.value);
+              setPreset("custom");
               setSummary(null);
+              setReport(null);
             }}
-            className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-success"
+            className="min-w-0 w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-success"
           />
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background p-2.5">
+          <div className="mt-3 grid gap-2 rounded-md border border-border bg-background p-2.5 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
             <label
               htmlFor="media"
               className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
@@ -390,7 +446,7 @@ export function DirectoryClient({
                 setMediaId(e.target.value);
                 setSummary(null);
               }}
-              className="min-w-[180px] flex-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[13px] outline-none focus:border-success"
+              className="h-10 min-w-0 w-full rounded-md border border-border bg-surface px-2.5 text-[13px] outline-none focus:border-success"
             >
               <option value="">No attachment</option>
               {assets.map((a) => (
@@ -404,7 +460,7 @@ export function DirectoryClient({
                 </option>
               ))}
             </select>
-            <label className="cursor-pointer rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold transition hover:bg-background">
+            <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md border border-border bg-surface px-3 text-xs font-semibold transition hover:bg-background">
               {uploading ? "Uploading…" : "Upload"}
               <input
                 type="file"
@@ -429,6 +485,7 @@ export function DirectoryClient({
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
+              type="button"
               onClick={() => call(false)}
               disabled={selected.size === 0 || busy !== null}
               className="rounded-lg border border-border px-4 py-2 text-sm font-semibold transition hover:bg-background disabled:opacity-40"
@@ -437,6 +494,7 @@ export function DirectoryClient({
             </button>
             {summary && summary.sendable > 0 && (
               <button
+                type="button"
                 onClick={() => call(true)}
                 disabled={busy !== null}
                 className="rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"

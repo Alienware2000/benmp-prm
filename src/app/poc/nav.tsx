@@ -58,21 +58,21 @@ export function PocShell({
   return (
     <div className="min-h-screen bg-background pb-14 text-foreground">
       <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex h-14 max-w-4xl items-center justify-between gap-4 px-5">
+        <div className="mx-auto flex h-14 max-w-4xl items-center justify-between gap-4 px-4 sm:px-5">
           <Link
             href="/poc"
-            className="flex items-center gap-2.5 text-sm font-semibold"
+            className="flex min-w-0 items-center gap-2.5 text-sm font-semibold"
           >
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-success text-[13px] font-bold text-white">
               B
             </span>
-            Global Crusade Partners
+            <span className="truncate">Global Crusade Partners</span>
           </Link>
         </div>
       </header>
       <PocNav current={current} />
 
-      <main className="mx-auto max-w-4xl px-5">
+      <main className="mx-auto max-w-4xl px-4 sm:px-5">
         <section className="pt-7">
           <h1 className="text-[22px] font-semibold tracking-tight">{title}</h1>
           <p className="mb-5 mt-1 text-sm text-muted-foreground">{subtitle}</p>

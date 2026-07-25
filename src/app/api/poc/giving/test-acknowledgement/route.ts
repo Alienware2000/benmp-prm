@@ -9,7 +9,7 @@ import {
   recordSentMessages,
   toSentMessageRows,
 } from "@/lib/poc/db";
-import { loadMediaAsset } from "@/lib/poc/media";
+import { loadMediaAsset, validateMediaForProvider } from "@/lib/poc/media";
 import { parseAllowlist, sendPlanned } from "@/lib/send";
 
 export const dynamic = "force-dynamic";
@@ -95,6 +95,21 @@ export async function POST(request: Request) {
     );
   }
 
+  const adapter = getMessagingAdapter();
+  const mediaProblem = media
+    ? validateMediaForProvider(
+        adapter.provider,
+        media.mimeType,
+        media.sizeBytes,
+      )
+    : null;
+  if (mediaProblem) {
+    return NextResponse.json(
+      { ok: false, error: { message: mediaProblem.message } },
+      { status: 400 },
+    );
+  }
+
   const planned: PlannedMessage = {
     kind: "thank_you",
     to,
@@ -113,7 +128,7 @@ export async function POST(request: Request) {
       : {}),
   };
   const report = await sendPlanned([planned], {
-    adapter: getMessagingAdapter(),
+    adapter,
     optedOut: await loadOptOuts(),
     allowlist: parseAllowlist(process.env.BENMP_SEND_ALLOWLIST),
   });

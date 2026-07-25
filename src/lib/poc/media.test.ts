@@ -8,6 +8,7 @@ import {
   publicUrl,
   storagePath,
   validateMedia,
+  validateMediaForProvider,
   type DbMediaAsset,
 } from "./media";
 
@@ -66,6 +67,21 @@ describe("validateMedia", () => {
   });
 });
 
+describe("validateMediaForProvider", () => {
+  it("enforces Wali's observed 3 MB attachment limit", () => {
+    expect(validateMediaForProvider("wali", "video/mp4", 2_900_000)).toBeNull();
+    const problem = validateMediaForProvider("wali", "video/mp4", 3_000_001);
+    expect(problem?.code).toBe("too_large");
+    expect(problem?.message).toContain("Wali's 3 MB attachment limit");
+  });
+
+  it("keeps the general WhatsApp limit for other providers", () => {
+    expect(
+      validateMediaForProvider("meta-cloud-api", "video/mp4", 12 * 1024 * 1024),
+    ).toBeNull();
+  });
+});
+
 describe("formatBytes", () => {
   it("reads the way a person would say it", () => {
     expect(formatBytes(208 * 1024)).toBe("208 KB");
@@ -76,12 +92,18 @@ describe("formatBytes", () => {
 
 describe("storagePath", () => {
   it("namespaces by kind and keeps files with the same name apart", () => {
-    expect(storagePath("image", "HJC Nkayi.jpg", "abc123")).toBe("image/abc123-hjc-nkayi.jpg");
-    expect(storagePath("video", "HJC Bangui.MP4", "def456")).toBe("video/def456-hjc-bangui.mp4");
+    expect(storagePath("image", "HJC Nkayi.jpg", "abc123")).toBe(
+      "image/abc123-hjc-nkayi.jpg",
+    );
+    expect(storagePath("video", "HJC Bangui.MP4", "def456")).toBe(
+      "video/def456-hjc-bangui.mp4",
+    );
   });
 
   it("strips characters that would break a URL path", () => {
-    expect(storagePath("image", "a b/c?d#e.jpg", "t")).toBe("image/t-a-b-c-d-e.jpg");
+    expect(storagePath("image", "a b/c?d#e.jpg", "t")).toBe(
+      "image/t-a-b-c-d-e.jpg",
+    );
   });
 
   it("survives an unusable filename", () => {
@@ -97,7 +119,9 @@ describe("publicUrl", () => {
   });
 
   it("tolerates a trailing slash on the project URL", () => {
-    expect(publicUrl("https://x.supabase.co/", "image/a.jpg")).toContain("/public/media/image/a.jpg");
+    expect(publicUrl("https://x.supabase.co/", "image/a.jpg")).toContain(
+      "/public/media/image/a.jpg",
+    );
   });
 });
 
@@ -110,7 +134,8 @@ describe("mapMediaAssets", () => {
       size_bytes: "212992",
       kind: "image",
       storage_path: "image/abc-hjc-nkayi.jpg",
-      public_url: "https://x.supabase.co/storage/v1/object/public/media/image/abc-hjc-nkayi.jpg",
+      public_url:
+        "https://x.supabase.co/storage/v1/object/public/media/image/abc-hjc-nkayi.jpg",
       caption: "Healing Jesus Campaign, Nkayi",
       created_at: "2026-07-21T09:00:00Z",
     },

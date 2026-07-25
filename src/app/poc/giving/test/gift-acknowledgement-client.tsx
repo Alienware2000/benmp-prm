@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { buildThankYouMessage } from "@/lib/messages";
+import { attachmentExceedsProviderLimit } from "@/lib/messaging/media-policy";
+import type { MessagingProvider } from "@/lib/messaging/types";
 import { normalizePhone } from "@/lib/phone";
 
 type MediaAsset = {
@@ -44,7 +46,11 @@ function providerLabel(provider: string): string {
   return "Demo mode";
 }
 
-export function GiftAcknowledgementClient({ provider }: { provider: string }) {
+export function GiftAcknowledgementClient({
+  provider,
+}: {
+  provider: MessagingProvider;
+}) {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
@@ -72,9 +78,18 @@ export function GiftAcknowledgementClient({ provider }: { provider: string }) {
     () => assets.find((asset) => asset.id === mediaId) ?? null,
     [assets, mediaId],
   );
+  const attachmentTooLarge = Boolean(
+    attached && attachmentExceedsProviderLimit(provider, attached.sizeBytes),
+  );
   const message = messageOverride ?? suggestedMessage;
   const ready = Boolean(destination && message.trim());
-  const canSend = provider !== "mock" && ready && confirmed && !busy && !result;
+  const canSend =
+    provider !== "mock" &&
+    ready &&
+    confirmed &&
+    !attachmentTooLarge &&
+    !busy &&
+    !result;
 
   useEffect(() => {
     fetch("/api/poc/media")
@@ -213,16 +228,32 @@ export function GiftAcknowledgementClient({ provider }: { provider: string }) {
             >
               <option value="">No attachment</option>
               {assets.map((asset) => (
-                <option key={asset.id} value={asset.id}>
+                <option
+                  key={asset.id}
+                  value={asset.id}
+                  disabled={attachmentExceedsProviderLimit(
+                    provider,
+                    asset.sizeBytes,
+                  )}
+                >
                   {asset.kind === "image"
                     ? "Image"
                     : asset.kind === "video"
                       ? "Video"
                       : "File"}{" "}
                   — {asset.filename}
+                  {attachmentExceedsProviderLimit(provider, asset.sizeBytes)
+                    ? " — over Wali's 3 MB limit"
+                    : ""}
                 </option>
               ))}
             </select>
+            {attachmentTooLarge && (
+              <span className="font-normal text-red-700">
+                This attachment is over Wali&apos;s 3 MB limit. Choose a
+                compressed copy.
+              </span>
+            )}
           </label>
         </div>
       </section>

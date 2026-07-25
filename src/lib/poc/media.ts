@@ -12,6 +12,11 @@
 
 import type { Fetcher } from "./db";
 import { supabaseRestFetcher } from "./db";
+import {
+  attachmentExceedsProviderLimit,
+  attachmentLimitBytes,
+} from "../messaging/media-policy";
+import type { MessagingProvider } from "../messaging/types";
 
 /** Storage bucket holding every attachment. Public-read: the provider must be able to GET it. */
 export const MEDIA_BUCKET = "media";
@@ -59,14 +64,19 @@ export type MediaProblem =
  * Reject anything WhatsApp would refuse, with a message a staff member can act on.
  * Returns null when the file is fine.
  */
-export function validateMedia(mimeType: string, sizeBytes: number): MediaProblem | null {
+export function validateMedia(
+  mimeType: string,
+  sizeBytes: number,
+): MediaProblem | null {
   const kind = kindFor(mimeType);
   if (!kind) {
-    const hint =
-      mimeType.toLowerCase().includes("webp")
-        ? " WebP is only allowed as a sticker on WhatsApp — save it as JPEG or PNG."
-        : "";
-    return { code: "unsupported_type", message: `${mimeType} can't be sent on WhatsApp.${hint}` };
+    const hint = mimeType.toLowerCase().includes("webp")
+      ? " WebP is only allowed as a sticker on WhatsApp — save it as JPEG or PNG."
+      : "";
+    return {
+      code: "unsupported_type",
+      message: `${mimeType} can't be sent on WhatsApp.${hint}`,
+    };
   }
   if (sizeBytes <= 0) return { code: "empty", message: "File is empty." };
 
@@ -80,6 +90,26 @@ export function validateMedia(mimeType: string, sizeBytes: number): MediaProblem
   return null;
 }
 
+/** Apply the active provider's tighter limit after the provider-agnostic vault checks. */
+export function validateMediaForProvider(
+  provider: MessagingProvider,
+  mimeType: string,
+  sizeBytes: number,
+): MediaProblem | null {
+  const problem = validateMedia(mimeType, sizeBytes);
+  if (problem) return problem;
+
+  if (attachmentExceedsProviderLimit(provider, sizeBytes)) {
+    const limit = attachmentLimitBytes(provider);
+    return {
+      code: "too_large",
+      message: `${formatBytes(sizeBytes)} is over Wali's 3 MB attachment limit. Compress it below ${limit ? Math.floor(limit / 1_000_000) : 3} MB and try again.`,
+    };
+  }
+
+  return null;
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -90,7 +120,11 @@ export function formatBytes(bytes: number): string {
  * Storage object path for an upload. Namespaced by kind and prefixed with a caller-supplied
  * token so two files with the same name can't overwrite each other.
  */
-export function storagePath(kind: MediaKind, filename: string, token: string): string {
+export function storagePath(
+  kind: MediaKind,
+  filename: string,
+  token: string,
+): string {
   const safe = filename
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
@@ -142,7 +176,9 @@ export function mapMediaAssets(rows: DbMediaAsset[]): MediaAsset[] {
   }));
 }
 
-export async function listMedia(fetcher: Fetcher = supabaseRestFetcher()): Promise<MediaAsset[]> {
+export async function listMedia(
+  fetcher: Fetcher = supabaseRestFetcher(),
+): Promise<MediaAsset[]> {
   const rows = await fetcher<DbMediaAsset>(
     "media_assets?select=id,filename,mime_type,size_bytes,kind,storage_path,public_url,caption,created_at&order=created_at.desc&limit=200",
   );

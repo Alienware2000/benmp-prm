@@ -10,7 +10,7 @@ import {
   validateTemplate,
 } from "@/lib/poc/direct-message";
 import { summarizePlan } from "@/lib/poc/dispatch";
-import { loadMediaAsset } from "@/lib/poc/media";
+import { loadMediaAsset, validateMediaForProvider } from "@/lib/poc/media";
 import { parseAllowlist, sendPlanned } from "@/lib/send";
 import { getMessagingAdapter } from "@/lib/messaging";
 
@@ -94,12 +94,24 @@ export async function POST(req: Request) {
   // Resolve the attachment from its id server-side — the client never supplies the URL a
   // provider will fetch, so a tampered payload can't make us broadcast an arbitrary file.
   let media: Awaited<ReturnType<typeof loadMediaAsset>> = null;
+  const adapter = getMessagingAdapter();
   if (mediaAssetId) {
     const asset = await loadMediaAsset(mediaAssetId);
     if (!asset) {
       return NextResponse.json(
         { ok: false, error: { message: "Attachment not found." } },
         { status: 404 },
+      );
+    }
+    const mediaProblem = validateMediaForProvider(
+      adapter.provider,
+      asset.mimeType,
+      asset.sizeBytes,
+    );
+    if (mediaProblem) {
+      return NextResponse.json(
+        { ok: false, error: { message: mediaProblem.message } },
+        { status: 400 },
       );
     }
     media = asset;
@@ -124,7 +136,7 @@ export async function POST(req: Request) {
   }
 
   const report = await sendPlanned(messages, {
-    adapter: getMessagingAdapter(),
+    adapter,
     optedOut,
     allowlist: parseAllowlist(process.env.BENMP_SEND_ALLOWLIST),
   });

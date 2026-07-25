@@ -1,5 +1,6 @@
 "use client";
 
+import { Upload, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { FeedbackNotice } from "@/components/feedback-notice";
 
@@ -460,8 +461,9 @@ export function DirectoryClient({
                 </option>
               ))}
             </select>
-            <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md border border-border bg-surface px-3 text-xs font-semibold transition hover:bg-background">
-              {uploading ? "Uploading…" : "Upload"}
+            <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-3 text-xs font-semibold transition hover:bg-background">
+              <Upload className="h-4 w-4" aria-hidden />
+              {uploading ? "Uploading…" : attached ? "Replace" : "Add file"}
               <input
                 type="file"
                 className="hidden"
@@ -477,10 +479,24 @@ export function DirectoryClient({
           </div>
 
           {mediaId && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Every recipient gets this attachment with their message. WhatsApp
-              allows one per message.
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
+              <p className="mr-auto min-w-0 text-xs text-muted-foreground">
+                <b className="text-foreground">{attached?.filename}</b> will be
+                sent to every selected recipient.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setMediaId("");
+                  setSummary(null);
+                  setReport(null);
+                }}
+                className="inline-flex h-8 items-center gap-1 rounded border border-border bg-surface px-2.5 text-xs font-semibold hover:bg-background"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+                Remove
+              </button>
+            </div>
           )}
 
           <div className="mt-3 flex flex-wrap items-center gap-2">

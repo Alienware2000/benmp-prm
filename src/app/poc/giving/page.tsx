@@ -9,7 +9,9 @@ import {
   sortByDateDesc,
   summarizeGiving,
 } from "@/lib/poc/giving";
+import { messagingConfiguration } from "@/lib/messaging/configuration";
 import { PocShell } from "../nav";
+import { MassThankClient } from "./mass-thank-client";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +76,7 @@ export default async function GivingPage({
   );
   const branches = branchOptions(ledger);
   const unattributed = totals.byBranch.find((b) => b.branch === UNATTRIBUTED);
+  const messaging = messagingConfiguration();
 
   return (
     <PocShell
@@ -89,12 +92,19 @@ export default async function GivingPage({
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">Thank from the gift record</h2>
           <p className="mt-1 text-xs leading-5 text-emerald-900/80">
-            Use <b>Thank</b> beside a person&apos;s gift. Their name, WhatsApp
-            number and that verified amount open prefilled in Messages for
-            review. Bank-only rows are never messaged.
+            Use <b>Thank</b> beside one gift, or prepare a reviewed batch for
+            every eligible giver below. Both workflows use the verified payment
+            amount; neither depends on someone already being in the partner
+            directory.
           </p>
         </div>
       </section>
+
+      <MassThankClient
+        provider={messaging.provider}
+        messagingReady={messaging.ready}
+        configurationNote={messaging.note}
+      />
 
       <form
         method="GET"

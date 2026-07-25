@@ -190,6 +190,40 @@ type DbSentMessageLookup = {
   provider_message_id: string | null;
 };
 
+type DbAcceptedSentMessage = {
+  to_phone: string | null;
+  body: string | null;
+};
+
+/** Stable identity for one generated message at one recorded giving total. */
+export function sentMessageKey(recipient: string, body: string): string {
+  return `${recipient}\u0000${body}`;
+}
+
+/**
+ * Previously accepted messages, used to keep a repeated batch action idempotent.
+ *
+ * The generated body includes the giver's current recorded total. A new gift changes
+ * that body, which makes the next acknowledgement eligible without requiring staff to
+ * clear old audit records.
+ */
+export async function loadAcceptedSentMessageKeys(
+  kind: string,
+  fetcher: Fetcher = supabaseRestFetcher(),
+): Promise<Set<string>> {
+  const rows = await fetcher<DbAcceptedSentMessage>(
+    `sent_messages?select=to_phone,body&kind=eq.${encodeURIComponent(kind)}&status=in.(queued,sent)&limit=5000`,
+  );
+  return new Set(
+    rows
+      .filter(
+        (row): row is { to_phone: string; body: string } =>
+          Boolean(row.to_phone) && Boolean(row.body),
+      )
+      .map((row) => sentMessageKey(row.to_phone, row.body)),
+  );
+}
+
 /** Find a prior accepted attempt so retrying the same test cannot send twice. */
 export async function findSentMessageByPartnerRef(
   partnerRef: string,

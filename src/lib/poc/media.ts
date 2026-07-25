@@ -196,3 +196,74 @@ export async function loadMediaAsset(
   );
   return mapMediaAssets(rows)[0] ?? null;
 }
+
+type DeletableMediaAsset = {
+  id: string;
+  storage_path: string;
+};
+
+/**
+ * Permanently remove an asset from both the public storage bucket and its catalogue.
+ *
+ * The catalogue row is deleted first so a failed storage cleanup can leave only an
+ * unreachable orphan, never a broken attachment that staff can still select.
+ */
+export async function deleteMediaAsset(
+  id: string,
+): Promise<{ found: boolean }> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { found: false };
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !key) {
+    throw new Error(
+      "Supabase env not set (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)",
+    );
+  }
+
+  const rows = await supabaseRestFetcher()<DeletableMediaAsset>(
+    `media_assets?select=id,storage_path&id=eq.${id}&limit=1`,
+  );
+  const asset = rows[0];
+  if (!asset) return { found: false };
+
+  const catalogueDelete = await fetch(
+    `${supabaseUrl}/rest/v1/media_assets?id=eq.${id}`,
+    {
+      method: "DELETE",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: "return=minimal",
+      },
+    },
+  );
+  if (!catalogueDelete.ok) {
+    throw new Error(
+      `Could not remove media record: ${catalogueDelete.status} ${await catalogueDelete.text()}`,
+    );
+  }
+
+  const objectPath = asset.storage_path
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/");
+  const storageDelete = await fetch(
+    `${supabaseUrl}/storage/v1/object/${MEDIA_BUCKET}/${objectPath}`,
+    {
+      method: "DELETE",
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    },
+  );
+  if (!storageDelete.ok && storageDelete.status !== 404) {
+    console.error(
+      JSON.stringify({
+        evt: "poc_media_storage_cleanup_failed",
+        assetId: id,
+        status: storageDelete.status,
+      }),
+    );
+  }
+
+  return { found: true };
+}

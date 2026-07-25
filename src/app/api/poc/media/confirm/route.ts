@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { MEDIA_BUCKET, kindFor, publicUrl, validateMedia } from "@/lib/poc/media";
+import { getMessagingAdapter } from "@/lib/messaging";
+import {
+  MEDIA_BUCKET,
+  kindFor,
+  publicUrl,
+  validateMediaForProvider,
+} from "@/lib/poc/media";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +21,10 @@ export async function POST(req: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !key) {
-    return NextResponse.json({ ok: false, error: { message: "Supabase env not set." } }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: { message: "Supabase env not set." } },
+      { status: 500 },
+    );
   }
 
   const body = (await req.json().catch(() => ({}))) as {
@@ -28,7 +37,10 @@ export async function POST(req: Request) {
   const caption = typeof body.caption === "string" ? body.caption.trim() : "";
 
   if (!path || !filename || path.includes("..")) {
-    return NextResponse.json({ ok: false, error: { message: "Bad upload reference." } }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: { message: "Bad upload reference." } },
+      { status: 400 },
+    );
   }
 
   const url = publicUrl(supabaseUrl, path);
@@ -41,17 +53,25 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  const mimeType = head.headers.get("content-type") ?? "application/octet-stream";
+  const mimeType =
+    head.headers.get("content-type") ?? "application/octet-stream";
   const sizeBytes = Number(head.headers.get("content-length") ?? 0);
 
-  const problem = validateMedia(mimeType, sizeBytes);
+  const problem = validateMediaForProvider(
+    getMessagingAdapter().provider,
+    mimeType,
+    sizeBytes,
+  );
   if (problem) {
     // Remove the object so a rejected file can't linger in the bucket unreferenced.
     await fetch(`${supabaseUrl}/storage/v1/object/${MEDIA_BUCKET}/${path}`, {
       method: "DELETE",
       headers: { apikey: key, Authorization: `Bearer ${key}` },
     }).catch(() => {});
-    return NextResponse.json({ ok: false, error: { message: problem.message } }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: { message: problem.message } },
+      { status: 400 },
+    );
   }
 
   const insert = await fetch(`${supabaseUrl}/rest/v1/media_assets`, {
@@ -74,11 +94,19 @@ export async function POST(req: Request) {
   });
   if (!insert.ok) {
     return NextResponse.json(
-      { ok: false, error: { message: `Catalogue write failed: ${insert.status} ${await insert.text()}` } },
+      {
+        ok: false,
+        error: {
+          message: `Catalogue write failed: ${insert.status} ${await insert.text()}`,
+        },
+      },
       { status: 502 },
     );
   }
 
   const [row] = (await insert.json()) as Array<{ id: string }>;
-  return NextResponse.json({ ok: true, data: { id: row?.id, url, filename, sizeBytes } });
+  return NextResponse.json({
+    ok: true,
+    data: { id: row?.id, url, filename, sizeBytes },
+  });
 }

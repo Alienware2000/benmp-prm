@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { MEDIA_BUCKET, kindFor, storagePath, validateMedia } from "@/lib/poc/media";
+import { getMessagingAdapter } from "@/lib/messaging";
+import {
+  MEDIA_BUCKET,
+  kindFor,
+  storagePath,
+  validateMediaForProvider,
+} from "@/lib/poc/media";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +26,10 @@ export async function POST(req: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !key) {
-    return NextResponse.json({ ok: false, error: { message: "Supabase env not set." } }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: { message: "Supabase env not set." } },
+      { status: 500 },
+    );
   }
 
   const body = (await req.json().catch(() => ({}))) as {
@@ -33,25 +42,47 @@ export async function POST(req: Request) {
   const sizeBytes = Number(body.sizeBytes ?? 0);
 
   if (!filename) {
-    return NextResponse.json({ ok: false, error: { message: "No file name." } }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: { message: "No file name." } },
+      { status: 400 },
+    );
   }
 
-  const problem = validateMedia(mimeType, sizeBytes);
+  const problem = validateMediaForProvider(
+    getMessagingAdapter().provider,
+    mimeType,
+    sizeBytes,
+  );
   if (problem) {
-    return NextResponse.json({ ok: false, error: { message: problem.message } }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: { message: problem.message } },
+      { status: 400 },
+    );
   }
 
   const kind = kindFor(mimeType)!;
   const path = storagePath(kind, filename, crypto.randomUUID().slice(0, 8));
 
-  const signed = await fetch(`${supabaseUrl}/storage/v1/object/upload/sign/${MEDIA_BUCKET}/${path}`, {
-    method: "POST",
-    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({}),
-  });
+  const signed = await fetch(
+    `${supabaseUrl}/storage/v1/object/upload/sign/${MEDIA_BUCKET}/${path}`,
+    {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    },
+  );
   if (!signed.ok) {
     return NextResponse.json(
-      { ok: false, error: { message: `Could not prepare upload: ${signed.status} ${await signed.text()}` } },
+      {
+        ok: false,
+        error: {
+          message: `Could not prepare upload: ${signed.status} ${await signed.text()}`,
+        },
+      },
       { status: 502 },
     );
   }

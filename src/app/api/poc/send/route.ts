@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import { loadReconciliation, loadOptOuts, toSentMessageRows, recordSentMessages } from "@/lib/poc/db";
+import {
+  loadAcceptedSentMessageKeys,
+  loadOptOuts,
+  loadReconciliation,
+  recordSentMessages,
+  sentMessageKey,
+  toSentMessageRows,
+} from "@/lib/poc/db";
 import { planMessages } from "@/lib/messages";
 import { summarizePlan, filterByKind, type PlanKind } from "@/lib/poc/dispatch";
 import { sendPlanned, parseAllowlist } from "@/lib/send";
@@ -25,18 +32,44 @@ export const dynamic = "force-dynamic";
  * period's due date is treated as already passed.
  */
 export async function POST(req: Request) {
-  const body = (await req.json().catch(() => ({}))) as { confirm?: unknown; kind?: unknown };
+  const body = (await req.json().catch(() => ({}))) as {
+    confirm?: unknown;
+    kind?: unknown;
+  };
   const confirm = body.confirm === true;
-  const kind: PlanKind = body.kind === "thank_you" || body.kind === "reminder" ? body.kind : "all";
+  const kind: PlanKind =
+    body.kind === "thank_you" || body.kind === "reminder" ? body.kind : "all";
 
   const asOf = new Date().toISOString().slice(0, 10);
-  const [result, optedOut] = await Promise.all([loadReconciliation(), loadOptOuts()]);
-  const messages = filterByKind(planMessages(result, { asOf, dueDate: "1970-01-01" }), kind);
+  const [result, optedOut, acceptedThankYous] = await Promise.all([
+    loadReconciliation(),
+    loadOptOuts(),
+    kind === "reminder"
+      ? Promise.resolve(new Set<string>())
+      : loadAcceptedSentMessageKeys("thank_you"),
+  ]);
+  const planned = filterByKind(
+    planMessages(result, { asOf, dueDate: "1970-01-01" }),
+    kind,
+  );
+  const messages = planned.filter(
+    (message) =>
+      message.kind !== "thank_you" ||
+      !message.to ||
+      !acceptedThankYous.has(sentMessageKey(message.to, message.body)),
+  );
+  const alreadySent = planned.length - messages.length;
 
   if (!confirm) {
     return NextResponse.json({
       ok: true,
-      data: { mode: "preview", summary: summarizePlan(messages, { optedOut }) },
+      data: {
+        mode: "preview",
+        summary: {
+          ...summarizePlan(messages, { optedOut }),
+          alreadySent,
+        },
+      },
     });
   }
 
@@ -46,6 +79,11 @@ export async function POST(req: Request) {
     allowlist: parseAllowlist(process.env.BENMP_SEND_ALLOWLIST),
   });
   // Audit trail: every attempt (sent, skipped, failed) lands in sent_messages.
-  const audited = await recordSentMessages(toSentMessageRows(messages, report.outcomes));
-  return NextResponse.json({ ok: true, data: { mode: "sent", report, audited } });
+  const audited = await recordSentMessages(
+    toSentMessageRows(messages, report.outcomes),
+  );
+  return NextResponse.json({
+    ok: true,
+    data: { mode: "sent", report, audited },
+  });
 }

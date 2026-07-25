@@ -11,15 +11,13 @@ import {
   Repeat2,
   RotateCcw,
   ShieldCheck,
+  Trash2,
   Upload,
   Video,
+  X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { FeedbackNotice } from "@/components/feedback-notice";
-import {
-  attachmentExceedsProviderLimit,
-  attachmentLimitBytes,
-} from "@/lib/messaging/media-policy";
 import type { MessagingProvider } from "@/lib/messaging/types";
 import { normalizePhone } from "@/lib/phone";
 
@@ -73,22 +71,30 @@ export function DirectMessageClient({
   initialPhone = "",
   initialMessage = "",
   contextNote,
+  messagingReady,
+  configurationNote,
 }: {
   provider: MessagingProvider;
   initialName?: string;
   initialPhone?: string;
   initialMessage?: string;
   contextNote?: string;
+  messagingReady: boolean;
+  configurationNote?: string;
 }) {
   const [fullName, setFullName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
   const [message, setMessage] = useState(initialMessage);
   const [assets, setAssets] = useState<MediaAsset[]>([]);
+  const [incompatibleAssets, setIncompatibleAssets] = useState<MediaAsset[]>(
+    [],
+  );
   const [mediaId, setMediaId] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SendResult | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -100,31 +106,8 @@ export function DirectMessageClient({
     () => assets.find((asset) => asset.id === mediaId) ?? null,
     [assets, mediaId],
   );
-  const attachmentTooLarge = Boolean(
-    attached && attachmentExceedsProviderLimit(provider, attached.sizeBytes),
-  );
-  const attachmentLimit = attachmentLimitBytes(provider);
-  const compatibleAlternative = useMemo(() => {
-    if (!attached || !attachmentTooLarge) return null;
-    return (
-      assets
-        .filter(
-          (asset) =>
-            asset.id !== attached.id &&
-            asset.kind === attached.kind &&
-            !attachmentExceedsProviderLimit(provider, asset.sizeBytes),
-        )
-        .sort((a, b) => b.sizeBytes - a.sizeBytes)[0] ?? null
-    );
-  }, [assets, attached, attachmentTooLarge, provider]);
   const ready = Boolean(destination && message.trim());
-  const canSend =
-    provider !== "mock" &&
-    ready &&
-    confirmed &&
-    !attachmentTooLarge &&
-    !busy &&
-    !result;
+  const canSend = messagingReady && ready && confirmed && !busy && !result;
 
   useEffect(() => {
     fetch("/api/poc/media")
@@ -132,6 +115,11 @@ export function DirectMessageClient({
       .then((payload) => {
         if (payload.ok && Array.isArray(payload.data?.assets)) {
           setAssets(payload.data.assets);
+          setIncompatibleAssets(
+            Array.isArray(payload.data?.incompatible)
+              ? payload.data.incompatible
+              : [],
+          );
         }
       })
       .catch(() => {});
@@ -229,12 +217,66 @@ export function DirectMessageClient({
         response.json(),
       );
       setAssets(list?.data?.assets ?? []);
+      setIncompatibleAssets(list?.data?.incompatible ?? []);
       setMediaId(confirmedUpload.data.id);
       resetSendState();
     } catch {
       setError("The attachment upload was interrupted. Try again.");
     } finally {
       setUploading(false);
+    }
+  }
+
+  function removeAttachment() {
+    setMediaId("");
+    resetSendState();
+  }
+
+  async function deleteAssets(
+    doomed: MediaAsset[],
+    confirmation: string,
+  ): Promise<void> {
+    if (deleting || doomed.length === 0 || !window.confirm(confirmation))
+      return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const results = await Promise.all(
+        doomed.map(async (asset) => {
+          const response = await fetch(
+            `/api/poc/media?id=${encodeURIComponent(asset.id)}`,
+            { method: "DELETE" },
+          );
+          const payload = await response.json().catch(() => ({}));
+          return {
+            asset,
+            ok: response.ok && payload.ok,
+            message: payload.error?.message as string | undefined,
+          };
+        }),
+      );
+      const failed = results.filter((result) => !result.ok);
+      const deletedIds = new Set(
+        results.filter((result) => result.ok).map((result) => result.asset.id),
+      );
+      setAssets((current) =>
+        current.filter((asset) => !deletedIds.has(asset.id)),
+      );
+      setIncompatibleAssets((current) =>
+        current.filter((asset) => !deletedIds.has(asset.id)),
+      );
+      if (deletedIds.has(mediaId)) setMediaId("");
+      resetSendState();
+      if (failed.length > 0) {
+        setError(
+          failed[0].message ??
+            `${failed.length} attachment${failed.length === 1 ? "" : "s"} could not be deleted.`,
+        );
+      }
+    } catch {
+      setError("The attachment could not be deleted. Nothing else changed.");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -288,6 +330,16 @@ export function DirectMessageClient({
           />
           <p className="min-w-0 text-xs leading-5">{contextNote}</p>
         </div>
+      )}
+
+      {!messagingReady && configurationNote && (
+        <FeedbackNotice
+          tone="warning"
+          className="lg:col-span-2"
+          title="Live WhatsApp is not configured in this deployment"
+        >
+          {configurationNote}
+        </FeedbackNotice>
       )}
 
       <section className="min-w-0 rounded-lg border border-border bg-surface">
@@ -373,9 +425,6 @@ export function DirectMessageClient({
                         ? "Video"
                         : "File"}{" "}
                     — {asset.filename}
-                    {attachmentExceedsProviderLimit(provider, asset.sizeBytes)
-                      ? " — needs compression"
-                      : ""}
                   </option>
                 ))}
               </select>
@@ -385,7 +434,7 @@ export function DirectMessageClient({
                 ) : (
                   <Upload className="h-4 w-4" aria-hidden />
                 )}
-                {uploading ? "Uploading" : "Upload"}
+                {uploading ? "Uploading" : attached ? "Replace" : "Add file"}
                 <input
                   type="file"
                   className="hidden"
@@ -400,35 +449,62 @@ export function DirectMessageClient({
               </label>
             </div>
 
-            {attachmentTooLarge && (
+            {attached && (
+              <div className="mt-1 flex flex-wrap items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
+                <span className="mr-auto min-w-0 text-xs font-normal text-muted-foreground">
+                  <b className="text-foreground">{attached.filename}</b>{" "}
+                  <span className="tabular-nums">
+                    · {formatFileSize(attached.sizeBytes)}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={removeAttachment}
+                  className="inline-flex h-8 items-center gap-1 rounded border border-border bg-surface px-2.5 text-xs font-semibold hover:bg-background"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden />
+                  Remove
+                </button>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() =>
+                    void deleteAssets(
+                      [attached],
+                      `Permanently delete ${attached.filename} from the BENMP media library?`,
+                    )
+                  }
+                  className="inline-flex h-8 items-center gap-1 rounded border border-red-200 bg-white px-2.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  Delete file
+                </button>
+              </div>
+            )}
+
+            {incompatibleAssets.length > 0 && (
               <FeedbackNotice
                 tone="warning"
                 className="mt-1"
-                title={`This ${attached?.kind ?? "file"} cannot be sent on the current plan`}
-                action={
-                  compatibleAlternative
-                    ? {
-                        label: `Use ${compatibleAlternative.filename} (${formatFileSize(compatibleAlternative.sizeBytes)})`,
-                        onClick: () => {
-                          setMediaId(compatibleAlternative.id);
-                          resetSendState();
-                        },
-                      }
-                    : undefined
-                }
-                supportingText={
-                  compatibleAlternative
-                    ? undefined
-                    : "Choose or upload a compressed copy to continue."
-                }
+                title={`${incompatibleAssets.length} unusable attachment${incompatibleAssets.length === 1 ? "" : "s"} hidden`}
+                action={{
+                  label: deleting
+                    ? "Deleting..."
+                    : `Delete ${incompatibleAssets.length === 1 ? "file" : "files"}`,
+                  onClick: () =>
+                    void deleteAssets(
+                      incompatibleAssets,
+                      `Permanently delete ${incompatibleAssets.length} attachment${incompatibleAssets.length === 1 ? "" : "s"} that exceed the current WhatsApp limit?`,
+                    ),
+                }}
+                supportingText="New uploads are checked against the active provider before they enter the library."
               >
-                {attached?.filename} is{" "}
-                {attached ? formatFileSize(attached.sizeBytes) : "too large"}.
-                The current limit is{" "}
-                {attachmentLimit
-                  ? formatFileSize(attachmentLimit)
-                  : "smaller than this file"}
-                .
+                {incompatibleAssets
+                  .map(
+                    (asset) =>
+                      `${asset.filename} (${formatFileSize(asset.sizeBytes)})`,
+                  )
+                  .join(", ")}
               </FeedbackNotice>
             )}
           </div>

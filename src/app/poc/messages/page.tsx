@@ -1,5 +1,5 @@
 import { buildThankYouMessage } from "@/lib/messages";
-import type { MessagingProvider } from "@/lib/messaging/types";
+import { messagingConfiguration } from "@/lib/messaging/configuration";
 import { PartnerWorkspace } from "../directory/partner-workspace";
 import { PocShell } from "../nav";
 import { DirectMessageClient } from "./direct-message-client";
@@ -17,18 +17,6 @@ type MessagesSearchParams = Promise<{
   amountMinor?: string;
   template?: string;
 }>;
-
-function configuredProvider(): MessagingProvider {
-  const provider = process.env.BENMP_MESSAGING_PROVIDER;
-  return provider === "twilio" ||
-    provider === "meta-cloud-api" ||
-    provider === "infobip" ||
-    provider === "vonage" ||
-    provider === "whatchimp" ||
-    provider === "wali"
-    ? provider
-    : "mock";
-}
 
 function formatGhsMinor(amountMinor: number): string {
   return (amountMinor / 100).toLocaleString("en-US", {
@@ -59,6 +47,7 @@ export default async function MessagesPage({
   const contextNote = initialMessage
     ? `Prefilled from Giving using the recorded GHS ${formatGhsMinor(amountMinor)} gift. The recipient and amount came from that gift record; review them before sending.`
     : undefined;
+  const messaging = messagingConfiguration();
 
   return (
     <PocShell
@@ -68,7 +57,9 @@ export default async function MessagesPage({
     >
       <MessagesNav current="number" />
       <DirectMessageClient
-        provider={configuredProvider()}
+        provider={messaging.provider}
+        messagingReady={messaging.ready}
+        configurationNote={messaging.note}
         initialName={name}
         initialPhone={phone}
         initialMessage={initialMessage}

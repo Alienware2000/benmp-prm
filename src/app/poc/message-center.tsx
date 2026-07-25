@@ -8,6 +8,7 @@ type Summary = {
   sendable: number;
   skippedNoPhone: number;
   optedOut: number;
+  alreadySent?: number;
   thankYou: number;
   reminder: number;
   sample: Array<{
@@ -189,6 +190,9 @@ function QueueRow({
             {kind === "thank_you" ? summary.thankYou : summary.reminder} ·{" "}
             {summary.skippedNoPhone} skipped (no phone number)
             {summary.optedOut > 0 && <> · {summary.optedOut} opted out</>}
+            {(summary.alreadySent ?? 0) > 0 && (
+              <> · {summary.alreadySent} already sent</>
+            )}
           </p>
         </div>
       )}

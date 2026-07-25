@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { listMedia } from "@/lib/poc/media";
+import { getMessagingAdapter } from "@/lib/messaging";
+import { attachmentExceedsProviderLimit } from "@/lib/messaging/media-policy";
+import { deleteMediaAsset, listMedia } from "@/lib/poc/media";
 
 export const dynamic = "force-dynamic";
 
@@ -13,5 +15,44 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   const assets = await listMedia();
-  return NextResponse.json({ ok: true, data: { assets } });
+  const provider = getMessagingAdapter().provider;
+  const available = assets.filter(
+    (asset) => !attachmentExceedsProviderLimit(provider, asset.sizeBytes),
+  );
+  const incompatible = assets.filter((asset) =>
+    attachmentExceedsProviderLimit(provider, asset.sizeBytes),
+  );
+
+  return NextResponse.json({
+    ok: true,
+    data: { assets: available, incompatible, provider },
+  });
+}
+
+/** Permanently remove one vault asset. The POC password gate protects this route. */
+export async function DELETE(request: Request) {
+  const id = new URL(request.url).searchParams.get("id") ?? "";
+  try {
+    const result = await deleteMediaAsset(id);
+    if (!result.found) {
+      return NextResponse.json(
+        { ok: false, error: { message: "Attachment not found." } },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: {
+          message:
+            error instanceof Error
+              ? error.message
+              : "The attachment could not be deleted.",
+        },
+      },
+      { status: 502 },
+    );
+  }
 }

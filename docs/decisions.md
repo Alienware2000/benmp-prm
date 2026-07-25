@@ -213,7 +213,7 @@ This amends **0004** (removes the Ghana/diaspora payment rails) and supersedes *
 1. The Wali API key and device ID are server-only environment variables. They never enter client bundles, logs, or git.
 2. All sends use the existing application workflow. Preview is the default; a real send requires explicit confirmation and still passes the opt-out and `BENMP_SEND_ALLOWLIST` gates.
 3. Every attempted result is written to `sent_messages`, including skipped and failed sends.
-4. Wali templates are used for business-initiated conversations when Meta requires them. Free-form text is only valid inside WhatsApp's open customer-service window.
+4. The current BENMP sender uses Wali's operative web connector, so it can initiate the personalized acknowledgement without requiring the recipient to message first. If the sender moves to Meta Cloud API later, approved templates and Meta's customer-service window rules apply.
 5. The local `npm run wali:check` command verifies that the configured BENMP sender is operative without sending a message.
 
 **Why**: BENMP now controls a working WhatsApp Business number and Wali exposes it through an authenticated API. That removes the trial-sandbox and onboarding blockers encountered with the earlier providers while preserving the adapter boundary and the application's safety controls.

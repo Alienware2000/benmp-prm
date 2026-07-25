@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { Sparkles } from "lucide-react";
+import { FeedbackNotice } from "@/components/feedback-notice";
 
 const SUGGESTIONS = [
   "Who hasn't given yet?",
@@ -91,14 +92,28 @@ export function AskHero() {
         <div className="mt-3.5 rounded-2xl border border-border bg-surface px-4.5 py-4">
           {asked && (
             <p className="mb-2 text-xs text-muted-foreground">
-              You asked · <span className="font-semibold text-foreground">{asked}</span>
+              You asked ·{" "}
+              <span className="font-semibold text-foreground">{asked}</span>
             </p>
           )}
-          {loading && <p className="text-sm text-muted-foreground">Thinking…</p>}
-          {error && <p className="text-sm text-danger">{error}</p>}
+          {loading && (
+            <p className="text-sm text-muted-foreground">Thinking…</p>
+          )}
+          {error && (
+            <FeedbackNotice
+              tone="error"
+              title="The assistant could not answer"
+              supportingText="Your question is still here. You can edit it or try again."
+              onDismiss={() => setError(null)}
+            >
+              {error}
+            </FeedbackNotice>
+          )}
           {answer && (
             <>
-              <p className="max-w-[64ch] text-[14.5px] leading-6 text-foreground">{answer}</p>
+              <p className="max-w-[64ch] text-[14.5px] leading-6 text-foreground">
+                {answer}
+              </p>
               <p className="mt-3 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
                 {usedModel
                   ? "Answered by the assistant, grounded to this period's reconciled figures — nothing is estimated."

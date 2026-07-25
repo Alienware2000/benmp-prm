@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FeedbackNotice } from "@/components/feedback-notice";
 
 type Summary = {
   total: number;
@@ -158,7 +159,17 @@ function QueueRow({
         </button>
       </span>
 
-      {error && <p className="col-span-full text-xs text-danger">{error}</p>}
+      {error && (
+        <FeedbackNotice
+          tone="error"
+          className="col-span-full"
+          title="This message step could not be completed"
+          supportingText="Nothing new was sent. You can retry without rebuilding the queue."
+          onDismiss={() => setError(null)}
+        >
+          {error}
+        </FeedbackNotice>
+      )}
 
       {summary && !report && (
         <div className="col-span-full grid gap-2 rounded-xl border border-border bg-background p-3">

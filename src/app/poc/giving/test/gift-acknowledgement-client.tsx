@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  AlertCircle,
-  AlertTriangle,
   CheckCircle2,
   ImageIcon,
   LoaderCircle,
@@ -10,9 +8,9 @@ import {
   RotateCcw,
   ShieldCheck,
   Video,
-  X,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FeedbackNotice } from "@/components/feedback-notice";
 import { buildThankYouMessage } from "@/lib/messages";
 import {
   attachmentExceedsProviderLimit,
@@ -81,6 +79,8 @@ export function GiftAcknowledgementClient({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SendResult | null>(null);
+  const donorNameRef = useRef<HTMLInputElement>(null);
+  const attachmentRef = useRef<HTMLSelectElement>(null);
 
   const destination = normalizePhone(phone);
   const amountMinor = Math.round(Number(amount) * 100);
@@ -149,6 +149,30 @@ export function GiftAcknowledgementClient({
     setIdempotencyKey("");
   }
 
+  function changeAttachment() {
+    startAnotherTest();
+    requestAnimationFrame(() => {
+      attachmentRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      attachmentRef.current?.focus();
+    });
+  }
+
+  function startFresh() {
+    setFullName("");
+    setPhone("");
+    setAmount("");
+    setMessageOverride(null);
+    setMediaId("");
+    setConfirmed(false);
+    setResult(null);
+    setError(null);
+    setIdempotencyKey("");
+    requestAnimationFrame(() => donorNameRef.current?.focus());
+  }
+
   async function send(event: FormEvent) {
     event.preventDefault();
     if (!canSend || !destination) return;
@@ -210,6 +234,7 @@ export function GiftAcknowledgementClient({
           <label className="grid gap-1.5 text-xs font-semibold">
             Donor name
             <input
+              ref={donorNameRef}
               value={fullName}
               onChange={(event) => {
                 setFullName(event.target.value);
@@ -252,6 +277,7 @@ export function GiftAcknowledgementClient({
           <div className="grid gap-1.5 text-xs font-semibold">
             <label htmlFor="acknowledgement-attachment">Attachment</label>
             <select
+              ref={attachmentRef}
               id="acknowledgement-attachment"
               value={mediaId}
               onChange={(event) => {
@@ -276,49 +302,35 @@ export function GiftAcknowledgementClient({
               ))}
             </select>
             {attachmentTooLarge && (
-              <div
-                role="status"
-                className="mt-1 flex items-start gap-2.5 rounded-md border border-amber-300 bg-amber-50 px-3 py-3 text-amber-950"
+              <FeedbackNotice
+                tone="warning"
+                className="mt-1"
+                title={`This ${attached?.kind ?? "file"} cannot be sent on the current plan`}
+                action={
+                  compatibleAlternative
+                    ? {
+                        label: `Use ${compatibleAlternative.filename} (${formatFileSize(compatibleAlternative.sizeBytes)})`,
+                        onClick: () => {
+                          setMediaId(compatibleAlternative.id);
+                          resetConfirmation();
+                        },
+                      }
+                    : undefined
+                }
+                supportingText={
+                  compatibleAlternative
+                    ? undefined
+                    : "Choose or upload a compressed copy to continue."
+                }
               >
-                <AlertTriangle
-                  className="mt-0.5 h-4 w-4 flex-none text-amber-700"
-                  aria-hidden
-                />
-                <div className="min-w-0 font-normal">
-                  <p className="text-xs font-semibold">
-                    This {attached?.kind ?? "file"} cannot be sent on the
-                    current plan
-                  </p>
-                  <p className="mt-0.5 text-xs leading-5 text-amber-900/80">
-                    {attached?.filename} is{" "}
-                    {attached
-                      ? formatFileSize(attached.sizeBytes)
-                      : "too large"}
-                    . The current limit is{" "}
-                    {attachmentLimit
-                      ? formatFileSize(attachmentLimit)
-                      : "smaller than this file"}
-                    .
-                  </p>
-                  {compatibleAlternative ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMediaId(compatibleAlternative.id);
-                        resetConfirmation();
-                      }}
-                      className="mt-2 inline-flex min-h-8 items-center rounded-md border border-amber-400 bg-white px-2.5 py-1 text-xs font-semibold text-amber-950 transition hover:bg-amber-100"
-                    >
-                      Use {compatibleAlternative.filename} (
-                      {formatFileSize(compatibleAlternative.sizeBytes)})
-                    </button>
-                  ) : (
-                    <p className="mt-1 text-xs font-medium">
-                      Choose or upload a compressed copy to continue.
-                    </p>
-                  )}
-                </div>
-              </div>
+                {attached?.filename} is{" "}
+                {attached ? formatFileSize(attached.sizeBytes) : "too large"}.
+                The current limit is{" "}
+                {attachmentLimit
+                  ? formatFileSize(attachmentLimit)
+                  : "smaller than this file"}
+                .
+              </FeedbackNotice>
             )}
           </div>
         </div>
@@ -428,34 +440,15 @@ export function GiftAcknowledgementClient({
           </label>
 
           {error && (
-            <div
-              role="alert"
-              aria-live="assertive"
-              className="mt-4 flex items-start gap-2.5 rounded-md border border-red-300 bg-red-50 px-3 py-3 text-red-950"
+            <FeedbackNotice
+              tone="error"
+              className="mt-4"
+              title="Message was not sent"
+              supportingText="Your details are still here. Review them and try again."
+              onDismiss={() => setError(null)}
             >
-              <AlertCircle
-                className="mt-0.5 h-4 w-4 flex-none text-red-700"
-                aria-hidden
-              />
-              <div className="min-w-0 flex-1 text-xs leading-5">
-                <p className="font-semibold">Message was not sent</p>
-                <p className="mt-0.5 text-red-900/80">
-                  {cleanProviderError(error)}
-                </p>
-                <p className="mt-1 font-medium">
-                  Your details are still here. Review them and try again.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setError(null)}
-                title="Dismiss error"
-                aria-label="Dismiss error"
-                className="grid h-7 w-7 flex-none place-items-center rounded-md text-red-800 transition hover:bg-red-100"
-              >
-                <X className="h-4 w-4" aria-hidden />
-              </button>
-            </div>
+              {cleanProviderError(error)}
+            </FeedbackNotice>
           )}
 
           {result ? (
@@ -469,13 +462,37 @@ export function GiftAcknowledgementClient({
                   Provider reference:{" "}
                   {result.outcome.providerMessageId ?? "pending"}
                 </p>
-                <button
-                  type="button"
-                  onClick={startAnotherTest}
-                  className="mt-2 font-semibold text-emerald-900 underline underline-offset-2"
-                >
-                  Prepare another test
-                </button>
+                {attached && (
+                  <p className="mt-0.5 truncate text-emerald-800/80">
+                    Attachment: {attached.filename}
+                  </p>
+                )}
+                <p className="mt-1 text-emerald-800/80">
+                  Your details remain available. No refresh is needed.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={startAnotherTest}
+                    className="min-h-8 rounded-md bg-emerald-800 px-2.5 py-1 font-semibold text-white transition hover:bg-emerald-900"
+                  >
+                    Send another
+                  </button>
+                  <button
+                    type="button"
+                    onClick={changeAttachment}
+                    className="min-h-8 rounded-md border border-emerald-300 bg-white px-2.5 py-1 font-semibold text-emerald-950 transition hover:bg-emerald-100"
+                  >
+                    Change attachment
+                  </button>
+                  <button
+                    type="button"
+                    onClick={startFresh}
+                    className="min-h-8 px-1.5 py-1 font-semibold text-emerald-900 underline underline-offset-2"
+                  >
+                    Start fresh
+                  </button>
+                </div>
               </div>
             </div>
           ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { FeedbackNotice } from "@/components/feedback-notice";
 
 export type DirectoryRow = {
   id: string;
@@ -424,9 +425,15 @@ export function DirectoryClient({
           </div>
 
           {error && (
-            <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <FeedbackNotice
+              tone="error"
+              className="mt-3"
+              title="This action could not be completed"
+              supportingText="Your recipients, message and attachment selection are still here."
+              onDismiss={() => setError(null)}
+            >
               {error}
-            </p>
+            </FeedbackNotice>
           )}
 
           {summary && (

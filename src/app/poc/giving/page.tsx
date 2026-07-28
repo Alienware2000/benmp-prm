@@ -105,7 +105,6 @@ export default async function GivingPage({
         messagingReady={messaging.ready}
         configurationNote={messaging.note}
       />
-
       <form
         method="GET"
         className="grid gap-2.5 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-5"
@@ -261,6 +260,7 @@ export default async function GivingPage({
               <th className="px-4 py-2.5 font-semibold">Date</th>
               <th className="px-2 py-2.5 font-semibold">Giver</th>
               <th className="px-2 py-2.5 font-semibold">Branch</th>
+              <th className="px-2 py-2.5 font-semibold">Country</th>
               <th className="px-4 py-2.5 text-right font-semibold">Amount</th>
               <th className="px-4 py-2.5 text-right font-semibold">Action</th>
             </tr>
@@ -269,7 +269,7 @@ export default async function GivingPage({
             {rows.length === 0 && (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="px-4 py-8 text-center text-sm text-muted-foreground"
                 >
                   No gifts match those filters.
@@ -303,6 +303,9 @@ export default async function GivingPage({
                       </span>
                     )}
                   </td>
+                  <td className="px-2 py-2.5 text-muted-foreground">
+                    {r.attributed ? r.country : "—"}
+                  </td>
                   <td className="px-4 py-2.5 text-right tabular-nums">
                     {r.currency} {ghs(r.amountMinor)}
                   </td>
@@ -327,7 +330,7 @@ export default async function GivingPage({
             <tfoot className="sticky bottom-0 z-10">
               <tr className="border-t border-border bg-background">
                 <td
-                  colSpan={3}
+                  colSpan={5}
                   className="px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground"
                 >
                   {isFiltered ? "Filtered total" : "Total"}

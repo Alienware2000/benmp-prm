@@ -9,6 +9,7 @@ const TABS = [
   { href: "/poc", label: "Dashboard" },
   { href: "/poc/giving", label: "Giving" },
   { href: "/poc/messages", label: "Messages" },
+  { href: "/poc/calls", label: "Calls" },
 ] as const;
 
 export type PocTab = (typeof TABS)[number]["href"];

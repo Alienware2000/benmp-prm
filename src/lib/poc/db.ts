@@ -52,6 +52,32 @@ export function mapPayments(rows: DbPayment[]): PaymentRow[] {
 
 export type Fetcher = <T>(pathAndQuery: string) => Promise<T[]>;
 
+/**
+ * Memoize a zero-argument async function for `ttlMs`. For a full-table read that only
+ * changes on import/edit (branch list, phone->branch map) but was being recomputed on
+ * every page load — the fix for the post-region-import slowdown (Decision 0010): those
+ * reads paginate the whole `partners` table (27 round-trips at 26k rows) on every visit.
+ * Concurrent calls within a miss share one in-flight fetch rather than stampeding.
+ */
+export function memoWithTtl<T>(
+  fn: () => Promise<T>,
+  ttlMs: number,
+): () => Promise<T> {
+  let cached: { at: number; value: T } | null = null;
+  let pending: Promise<T> | null = null;
+  return async () => {
+    if (cached && Date.now() - cached.at < ttlMs) return cached.value;
+    if (!pending) {
+      pending = fn().finally(() => {
+        pending = null;
+      });
+    }
+    const value = await pending;
+    cached = { at: Date.now(), value };
+    return value;
+  };
+}
+
 export function supabaseRestFetcher(): Fetcher {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;

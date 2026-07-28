@@ -242,3 +242,38 @@ Giving remains the financial ledger: filter gifts, inspect totals, and identify 
 The allowlist is now an optional operational switch rather than a product limitation. When configured it still restricts delivery; when unset, any valid international destination may be used. Opt-outs, explicit confirmation, provider attachment checks, idempotency and message auditing remain mandatory in both recipient modes.
 
 **Why**: separate money review from communication while giving staff one predictable place to contact people. This removes redundant pages without removing partner search or the safety controls around real sends.
+
+---
+
+## 0012 — Region import: Africa/international/Italy partner directories
+
+_2026-07-28_
+
+**Decided**: load the office's three new directory files (`AFRICA REDACTED.xlsx`, `INTL REDACTED.xlsx`, `ITALY REDACTED.xlsx` — 34 African countries, 33 international countries/territories, Italy) into `partners` as directory-only rows, alongside the Ghana population (Decision 0008/0009), via `scripts/load-region-partners.ts`. 12,936 rows loaded, tagged `source = 'region_import_<file>_<sheet>'`; 3,864 rejected (logged with reason, never silently dropped: 3,267 missing phone, 553 unrecognized phone shape, 44 missing name); 653 exact duplicates deduped.
+
+1. **`country` is a first-class field, distinct from `church` (the branch)** — every partner gets an explicit country derived from the sheet it came from, never inferred from the phone number.
+2. **Phone calling codes are ITU facts (`src/lib/calling-codes.ts`); national-number lengths are calibrated from each sheet's own data, not memorized.** Hand-authoring a fixed digit-length table per country from memory was the exact "sloppy country code" failure mode to avoid — real spreadsheets mix formats, and a wrong static assumption would silently produce a plausible-looking but incorrect E.164 number. `calibrateNsnLengths` derives the valid lengths empirically per country before any number is normalized; a diaspora number written in a different country's format falls back through every other country's own calibrated lengths (common here — BENMP is Ghana-based, so Ghanaian numbers turn up across several African sheets). Anything matching no recognized shape is rejected and logged, not guessed. `src/lib/phone.ts` gained the general `normalizePhoneForCallingCode` primitive; the Ghana-specific `normalizePhone` now delegates to it (behavior unchanged, verified by its existing test suite).
+3. **Italy's Amount/Payment Type columns are preserved as free-text `notes`, not structured giving.** No CSV-import/reconciliation path exists for non-Ghana money (Decision 0007); inventing one here was out of scope.
+4. **This invalidates a stated precondition of Decision 0008.** 0008 skipped GDPR because "no Europe partners in play." This import adds Italy, France, Germany, Austria, Belgium, Hungary, Netherlands, Portugal, Spain, Sweden, Switzerland, and the UK. GDPR scoping is now a genuine open item, not a deferred one — it should be addressed before this data is used beyond internal staff directory lookup.
+
+**Why**: the office provided real partner lists beyond Ghana; loading them directory-only (name/phone/branch/country) follows the exact pattern already established for the Ghana branch import, without pretending the giving/reconciliation or GDPR questions are answered.
+
+**Said no to**: guessing national-number lengths from memory per country · dropping unparseable rows instead of logging them · building Italy giving reconciliation now (no CSV-import path exists for it) · silently proceeding as if 0008's GDPR deferral still holds.
+
+**Follow-up (2026-07-28, same day)**: doubling `partners` (13,156 → 26,092) exposed a latent perf issue — `/poc/directory` and `/poc/giving` each did a full paginated table scan (27 sequential PostgREST round-trips at this size) on _every_ page load, just to build a branch dropdown and a phone→branch lookup that only change on import. Added `memoWithTtl` (`src/lib/poc/db.ts`) and cached wrappers `listBranchGroupsCached`/`loadBranchByPhoneCached` (60s TTL); measured 2.5–2.9s → 0ms on a warm hit. The actual paginated/filtered searches are untouched (still per-request, must reflect query params).
+
+---
+
+## 0013 — Calls tab, and country everywhere a partner table shows up
+
+_2026-07-28_
+
+**Decided**:
+
+1. **New `/poc/calls` tab** (nav: Console · Partner directory · Giving · Calls) lists partners worth a personal call, derived entirely from the already-loaded giving ledger (`buildCallCandidates` in `src/lib/poc/calls.ts`) — no extra Supabase query. Two criteria, combined with OR: **consistent** (`CONSISTENT_MIN_GIFTS = 2`+ distinct gifts) and **top giver** (top `DEFAULT_TOP_GIVERS = 20` by total amount, globally). Both are plain constants, not office-configured thresholds — easy to revisit once staff have used the page. Bank/interop statement rows (Decision 0008 §6) and gifts with no phone are excluded; there's no one to call. A giver who never registered as a partner still appears (their phone came from the payment itself) with branch/country reading as unassigned.
+2. **The two criteria are checkboxes on a plain GET form**, both checked by default. A hidden `filtered` marker distinguishes a fresh page load (defaults apply) from a real submission with every box unchecked (an explicit empty result — turning off both criteria means no one qualifies, not "show everyone").
+3. **`country` now renders on every partner-facing table**, not just `church` (branch): the directory table (data already flowed through `mapPartners`; only the missing `<th>`/`<td>` was added) and the giving ledger table (required plumbing `country` through `loadBranchByPhone` → `GivingEntry` first). The calls table shows it from the same source.
+
+**Why**: staff asked for a way to prioritize follow-up calls without a new data pipeline, and to always see which country a partner is in, not just their branch — the region import (0012) made country the more useful grouping for most of the table now that `partners` spans 70+ countries.
+
+**Said no to**: a configurable threshold UI for the two criteria (premature before anyone's used the page) · a new Supabase query for the calls list (the giving ledger already has everything needed) · call-outcome tracking / a dialer integration (that's the Phase 10 call queue, full MVP scope — this is a read-only priority list).

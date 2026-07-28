@@ -14,7 +14,7 @@
 
 import { normalizePhone } from "../phone";
 import type { Fetcher } from "./db";
-import { supabaseRestFetcher } from "./db";
+import { memoWithTtl, supabaseRestFetcher } from "./db";
 
 /** A row as it comes back from PostgREST. */
 export type DbPartner = {
@@ -161,7 +161,12 @@ const BRANCH_MERGES: string[][] = [
   ["SUSUANKYI", "SUSANKYI"],
   // Berekuso is a different branch and is intentionally absent.
   ["BEREKUM", "BEREKU", "BBEREKUM"],
-  ["SARBENG AKROFUOM", "SARBENG AKFROFUOM", "SARBEBG AKROFUOM", "SARBENG AKROFOUM"],
+  [
+    "SARBENG AKROFUOM",
+    "SARBENG AKFROFUOM",
+    "SARBEBG AKROFUOM",
+    "SARBENG AKROFOUM",
+  ],
   ["ABLEKUMA MAIN", "ABLEKUMAN MAIN"],
   ["ASSIN FOSU", "ASSIN FOSO"],
   ["BUNKPURUGU MISSION", "BUNKPURUGU"],
@@ -197,7 +202,9 @@ export type BranchGroup = {
  * The display label is the most-used spelling rather than an invented "correct" one —
  * staff recognise what they typed. Ties break alphabetically so the result is stable.
  */
-export function groupBranches(values: Array<string | null | undefined>): BranchGroup[] {
+export function groupBranches(
+  values: Array<string | null | undefined>,
+): BranchGroup[] {
   const counts = new Map<string, Map<string, number>>();
 
   for (const v of values) {
@@ -239,7 +246,10 @@ export function groupBranches(values: Array<string | null | undefined>): BranchG
  * structural characters rather than escaping them.
  */
 export function sanitizeSearch(raw: string | undefined | null): string {
-  return (raw ?? "").replace(/[,.()*:"\\]/g, " ").trim().slice(0, 80);
+  return (raw ?? "")
+    .replace(/[,.()*:"\\]/g, " ")
+    .trim()
+    .slice(0, 80);
 }
 
 export function clampPageSize(size: number | undefined): number {
@@ -276,10 +286,14 @@ export async function fetchAllRows<T>(
   basePath: string,
   orderBy = "id.asc",
 ): Promise<T[]> {
-  const path = basePath.includes("order=") ? basePath : `${basePath}&order=${orderBy}`;
+  const path = basePath.includes("order=")
+    ? basePath
+    : `${basePath}&order=${orderBy}`;
   const all: T[] = [];
   for (let offset = 0; offset < MAX_ROWS; offset += PAGE_LIMIT) {
-    const batch = await fetcher<T>(`${path}&limit=${PAGE_LIMIT}&offset=${offset}`);
+    const batch = await fetcher<T>(
+      `${path}&limit=${PAGE_LIMIT}&offset=${offset}`,
+    );
     all.push(...batch);
     if (batch.length < PAGE_LIMIT) break;
   }
@@ -307,7 +321,10 @@ export function buildDirectoryPath(query: DirectoryQuery): string {
   return `partners?${params.join("&")}`;
 }
 
-export function rangeHeader(query: DirectoryQuery): { from: number; to: number } {
+export function rangeHeader(query: DirectoryQuery): {
+  from: number;
+  to: number;
+} {
   const size = clampPageSize(query.pageSize);
   const page = clampPage(query.page);
   const from = (page - 1) * size;
@@ -320,7 +337,10 @@ export function rangeHeader(query: DirectoryQuery): { from: number; to: number }
  * grouped SQL view instead.
  */
 export function givingByPhone(
-  payments: Array<{ payer_phone_e164: string | null; amount_minor: number | string }>,
+  payments: Array<{
+    payer_phone_e164: string | null;
+    amount_minor: number | string;
+  }>,
 ): Map<string, number> {
   const totals = new Map<string, number>();
   for (const p of payments) {
@@ -331,7 +351,10 @@ export function givingByPhone(
   return totals;
 }
 
-export function mapPartners(rows: DbPartner[], giving: Map<string, number>): DirectoryPartner[] {
+export function mapPartners(
+  rows: DbPartner[],
+  giving: Map<string, number>,
+): DirectoryPartner[] {
   return rows.map((r) => {
     const phone = normalizePhone(r.whatsapp_number);
     return {
@@ -365,10 +388,17 @@ export type DirectoryPage = {
  * Count-aware fetch. The plain Fetcher in db.ts drops response headers, and paging needs
  * the total from Content-Range, so the directory does its own request.
  */
-async function fetchWithCount(path: string, from: number, to: number): Promise<{ rows: DbPartner[]; total: number }> {
+async function fetchWithCount(
+  path: string,
+  from: number,
+  to: number,
+): Promise<{ rows: DbPartner[]; total: number }> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Supabase env not set (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)");
+  if (!url || !key)
+    throw new Error(
+      "Supabase env not set (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)",
+    );
   const res = await fetch(`${url}/rest/v1/${path}`, {
     headers: {
       apikey: key,
@@ -412,10 +442,21 @@ export async function searchDirectory(
  * branch column and reduces it here — fine at 15k rows, and the result is cached per
  * request by the caller.
  */
-export async function listBranchGroups(fetcher: Fetcher = supabaseRestFetcher()): Promise<BranchGroup[]> {
-  const rows = await fetchAllRows<{ church: string | null }>(fetcher, "partners?select=church,id");
+export async function listBranchGroups(
+  fetcher: Fetcher = supabaseRestFetcher(),
+): Promise<BranchGroup[]> {
+  const rows = await fetchAllRows<{ church: string | null }>(
+    fetcher,
+    "partners?select=church,id",
+  );
   return groupBranches(rows.map((r) => r.church));
 }
+
+/** `listBranchGroups`, memoized for 60s — page-level callers don't need per-request freshness. */
+export const listBranchGroupsCached = memoWithTtl(
+  () => listBranchGroups(),
+  60_000,
+);
 
 /** Look up specific partners by id — the send path re-reads them rather than trusting the client. */
 export async function loadPartnersByIds(
@@ -427,7 +468,10 @@ export async function loadPartnersByIds(
   const rows = await fetcher<DbPartner>(
     `partners?select=${SELECT}&id=in.(${clean.join(",")})&limit=${clean.length}`,
   );
-  const payments = await fetcher<{ payer_phone_e164: string | null; amount_minor: number | string }>(
+  const payments = await fetcher<{
+    payer_phone_e164: string | null;
+    amount_minor: number | string;
+  }>(
     "payments?select=payer_phone_e164,amount_minor&status=eq.Successful&limit=5000",
   );
   return mapPartners(rows, givingByPhone(payments));

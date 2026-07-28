@@ -18,17 +18,17 @@ This project uses Supabase Postgres first, but the data model should remain ordi
 
 ## 2. Conventions
 
-| Area              | Convention                                                                                                                                                 |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Primary keys      | UUID primary keys with `gen_random_uuid()` except `profiles.id`, which references `auth.users(id)`.                                                        |
-| Timestamps        | `timestamptz`, default `now()`, updated by `set_updated_at()` triggers where records are mutable.                                                          |
-| Money             | Current `0001` stores original money as integer minor units plus currency. Planned `0002` adds `contributions.usd_equivalent numeric` for threshold rules. |
-| Card data         | No card numbers or sensitive payment method details are stored.                                                                                            |
-| Import evidence   | Raw CSV row evidence is stored in `jsonb` (`payment_events.raw_payload`, `payment_import_rows.raw_row`).                                                                                      |
-| RLS               | RLS is enabled on all operational tables in `0001`.                                                                                                        |
-| Soft delete       | Not implemented in `0001`. If added later, it must be documented and enforced consistently.                                                                |
-| Region scope      | Country assignment exists in `0001`; region blocks are planned in `0002`.                                                                                  |
-| Audit             | Sensitive changes must write `audit_log`; table-level RLS alone is not enough.                                                                             |
+| Area            | Convention                                                                                                                                                 |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary keys    | UUID primary keys with `gen_random_uuid()` except `profiles.id`, which references `auth.users(id)`.                                                        |
+| Timestamps      | `timestamptz`, default `now()`, updated by `set_updated_at()` triggers where records are mutable.                                                          |
+| Money           | Current `0001` stores original money as integer minor units plus currency. Planned `0002` adds `contributions.usd_equivalent numeric` for threshold rules. |
+| Card data       | No card numbers or sensitive payment method details are stored.                                                                                            |
+| Import evidence | Raw CSV row evidence is stored in `jsonb` (`payment_events.raw_payload`, `payment_import_rows.raw_row`).                                                   |
+| RLS             | RLS is enabled on all operational tables in `0001`.                                                                                                        |
+| Soft delete     | Not implemented in `0001`. If added later, it must be documented and enforced consistently.                                                                |
+| Region scope    | Country assignment exists in `0001`; region blocks are planned in `0002`.                                                                                  |
+| Audit           | Sensitive changes must write `audit_log`; table-level RLS alone is not enough.                                                                             |
 
 ## 3. ERD
 
@@ -258,7 +258,7 @@ Rules:
 
 ### `recurring_commitments`
 
-Purpose: **pledge records only** — the amount a partner has committed to give on a cadence. Under Decision 0007 nothing charges anyone; this table exists solely to answer "who has *not* yet paid this period" and to drive the reminder list. A CSV-matched contribution in the period fulfils the pledge.
+Purpose: **pledge records only** — the amount a partner has committed to give on a cadence. Under Decision 0007 nothing charges anyone; this table exists solely to answer "who has _not_ yet paid this period" and to drive the reminder list. A CSV-matched contribution in the period fulfils the pledge.
 
 Fields:
 
@@ -605,13 +605,13 @@ Rule:
 
 Planned columns (needed by specific phases; add in that phase's migration):
 
-| Column                                                             | Phase | Why                                                                                                 |
-| ------------------------------------------------------------------ | ----- | ---------------------------------------------------------------------------------------------------- |
-| `partners.normalized_phone text` + index                           | 1B    | E.164 canonical phone is the matching key for CSV rows and WhatsApp; text-column scans won't hold at 40k. |
-| `payment_import_rows.row_hash text` + unique index                 | 2B    | CSV re-imports must be inert; each row needs its own dedupe key alongside `payment_events (provider, provider_event_id)`. |
-| `partners` per-channel consent (`whatsapp_consent`, `sms_consent`, `email_consent` + timestamps/source) | 3     | FR-7.4: every send checks consent; nothing stores it today.                                          |
-| `ai_runs.input_tokens`, `ai_runs.output_tokens`, `ai_runs.cost_usd` | 4     | Design-spec §8 promises per-run token/cost logging; current table has none.                          |
-| `communication_batches.second_approved_by/_at`                      | 5     | FR-7.6: prophet-category content needs two distinct named approvers; one `approved_by` can't express it. |
+| Column                                                                                                  | Phase | Why                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------- |
+| `partners.normalized_phone text` + index                                                                | 1B    | E.164 canonical phone is the matching key for CSV rows and WhatsApp; text-column scans won't hold at 40k.                 |
+| `payment_import_rows.row_hash text` + unique index                                                      | 2B    | CSV re-imports must be inert; each row needs its own dedupe key alongside `payment_events (provider, provider_event_id)`. |
+| `partners` per-channel consent (`whatsapp_consent`, `sms_consent`, `email_consent` + timestamps/source) | 3     | FR-7.4: every send checks consent; nothing stores it today.                                                               |
+| `ai_runs.input_tokens`, `ai_runs.output_tokens`, `ai_runs.cost_usd`                                     | 4     | Design-spec §8 promises per-run token/cost logging; current table has none.                                               |
+| `communication_batches.second_approved_by/_at`                                                          | 5     | FR-7.6: prophet-category content needs two distinct named approvers; one `approved_by` can't express it.                  |
 
 ## 14. Seed Data
 
@@ -629,18 +629,19 @@ Do not seed real partner exports or statements into git.
 
 The POC reads the provisioned `partners` table directly. What is actually populated differs from the MVP contract above, and the directory/giving pages are built against reality:
 
-| Column | State | Notes |
-| --- | --- | --- |
-| `full_name` | populated | Not all are names. A sense gate (`isSensibleName()`) rejects three shapes: the literal `"No Name"` placeholder (14), a bare number (`"1.0"`), and sheet reference codes (`"FL73"`, `"FL1061"` — 44, from the column-shifted rows). These display as "Unknown" and get a neutral greeting, so no one is addressed as "Hi 1.0". The gate is narrow by design — it must never reject a real name. |
-| `whatsapp_number` | 13,200 / 15,329 | **This is the phone**, already E.164. `mobile_number` and `email` are empty for every row. |
-| `church` | all rows | **This is the branch.** ~730 distinct values. The 927 Qodesh registrants were null until backfilled to `'Qodesh'`. |
-| `country` | all rows | Ghana throughout. |
-| `city`, `partner_since`, `notes` | empty | Not supplied by the import. |
-| `lifetime_giving_minor` | `0` | Not maintained; giving is computed from `payments` by phone match, not read from this column. |
+| Column                  | State                                                                    | Notes                                                                                                                                                                                                                                                                                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `full_name`             | populated                                                                | Not all are names. A sense gate (`isSensibleName()`) rejects three shapes: the literal `"No Name"` placeholder (14), a bare number (`"1.0"`), and sheet reference codes (`"FL73"`, `"FL1061"` — 44, from the column-shifted rows). These display as "Unknown" and get a neutral greeting, so no one is addressed as "Hi 1.0". The gate is narrow by design — it must never reject a real name. |
+| `whatsapp_number`       | 13,200 / 15,329                                                          | **This is the phone**, already E.164. `mobile_number` and `email` are empty for every row.                                                                                                                                                                                                                                                                                                     |
+| `church`                | all rows                                                                 | **This is the branch.** ~730 distinct values. The 927 Qodesh registrants were null until backfilled to `'Qodesh'`.                                                                                                                                                                                                                                                                             |
+| `country`               | Ghana (13,156) + 60+ countries (12,936, `source like 'region_import_%'`) | Was "Ghana throughout" until the 2026-07-28 Africa/international/Italy region import (Decision 0010) — see that section below.                                                                                                                                                                                                                                                                 |
+| `city`, `partner_since` | empty                                                                    | Not supplied by any import.                                                                                                                                                                                                                                                                                                                                                                    |
+| `notes`                 | empty except 528 Italy rows (`source = 'region_import_italy_giving'`)    | Free-text `Amount / Payment Type`, not structured giving — see the region import section below.                                                                                                                                                                                                                                                                                                |
+| `lifetime_giving_minor` | `0`                                                                      | Not maintained; giving is computed from `payments` by phone match, not read from this column.                                                                                                                                                                                                                                                                                                  |
 
 Two populations share the table: `source = 'qodesh_registration'` (927, branch `Qodesh`) and the bulk branch import (~14,400). `source = 'send_test'` marks the single record used to prove the send path.
 
-**Reading it**: PostgREST caps responses at 1000 rows *silently* — `limit=20000` returns 1000 and no error. Any query spanning the whole table must page (`fetchAllRows()` in `src/lib/poc/directory.ts`).
+**Reading it**: PostgREST caps responses at 1000 rows _silently_ — `limit=20000` returns 1000 and no error. Any query spanning the whole table must page (`fetchAllRows()` in `src/lib/poc/directory.ts`).
 
 **Giving → branch** is derived, not stored: `payments.payer_phone_e164` → `partners.whatsapp_number` → `partners.church`. There is no FK. Unmatched giving is reported as `Unattributed` and still counted in every total.
 
@@ -651,3 +652,13 @@ Two populations share the table: `source = 'qodesh_registration'` (927, branch `
 - **~200 values are used by a single partner** and some read as people's names or notes rather than places — likely data entry into the wrong field. Not yet triaged.
 
 **Confirmed merges (2026-07-21)**: 12 spelling groups were confirmed by staff and are merged at read time via `BRANCH_MERGES` in `src/lib/poc/directory.ts` — e.g. `KORLE GONNO`+`korlegonno` (580), `MIGHTY GOD CATHEDRAL`+`MIGTHY GOD CATHEDRAL` (110), `HOHOE MISSION`+`HOHOE` (120). Branch count: 552 → 537. Staff explicitly kept `NEW TAFO`/`OLD TAFO`/`TAFO`, `Abeka Main`/`Abeka`, `BEREKUM`/`Berekuso` and the `TESHIE *` congregations separate. `Qodesh` (928) and `QADISH` (381) are confirmed separate branches despite the two-character similarity.
+
+### Region import: Africa/international/Italy directories (2026-07-28, Decision 0010)
+
+`scripts/load-region-partners.ts` added 12,936 partners across 72 sheets (34 African countries, 35 international sheets covering 33 countries incl. 3 Papua New Guinea vintages and 2 Australia vintages, plus a standalone Italy giving-list sheet) from three new files in `../Data`: `AFRICA REDACTED.xlsx`, `INTL REDACTED.xlsx`, `ITALY REDACTED.xlsx`. Tagged `source = 'region_import_<file>_<sheet>'`, distinct from the Ghana `qodesh_registration`/bulk-branch/`send_test` sources; re-running the loader is idempotent (deletes every `region_import_%` row first).
+
+- **`country` is now genuinely populated**, not a Ghana constant — every row gets an explicit country derived from the sheet it came from (never guessed from the phone number), distinct from `church` (the branch/city).
+- **Phone calling codes are not hand-authored.** `src/lib/calling-codes.ts` holds only the static ITU calling code per country. The valid national-significant-number digit lengths are _calibrated from each sheet's own data_ (`calibrateNsnLengths` in the loader) rather than guessed from memory, with a cross-country fallback (any other country in the dataset, using its own calibrated lengths) for diaspora numbers written in a different country's format — common here since BENMP is Ghana-based and Ghanaian numbers turn up across several African sheets. A number matching no recognized shape is rejected and logged, never coerced into a plausible-looking but wrong E.164 value. `src/lib/phone.ts` gained `normalizePhoneForCallingCode`, the general primitive the Ghana-specific `normalizePhone` now delegates to.
+- **3,864 rows were rejected, not silently dropped**: 3,267 missing phone, 44 missing name, 553 unrecognized phone shape (placeholders like "N/A", reference codes, malformed/truncated numbers). All logged with source sheet + reason. 653 further exact name+phone duplicates within a sheet were deduped.
+- **Italy's Amount/Payment Type columns** (a giving/pledge list, not directory-only like the rest) are preserved as free-text `notes` — there is no reconciliation path for non-Ghana, non-CSV-import money yet (Decision 0007), so this is intentionally _not_ structured giving data.
+- **Decision 0008's GDPR deferral no longer holds.** It was conditioned on "no Europe partners in play" — this import adds Italy, France, Germany, Austria, Belgium, Hungary, Netherlands, Portugal, Spain, Sweden, Switzerland, and the UK. GDPR scoping is unaddressed and should be picked up before this data is used beyond internal directory lookup.

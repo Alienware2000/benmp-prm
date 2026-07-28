@@ -302,6 +302,7 @@ export function DirectoryClient({
                 )}
                 <th className="px-2 py-2.5 font-semibold">Partner</th>
                 <th className="px-2 py-2.5 font-semibold">Branch</th>
+                <th className="px-2 py-2.5 font-semibold">Country</th>
                 <th className="px-2 py-2.5 font-semibold">WhatsApp</th>
                 <th className="px-4 py-2.5 text-right font-semibold">Given</th>
               </tr>
@@ -310,7 +311,7 @@ export function DirectoryClient({
               {partners.length === 0 && (
                 <tr>
                   <td
-                    colSpan={messaging ? 5 : 4}
+                    colSpan={messaging ? 6 : 5}
                     className="px-4 py-8 text-center text-sm text-muted-foreground"
                   >
                     No partners to show.
@@ -347,6 +348,9 @@ export function DirectoryClient({
                   </td>
                   <td className="px-2 py-2.5 text-muted-foreground">
                     {p.branch}
+                  </td>
+                  <td className="px-2 py-2.5 text-muted-foreground">
+                    {p.country}
                   </td>
                   <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-muted-foreground">
                     {p.messageable ? (

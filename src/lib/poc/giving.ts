@@ -15,7 +15,7 @@
 import { normalizePhone } from "../phone";
 import { isStatementRow } from "../reconcile";
 import type { Fetcher } from "./db";
-import { supabaseRestFetcher } from "./db";
+import { memoWithTtl, supabaseRestFetcher } from "./db";
 import {
   fetchAllRows,
   groupBranches,
@@ -49,6 +49,7 @@ export type GivingEntry = {
   /** Date part only (YYYY-MM-DD) — what the date-range filter compares against. */
   paidOn: string;
   branch: string;
+  country: string;
   /** True when the payer matched a partner record. */
   attributed: boolean;
   /**
@@ -71,7 +72,7 @@ export type GivingFilters = {
 
 export function toEntries(
   payments: DbGivingPayment[],
-  branchByPhone: Map<string, { branch: string; name: string }>,
+  branchByPhone: Map<string, { branch: string; name: string; country: string }>,
 ): GivingEntry[] {
   return payments.map((p) => {
     const phone = normalizePhone(p.payer_phone_e164);
@@ -92,6 +93,7 @@ export function toEntries(
       paidAt,
       paidOn: paidAt.slice(0, 10),
       branch: match?.branch || UNATTRIBUTED,
+      country: match?.country || "—",
       attributed: match !== undefined,
       isStatement: isStatementRow(p.payer_name),
     };
@@ -102,7 +104,10 @@ export function toEntries(
  * Apply the UI filters. Every filter is optional and they compose with AND, which is what
  * "filter the ledger down and show me the total" means to a finance user.
  */
-export function filterGiving(entries: GivingEntry[], f: GivingFilters): GivingEntry[] {
+export function filterGiving(
+  entries: GivingEntry[],
+  f: GivingFilters,
+): GivingEntry[] {
   const name = (f.name ?? "").trim().toLowerCase();
   const branch = (f.branch ?? "").trim();
   const from = (f.from ?? "").trim();
@@ -170,7 +175,9 @@ export function summarizeGiving(entries: GivingEntry[]): GivingTotals {
 
 /** Newest gift first — a ledger is read from the most recent entry backwards. */
 export function sortByDateDesc(entries: GivingEntry[]): GivingEntry[] {
-  return [...entries].sort((a, b) => (a.paidAt > b.paidAt ? -1 : a.paidAt < b.paidAt ? 1 : 0));
+  return [...entries].sort((a, b) =>
+    a.paidAt > b.paidAt ? -1 : a.paidAt < b.paidAt ? 1 : 0,
+  );
 }
 
 /**
@@ -179,20 +186,29 @@ export function sortByDateDesc(entries: GivingEntry[]): GivingEntry[] {
  */
 export async function loadBranchByPhone(
   fetcher: Fetcher = supabaseRestFetcher(),
-): Promise<Map<string, { branch: string; name: string }>> {
+): Promise<Map<string, { branch: string; name: string; country: string }>> {
   // Must page: PostgREST caps at 1000 rows, and the branch map needs all 15k partners —
   // a truncated map silently reports real giving as unattributed.
   const rows = await fetchAllRows<{
     full_name: string | null;
     whatsapp_number: string | null;
     church: string | null;
-  }>(fetcher, "partners?select=full_name,whatsapp_number,church,id&whatsapp_number=not.is.null");
+    country: string | null;
+  }>(
+    fetcher,
+    "partners?select=full_name,whatsapp_number,church,country,id&whatsapp_number=not.is.null",
+  );
 
   // One branch spelled several ways would otherwise report as several branches, splitting
   // its giving subtotal. Resolve every spelling to the canonical label first.
-  const labelByKey = new Map(groupBranches(rows.map((r) => r.church)).map((g) => [g.key, g.label]));
+  const labelByKey = new Map(
+    groupBranches(rows.map((r) => r.church)).map((g) => [g.key, g.label]),
+  );
 
-  const map = new Map<string, { branch: string; name: string }>();
+  const map = new Map<
+    string,
+    { branch: string; name: string; country: string }
+  >();
   for (const r of rows) {
     const phone = normalizePhone(r.whatsapp_number);
     if (!phone || map.has(phone)) continue; // first match wins; shared numbers exist
@@ -200,20 +216,30 @@ export async function loadBranchByPhone(
       // A partner whose branch is unusable is still a matched partner — their giving is
       // just not attributable to a branch.
       branch: isValidBranch(r.church)
-        ? (labelByKey.get(resolveBranchKey(normalizeBranchKey(r.church))) ?? (r.church ?? "").trim())
+        ? (labelByKey.get(resolveBranchKey(normalizeBranchKey(r.church))) ??
+          (r.church ?? "").trim())
         : UNATTRIBUTED,
       name: (r.full_name ?? "").trim(),
+      country: (r.country ?? "").trim(),
     });
   }
   return map;
 }
 
-export async function loadGivingLedger(fetcher: Fetcher = supabaseRestFetcher()): Promise<GivingEntry[]> {
+/** `loadBranchByPhone`, memoized for 60s — the giving page doesn't need per-request freshness on this. */
+export const loadBranchByPhoneCached = memoWithTtl(
+  () => loadBranchByPhone(),
+  60_000,
+);
+
+export async function loadGivingLedger(
+  fetcher: Fetcher = supabaseRestFetcher(),
+): Promise<GivingEntry[]> {
   const [payments, branchByPhone] = await Promise.all([
     fetcher<DbGivingPayment>(
       "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at&status=eq.Successful&order=paid_at.desc&limit=5000",
     ),
-    loadBranchByPhone(fetcher),
+    loadBranchByPhoneCached(),
   ]);
   return toEntries(payments, branchByPhone);
 }

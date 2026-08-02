@@ -7,6 +7,11 @@ export type ReportingPeriod = {
   compactLabel: string;
 };
 
+export type PeriodBounds = {
+  from?: string;
+  to?: string;
+};
+
 function validDate(iso: string): Date | null {
   if (!iso) return null;
   const date = new Date(iso);
@@ -34,10 +39,7 @@ function formatRange(dates: Date[], month: "long" | "short"): string {
   }
 
   if (sameMonth) {
-    return `${formatPart(start, { month, day: "numeric" })}–${formatPart(end, {
-      day: "numeric",
-      year: "numeric",
-    })}`;
+    return `${formatPart(start, { month, day: "numeric" })}–${end.getUTCDate()}, ${end.getUTCFullYear()}`;
   }
 
   if (sameYear) {
@@ -78,5 +80,76 @@ export function reportingPeriod(result: ReconciliationResult): ReportingPeriod {
     end: dates.at(-1)?.toISOString() ?? null,
     label: formatRange(dates, "long"),
     compactLabel: formatRange(dates, "short"),
+  };
+}
+
+function paymentInBounds(
+  paidAt: string,
+  { from = "", to = "" }: PeriodBounds,
+): boolean {
+  const paidOn = paidAt.slice(0, 10);
+  if (!paidOn) return !from && !to;
+  if (from && paidOn < from) return false;
+  if (to && paidOn > to) return false;
+  return true;
+}
+
+/** Apply one selected giving period without losing the standing registration list. */
+export function filterReconciliationByPeriod(
+  result: ReconciliationResult,
+  bounds: PeriodBounds,
+): ReconciliationResult {
+  if (!bounds.from && !bounds.to) return result;
+
+  const registeredPaid = result.registeredPaid.flatMap((giver) => {
+    const payments = giver.payments.filter((payment) =>
+      paymentInBounds(payment.paidAt, bounds),
+    );
+    return payments.length
+      ? [
+          {
+            ...giver,
+            payments,
+            totalMinor: payments.reduce(
+              (total, payment) => total + payment.amountMinor,
+              0,
+            ),
+          },
+        ]
+      : [];
+  });
+  const paidRegistrationIds = new Set(
+    registeredPaid.map((giver) => giver.registration.id),
+  );
+  const allRegistrations = [
+    ...result.registeredUnpaid,
+    ...result.registeredPaid.map((giver) => giver.registration),
+  ];
+
+  return {
+    registeredPaid,
+    registeredUnpaid: allRegistrations.filter(
+      (registration) => !paidRegistrationIds.has(registration.id),
+    ),
+    paidUnregistered: result.paidUnregistered.flatMap((giver) => {
+      const payments = giver.payments.filter((payment) =>
+        paymentInBounds(payment.paidAt, bounds),
+      );
+      return payments.length
+        ? [
+            {
+              ...giver,
+              payments,
+              totalMinor: payments.reduce(
+                (total, payment) => total + payment.amountMinor,
+                0,
+              ),
+            },
+          ]
+        : [];
+    }),
+    statementRows: result.statementRows.filter((payment) =>
+      paymentInBounds(payment.paidAt, bounds),
+    ),
   };
 }

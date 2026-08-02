@@ -67,7 +67,6 @@ export async function PartnerWorkspace({
 
   return (
     <PocShell
-      current="/poc/messages"
       title="Messages"
       subtitle="Choose the people, write the update and review it before sending."
     >
@@ -153,11 +152,7 @@ export async function PartnerWorkspace({
           <span className="text-xs tabular-nums text-muted-foreground">
             Page {page} of {totalPages.toLocaleString("en-US")}
           </span>
-          <PageLink
-            q={q}
-            page={page + 1}
-            disabled={page >= totalPages}
-          >
+          <PageLink q={q} page={page + 1} disabled={page >= totalPages}>
             Next
           </PageLink>
         </div>

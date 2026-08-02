@@ -40,7 +40,7 @@ export function PartnersTable({ data }: { data: TableData }) {
   const rows = data[tab];
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+    <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-sm">
       <div className="grid gap-3 border-b border-border px-4 py-3 sm:flex sm:items-center sm:justify-between sm:px-5">
         <div>
           <h3 className="text-sm font-semibold text-foreground">
@@ -72,8 +72,47 @@ export function PartnersTable({ data }: { data: TableData }) {
           ))}
         </div>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[600px] text-sm">
+      <div className="max-h-[430px] overflow-y-auto">
+        <div className="divide-y divide-border md:hidden">
+          {rows.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-muted-foreground">
+              Nothing in this group for the selected giving period.
+            </p>
+          ) : (
+            rows.map((row, index) => (
+              <div
+                key={`${row.name}-mobile-${index}`}
+                className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {row.name}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {row.phoneMasked} · {row.giftCount}{" "}
+                    {row.giftCount === 1 ? "gift" : "gifts"} · {row.when}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold tabular-nums text-foreground">
+                    {row.amountGhs}
+                  </p>
+                  <span
+                    className={
+                      "mt-1 inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold " +
+                      (row.status === "new"
+                        ? "bg-accent/25 text-accent-foreground"
+                        : "bg-muted text-muted-foreground")
+                    }
+                  >
+                    {row.status}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <table className="hidden w-full min-w-[600px] text-sm md:table">
           <thead>
             <tr className="text-left text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground/80">
               <th className="px-4 pb-2 pt-3 sm:px-5">Partner</th>
@@ -91,7 +130,7 @@ export function PartnersTable({ data }: { data: TableData }) {
                   colSpan={6}
                   className="border-t border-border px-4 py-6 text-sm text-muted-foreground sm:px-5"
                 >
-                  Nothing in this group for the loaded giving window.
+                  Nothing in this group for the selected giving period.
                 </td>
               </tr>
             ) : (

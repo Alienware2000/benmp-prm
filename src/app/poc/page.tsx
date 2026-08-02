@@ -1,51 +1,144 @@
-import { BellRing, CircleDollarSign, UserPlus, Users } from "lucide-react";
-import { loadReconciliation } from "@/lib/poc/db";
+import {
+  BellRing,
+  CircleDollarSign,
+  HeartHandshake,
+  Megaphone,
+  MessageCircleMore,
+  PhoneCall,
+  Sparkles,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
 import { headlineAnswers, formatGhs } from "@/lib/poc/answers";
+import { loadReconciliationCached } from "@/lib/poc/cached-data";
 import { giverInsightGroups } from "@/lib/poc/giver-insights";
-import { reportingPeriod } from "@/lib/poc/reporting-period";
+import {
+  filterReconciliationByPeriod,
+  reportingPeriod,
+} from "@/lib/poc/reporting-period";
 import { normalizePhone } from "@/lib/phone";
 import { AskHero } from "./ask-hero";
+import { PocShell } from "./nav";
 import {
   PartnersTable,
   type PartnerRow,
   type TableData,
 } from "./partners-table";
-import { PocNav } from "./nav";
+import { PeriodFilter } from "./period-filter";
 
 export const dynamic = "force-dynamic";
+
+type SearchParams = Promise<{ from?: string; to?: string }>;
 
 function mask(phone: string | null): string {
   const e164 = normalizePhone(phone);
   return e164 ? `…${e164.slice(-4)}` : "no phone";
 }
-function SectionLabel({ children }: { children: React.ReactNode }) {
+
+function formatWhen(iso: string): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return `${date.getUTCDate()} ${date.toLocaleString("en-US", { month: "short", timeZone: "UTC" })}`;
+}
+
+function withPeriod(
+  href: string,
+  from: string,
+  to: string,
+  extra: Record<string, string> = {},
+): string {
+  const params = new URLSearchParams(extra);
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const query = params.toString();
+  return query ? `${href}?${query}` : href;
+}
+
+function MetricCard({
+  label,
+  value,
+  detail,
+  Icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  detail: React.ReactNode;
+  Icon: typeof Users;
+  tone: "teal" | "green" | "yellow" | "coral";
+}) {
+  const tones = {
+    teal: "bg-cyan-50 text-brand ring-cyan-100",
+    green: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+    yellow: "bg-amber-50 text-amber-700 ring-amber-100",
+    coral: "bg-rose-50 text-rose-700 ring-rose-100",
+  };
   return (
-    <p className="mb-3 mt-8 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-      {children}
-    </p>
+    <article className="min-w-0 rounded-lg border border-border bg-surface p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+        <span
+          className={`grid h-9 w-9 flex-none place-items-center rounded-md ring-1 ${tones[tone]}`}
+        >
+          <Icon className="h-[18px] w-[18px]" aria-hidden />
+        </span>
+      </div>
+      <p className="mt-4 truncate text-2xl font-bold tabular-nums text-foreground sm:text-[26px]">
+        {value}
+      </p>
+      <p className="mt-2 border-t border-border pt-2 text-[11px] leading-5 text-muted-foreground">
+        {detail}
+      </p>
+    </article>
   );
 }
 
-/**
- * "2026-07-05T19:48:01+00:00" -> "5 Jul" (Ghana is UTC year-round).
- *
- * Date only, deliberately: 39% of the statement's person payments carry a batch
- * timestamp of exactly 03:00 (scheduled transfers settling overnight), so the
- * time-of-day is a posting artifact rather than when the partner actually gave.
- * The full timestamp stays in payments.paid_at for finance queries.
- */
-function formatWhen(iso: string): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return `${d.getUTCDate()} ${d.toLocaleString("en-US", { month: "short", timeZone: "UTC" })}`;
+function QuickAction({
+  href,
+  label,
+  detail,
+  Icon,
+}: {
+  href: string;
+  label: string;
+  detail: string;
+  Icon: typeof HeartHandshake;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group grid min-h-[116px] grid-rows-[42px_auto] rounded-lg border border-border bg-surface p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md"
+    >
+      <span className="grid h-10 w-10 place-items-center rounded-md bg-brand/10 text-brand transition group-hover:bg-brand group-hover:text-white">
+        <Icon className="h-5 w-5" aria-hidden />
+      </span>
+      <span className="mt-3 min-w-0">
+        <b className="block text-sm text-foreground">{label}</b>
+        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+          {detail}
+        </span>
+      </span>
+    </Link>
+  );
 }
 
-export default async function PocPage() {
-  const result = await loadReconciliation();
-  const a = headlineAnswers(result);
-
+export default async function PocPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const sp = await searchParams;
+  const from = (sp.from ?? "").slice(0, 10);
+  const to = (sp.to ?? "").slice(0, 10);
+  const completeResult = await loadReconciliationCached();
+  const availablePeriod = reportingPeriod(completeResult);
+  const result = filterReconciliationByPeriod(completeResult, { from, to });
+  const period = reportingPeriod(result);
+  const answers = headlineAnswers(result);
   const insightGroups = giverInsightGroups(result, { limit: 20 });
+
   const toPartnerRow = (
     giver: (typeof insightGroups)["top"][number],
   ): PartnerRow => ({
@@ -62,7 +155,7 @@ export default async function PocPage() {
     ordinary: insightGroups.ordinary.map(toPartnerRow),
   };
 
-  const gaveCount = a.registeredPaidCount + a.unregisteredCount;
+  const activeGivers = answers.registeredPaidCount + answers.unregisteredCount;
   const giftCount =
     result.registeredPaid.reduce(
       (count, giver) => count + giver.payments.length,
@@ -73,146 +166,169 @@ export default async function PocPage() {
       0,
     ) +
     result.statementRows.length;
-  const avgGiftGhs =
-    giftCount > 0
-      ? formatGhs(Math.round(a.totalCollectedMinor / giftCount))
-      : "0";
-  const newGiverShare =
-    gaveCount > 0 ? Math.round((a.unregisteredCount / gaveCount) * 100) : 0;
-  const registerTotal = a.registeredPaidCount + a.unpaidCount;
-  const period = reportingPeriod(result);
+  const average = giftCount
+    ? formatGhs(Math.round(answers.totalCollectedMinor / giftCount))
+    : "0";
+
+  const toolbar = (
+    <PeriodFilter
+      availableStart={availablePeriod.start}
+      availableEnd={availablePeriod.end}
+      currentFrom={from}
+      currentTo={to}
+    />
+  );
 
   return (
-    <div className="min-h-screen bg-background pb-14 text-foreground">
-      <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex min-h-14 max-w-4xl items-center justify-between gap-3 px-4 py-2 sm:px-5">
-          <span className="flex min-w-0 items-center gap-2.5 text-sm font-semibold">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-success text-[13px] font-bold text-white">
-              B
-            </span>
-            <span className="truncate">Global Crusade Partners</span>
-          </span>
-          <span className="max-w-[46%] whitespace-nowrap rounded-full border border-border bg-background px-2.5 py-1 text-[11px] tabular-nums text-muted-foreground sm:max-w-none sm:px-3 sm:text-xs">
-            Giving: {period.compactLabel}
-          </span>
+    <PocShell
+      title="Dashboard"
+      subtitle={`Giving activity for ${period.label}. Start with what needs attention, then open the detailed record when needed.`}
+      toolbar={toolbar}
+    >
+      <section aria-labelledby="overview-heading">
+        <h2
+          id="overview-heading"
+          className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground"
+        >
+          Giving overview
+        </h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <MetricCard
+            label="Active BENMP partners"
+            value={activeGivers.toLocaleString("en-US")}
+            detail="Identifiable people with a recorded gift"
+            Icon={Users}
+            tone="teal"
+          />
+          <MetricCard
+            label="Giving received"
+            value={`GHS ${answers.totalCollectedGhs}`}
+            detail={`${giftCount.toLocaleString("en-US")} gifts · average GHS ${average}`}
+            Icon={CircleDollarSign}
+            tone="green"
+          />
+          <MetricCard
+            label="New givers"
+            value={answers.unregisteredCount.toLocaleString("en-US")}
+            detail="Gave but are not yet linked to a partner profile"
+            Icon={UserPlus}
+            tone="yellow"
+          />
+          <MetricCard
+            label="Need follow-up"
+            value={answers.unpaidCount.toLocaleString("en-US")}
+            detail="Registered partners with no gift in this period"
+            Icon={BellRing}
+            tone="coral"
+          />
         </div>
-      </header>
-      <PocNav current="/poc" />
+      </section>
 
-      <main className="mx-auto max-w-4xl px-4 sm:px-5">
-        <section className="pt-8">
-          <h1 className="text-[22px] font-semibold tracking-tight">
-            Ask about giving
-          </h1>
-          <p className="mb-4 mt-1 text-sm text-muted-foreground">
-            Answers use gifts recorded from {period.label} —{" "}
-            {a.totalPeople.toLocaleString("en-US")} tracked people,{" "}
-            {gaveCount.toLocaleString("en-US")} active givers.
+      <section className="mt-7" aria-labelledby="actions-heading">
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <h2 id="actions-heading" className="text-base font-bold">
+              What would you like to do?
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              The platform prepares the right records before anything is sent.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <QuickAction
+            href={withPeriod("/poc/messages", from, to, { task: "thank" })}
+            label="Thank givers"
+            detail={`${activeGivers.toLocaleString("en-US")} people gave`}
+            Icon={HeartHandshake}
+          />
+          <QuickAction
+            href={withPeriod("/poc/messages", from, to, { task: "remind" })}
+            label="Send reminders"
+            detail={`${answers.unpaidCount.toLocaleString("en-US")} people to review`}
+            Icon={BellRing}
+          />
+          <QuickAction
+            href={withPeriod("/poc/messages", from, to, { task: "update" })}
+            label="Ministry update"
+            detail="Choose a group and add media"
+            Icon={Megaphone}
+          />
+          <QuickAction
+            href={withPeriod("/poc/calls", from, to)}
+            label="Call partners"
+            detail="Top and repeat givers"
+            Icon={PhoneCall}
+          />
+        </div>
+      </section>
+
+      <section className="mt-7 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="grid h-9 w-9 place-items-center rounded-md bg-accent/25 text-accent-foreground">
+              <MessageCircleMore className="h-[18px] w-[18px]" aria-hidden />
+            </span>
+            <div>
+              <h2 className="text-sm font-bold">Needs attention</h2>
+              <p className="text-[11px] text-muted-foreground">
+                The most useful next steps from current records
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 divide-y divide-border">
+            <Link
+              href={withPeriod("/poc/messages", from, to, { task: "thank" })}
+              className="flex items-center justify-between gap-3 py-3 text-sm hover:text-brand"
+            >
+              <span>Review new giver acknowledgements</span>
+              <b className="tabular-nums">{answers.unregisteredCount}</b>
+            </Link>
+            <Link
+              href={withPeriod("/poc/messages", from, to, { task: "remind" })}
+              className="flex items-center justify-between gap-3 py-3 text-sm hover:text-brand"
+            >
+              <span>Review partners with no gift</span>
+              <b className="tabular-nums">{answers.unpaidCount}</b>
+            </Link>
+            <Link
+              href={withPeriod("/poc/giving", from, to)}
+              className="flex items-center justify-between gap-3 py-3 text-sm hover:text-brand"
+            >
+              <span>Check unattributed bank rows</span>
+              <b className="tabular-nums">{answers.statementRowCount}</b>
+            </Link>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="grid h-9 w-9 place-items-center rounded-md bg-violet-50 text-violet-700">
+              <Sparkles className="h-[18px] w-[18px]" aria-hidden />
+            </span>
+            <div>
+              <h2 className="text-sm font-bold">Ask about giving</h2>
+              <p className="text-[11px] text-muted-foreground">
+                Answers stay grounded in the selected period
+              </p>
+            </div>
+          </div>
+          <AskHero from={from} to={to} compact />
+        </div>
+      </section>
+
+      <section className="mt-7" aria-labelledby="groups-heading">
+        <div className="mb-3">
+          <h2 id="groups-heading" className="text-base font-bold">
+            Giver groups
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Top, repeat and ordinary givers are separated so each person appears
+            once.
           </p>
-          <AskHero />
-        </section>
-
-        <SectionLabel>Giving overview</SectionLabel>
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[13px] font-medium text-muted-foreground">
-                Active BENMP partners
-              </p>
-              <span className="grid h-8 w-8 flex-none place-items-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
-                <Users className="h-4 w-4" aria-hidden />
-              </span>
-            </div>
-            <div className="flex flex-1 items-center py-3">
-              <p className="text-[27px] font-semibold leading-none tracking-tight tabular-nums">
-                {gaveCount.toLocaleString("en-US")}
-              </p>
-            </div>
-            <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
-              Identifiable people who gave in the loaded giving window
-            </p>
-          </div>
-
-          <div className="flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[13px] font-medium text-muted-foreground">
-                Collected
-              </p>
-              <span className="grid h-8 w-8 flex-none place-items-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
-                <CircleDollarSign className="h-4 w-4" aria-hidden />
-              </span>
-            </div>
-            <div className="flex flex-1 items-center py-3">
-              <p className="text-[27px] font-semibold leading-none tracking-tight tabular-nums">
-                GHS {a.totalCollectedGhs}
-              </p>
-            </div>
-            <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
-              {giftCount.toLocaleString("en-US")} gifts · avg{" "}
-              <b className="font-semibold text-emerald-700 tabular-nums">
-                GHS {avgGiftGhs}
-              </b>
-            </p>
-          </div>
-
-          <div className="flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[13px] font-medium text-muted-foreground">
-                Gave, not registered
-              </p>
-              <span className="grid h-8 w-8 flex-none place-items-center rounded-lg bg-violet-50 text-violet-700 ring-1 ring-violet-100">
-                <UserPlus className="h-4 w-4" aria-hidden />
-              </span>
-            </div>
-            <div className="flex flex-1 items-center py-3">
-              <p className="text-[27px] font-semibold leading-none tracking-tight tabular-nums">
-                {a.unregisteredCount}
-              </p>
-            </div>
-            <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
-              <b className="font-semibold text-violet-700 tabular-nums">
-                {newGiverShare}%
-              </b>{" "}
-              of givers ·{" "}
-              <b className="font-semibold tabular-nums">
-                {a.statementRowCount}
-              </b>{" "}
-              bank rows filtered
-            </p>
-          </div>
-
-          <div className="flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[13px] font-medium text-muted-foreground">
-                Reminder targets
-              </p>
-              <span className="grid h-8 w-8 flex-none place-items-center rounded-lg bg-amber-50 text-amber-700 ring-1 ring-amber-100">
-                <BellRing className="h-4 w-4" aria-hidden />
-              </span>
-            </div>
-            <div className="flex flex-1 items-center py-3">
-              <p className="text-[27px] font-semibold leading-none tracking-tight tabular-nums">
-                {a.unpaidCount}
-              </p>
-            </div>
-            <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
-              of{" "}
-              <b className="font-semibold text-amber-700 tabular-nums">
-                {registerTotal.toLocaleString("en-US")}
-              </b>{" "}
-              registered partners
-            </p>
-          </div>
-        </section>
-
-        <SectionLabel>Giver groups</SectionLabel>
+        </div>
         <PartnersTable data={tableData} />
-
-        <footer className="mt-10 flex flex-wrap justify-between gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground/80">
-          <span>Staff workspace · confidential partner records</span>
-          <span>BENMP · Healing Jesus Campaign</span>
-        </footer>
-      </main>
-    </div>
+      </section>
+    </PocShell>
   );
 }

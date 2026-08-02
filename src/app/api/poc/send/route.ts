@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import {
   loadAcceptedSentMessageKeys,
   loadOptOuts,
-  loadReconciliation,
   recordSentMessages,
   sentMessageKey,
   toSentMessageRows,
@@ -29,7 +28,11 @@ import { summarizePlan, filterByKind, type PlanKind } from "@/lib/poc/dispatch";
 import { loadMediaAsset, validateMediaForProvider } from "@/lib/poc/media";
 import { sendPlanned, parseAllowlist } from "@/lib/send";
 import { getMessagingAdapter } from "@/lib/messaging";
-import { messagingRuntimeConfiguration } from "@/lib/messaging/runtime-configuration";
+import {
+  loadReconciliationCached,
+  messagingRuntimeConfigurationCached,
+} from "@/lib/poc/cached-data";
+import { filterReconciliationByPeriod } from "@/lib/poc/reporting-period";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +78,8 @@ export async function POST(req: Request) {
     maxAmountMinor?: unknown;
     audience?: unknown;
     mediaAssetId?: unknown;
+    from?: unknown;
+    to?: unknown;
   };
   const confirm = body.confirm === true;
   const kind: PlanKind =
@@ -89,6 +94,10 @@ export async function POST(req: Request) {
   const message = typeof body.message === "string" ? body.message : "";
   const mediaAssetId =
     typeof body.mediaAssetId === "string" ? body.mediaAssetId : null;
+  const dateValue = (value: unknown): string =>
+    typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
+  const from = dateValue(body.from);
+  const to = dateValue(body.to);
   const requiresStaffDraft =
     audience !== null && !["paid", "unpaid"].includes(audience);
   const messageProblem =
@@ -130,9 +139,9 @@ export async function POST(req: Request) {
 
   const asOf = new Date().toISOString().slice(0, 10);
   const adapter = getMessagingAdapter();
-  const [result, optedOut, acceptedThankYous, standingPartners, media] =
+  const [completeResult, optedOut, acceptedThankYous, standingPartners, media] =
     await Promise.all([
-      loadReconciliation(),
+      loadReconciliationCached(),
       loadOptOuts(),
       audience === "paid" || (audience === null && kind !== "reminder")
         ? loadAcceptedSentMessageKeys("thank_you")
@@ -142,6 +151,7 @@ export async function POST(req: Request) {
         : Promise.resolve([]),
       mediaAssetId ? loadMediaAsset(mediaAssetId) : Promise.resolve(null),
     ]);
+  const result = filterReconciliationByPeriod(completeResult, { from, to });
 
   if (mediaAssetId && !media) {
     return NextResponse.json(
@@ -252,7 +262,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const messaging = await messagingRuntimeConfiguration();
+  const messaging = await messagingRuntimeConfigurationCached();
   if (!messaging.ready) {
     return NextResponse.json(
       {

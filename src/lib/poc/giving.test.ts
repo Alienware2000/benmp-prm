@@ -3,12 +3,53 @@ import {
   UNATTRIBUTED,
   branchOptions,
   filterGiving,
+  loadPartnersForGivingPhones,
   sortByDateDesc,
   summarizeGiving,
   toEntries,
   type DbGivingPayment,
   type GivingEntry,
 } from "./giving";
+
+describe("loadPartnersForGivingPhones", () => {
+  it("queries only the distinct normalized phones in the giving ledger", async () => {
+    const requests: string[] = [];
+    const fetcher = async <T>(path: string): Promise<T[]> => {
+      requests.push(path);
+      return [
+        {
+          full_name: "Ama Serwaa",
+          whatsapp_number: "+233240000001",
+          church: "Qodesh",
+          country: "Ghana",
+        },
+      ] as T[];
+    };
+
+    const result = await loadPartnersForGivingPhones(
+      ["+233 24 000 0001", "+233240000001"],
+      fetcher,
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toContain("whatsapp_number=in.(%2B233240000001)");
+    expect(requests[0]).not.toContain("offset=");
+    expect(result.get("+233240000001")?.name).toBe("Ama Serwaa");
+  });
+
+  it("does not query the directory when the ledger has no phones", async () => {
+    let called = false;
+    const fetcher = async <T>(): Promise<T[]> => {
+      called = true;
+      return [];
+    };
+
+    const result = await loadPartnersForGivingPhones([], fetcher);
+
+    expect(called).toBe(false);
+    expect(result.size).toBe(0);
+  });
+});
 
 const branchMap = new Map([
   ["+233240000001", { branch: "Qodesh", name: "Ama Serwaa", country: "Ghana" }],

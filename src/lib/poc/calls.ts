@@ -6,7 +6,7 @@
  *  - "Top giver": among the DEFAULT_TOP_GIVERS highest total givers overall.
  *
  * Built entirely from `GivingEntry[]` (the same ledger the giving page already loads,
- * cached — see loadBranchByPhoneCached), so this needs no extra Supabase round trip.
+ * already attached to the ledger), so this needs no extra Supabase round trip.
  * Bank/interop statement rows (Decision 0008 §6) are excluded — there's no one to call.
  * A giver with no partner record still has a phone (from the payment) and can be called;
  * branch/country just read as unassigned.

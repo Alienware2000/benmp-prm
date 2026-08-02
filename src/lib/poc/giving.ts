@@ -15,15 +15,8 @@
 import { normalizePhone } from "../phone";
 import { isStatementRow } from "../reconcile";
 import type { Fetcher } from "./db";
-import { memoWithTtl, supabaseRestFetcher } from "./db";
-import {
-  fetchAllRows,
-  groupBranches,
-  isSensibleName,
-  isValidBranch,
-  normalizeBranchKey,
-  resolveBranchKey,
-} from "./directory";
+import { supabaseRestFetcher } from "./db";
+import { branchLabel, isSensibleName } from "./directory";
 
 /** Shown wherever a payment can't be tied to a known partner. */
 export const UNATTRIBUTED = "Unattributed";
@@ -189,29 +182,40 @@ export function sortByDateDesc(entries: GivingEntry[]): GivingEntry[] {
 }
 
 /**
- * Phone -> {branch, name} for every partner with a phone. Built once per page load and
- * reused for the whole ledger.
+ * Phone -> partner details for the numbers in this ledger. The directory is queried in
+ * bounded chunks so a giving page never has to download the complete partner table.
  */
-export async function loadBranchByPhone(
+export async function loadPartnersForGivingPhones(
+  phones: string[],
   fetcher: Fetcher = supabaseRestFetcher(),
 ): Promise<Map<string, { branch: string; name: string; country: string }>> {
-  // Must page: PostgREST caps at 1000 rows, and the branch map needs all 15k partners —
-  // a truncated map silently reports real giving as unattributed.
-  const rows = await fetchAllRows<{
+  const unique = [
+    ...new Set(phones.map((phone) => normalizePhone(phone)).filter(Boolean)),
+  ] as string[];
+  if (unique.length === 0) return new Map();
+
+  const rows: Array<{
     full_name: string | null;
     whatsapp_number: string | null;
     church: string | null;
     country: string | null;
-  }>(
-    fetcher,
-    "partners?select=full_name,whatsapp_number,church,country,id&whatsapp_number=not.is.null",
-  );
+  }> = [];
 
-  // One branch spelled several ways would otherwise report as several branches, splitting
-  // its giving subtotal. Resolve every spelling to the canonical label first.
-  const labelByKey = new Map(
-    groupBranches(rows.map((r) => r.church)).map((g) => [g.key, g.label]),
-  );
+  // A typical statement contains a few hundred distinct numbers. Query only those
+  // partners rather than paging the complete 25k+ standing directory on every visit.
+  for (let index = 0; index < unique.length; index += 100) {
+    const chunk = unique.slice(index, index + 100);
+    const list = chunk.map((phone) => encodeURIComponent(phone)).join(",");
+    const matches = await fetcher<{
+      full_name: string | null;
+      whatsapp_number: string | null;
+      church: string | null;
+      country: string | null;
+    }>(
+      `partners?select=full_name,whatsapp_number,church,country&whatsapp_number=in.(${list})&limit=1000`,
+    );
+    rows.push(...matches);
+  }
 
   const map = new Map<
     string,
@@ -221,12 +225,7 @@ export async function loadBranchByPhone(
     const phone = normalizePhone(r.whatsapp_number);
     if (!phone || map.has(phone)) continue; // first match wins; shared numbers exist
     map.set(phone, {
-      // A partner whose branch is unusable is still a matched partner — their giving is
-      // just not attributable to a branch.
-      branch: isValidBranch(r.church)
-        ? (labelByKey.get(resolveBranchKey(normalizeBranchKey(r.church))) ??
-          (r.church ?? "").trim())
-        : UNATTRIBUTED,
+      branch: branchLabel(r.church),
       name: (r.full_name ?? "").trim(),
       country: (r.country ?? "").trim(),
     });
@@ -234,21 +233,16 @@ export async function loadBranchByPhone(
   return map;
 }
 
-/** `loadBranchByPhone`, memoized for 60s — the giving page doesn't need per-request freshness on this. */
-export const loadBranchByPhoneCached = memoWithTtl(
-  () => loadBranchByPhone(),
-  60_000,
-);
-
 export async function loadGivingLedger(
   fetcher: Fetcher = supabaseRestFetcher(),
 ): Promise<GivingEntry[]> {
-  const [payments, branchByPhone] = await Promise.all([
-    fetcher<DbGivingPayment>(
-      "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at&status=eq.Successful&order=paid_at.desc&limit=5000",
-    ),
-    loadBranchByPhoneCached(),
-  ]);
+  const payments = await fetcher<DbGivingPayment>(
+    "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at&status=eq.Successful&order=paid_at.desc&limit=5000",
+  );
+  const branchByPhone = await loadPartnersForGivingPhones(
+    payments.map((payment) => payment.payer_phone_e164 ?? "").filter(Boolean),
+    fetcher,
+  );
   return toEntries(payments, branchByPhone);
 }
 

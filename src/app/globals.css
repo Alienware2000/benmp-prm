@@ -1,17 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f6f8;
-  --foreground: #151922;
+  --background: #f4f6f7;
+  --foreground: #172126;
   --surface: #ffffff;
-  --muted: #f0f2f5;
-  --muted-foreground: #687083;
-  --border: #e0e4ea;
+  --muted: #edf1f2;
+  --muted-foreground: #657178;
+  --border: #dce3e6;
   --sidebar: #101722;
   --sidebar-muted: #1a2432;
-  --primary: #b45309;
+  --brand: #005f70;
+  --brand-strong: #004a58;
+  --accent: #f7c600;
+  --accent-foreground: #1d272b;
+  --primary: #005f70;
   --primary-foreground: #ffffff;
-  --success: #047857;
+  --success: #087f5b;
   --warning: #b45309;
   --danger: #be123c;
 }
@@ -25,6 +29,10 @@
   --color-border: var(--border);
   --color-sidebar: var(--sidebar);
   --color-sidebar-muted: var(--sidebar-muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-success: var(--success);
@@ -37,6 +45,10 @@
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+html {
+  scroll-padding-top: 5rem;
 }
 
 * {

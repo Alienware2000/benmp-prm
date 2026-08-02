@@ -69,14 +69,14 @@ const PRIMARY_AUDIENCES: AudienceOption[] = [
   },
   {
     key: "paid",
-    label: "Gave in this window",
-    description: "A gift is recorded between the dates shown above",
+    label: "Gave in selected period",
+    description: "People with a gift recorded in the period shown above",
     Icon: HeartHandshake,
   },
   {
     key: "unpaid",
-    label: "No gift in this window",
-    description: "Registered partners without a gift between these dates",
+    label: "No gift in selected period",
+    description: "Registered partners with no gift in the period shown above",
     Icon: CircleDollarSign,
   },
 ];
@@ -85,13 +85,13 @@ const SPECIFIC_AUDIENCES: AudienceOption[] = [
   {
     key: "top",
     label: "Top 20 givers",
-    description: "The 20 highest recorded totals in this giving window",
+    description: "The 20 highest recorded totals in the selected period",
     Icon: Crown,
   },
   {
     key: "consistent",
     label: "Repeat givers",
-    description: "2 or more gifts in this window, excluding the Top 20",
+    description: "2 or more gifts in the selected period, excluding the Top 20",
     Icon: Sparkles,
   },
   {
@@ -158,6 +158,8 @@ async function post({
   minAmount,
   maxAmount,
   mediaAssetId,
+  periodFrom,
+  periodTo,
 }: {
   audience: AudienceKey;
   confirm: boolean;
@@ -165,6 +167,8 @@ async function post({
   minAmount: string;
   maxAmount: string;
   mediaAssetId: string;
+  periodFrom: string;
+  periodTo: string;
 }) {
   const minAmountMinor = amountToMinor(minAmount);
   const maxAmountMinor = amountToMinor(maxAmount);
@@ -178,6 +182,8 @@ async function post({
       ...(minAmountMinor !== undefined ? { minAmountMinor } : {}),
       ...(maxAmountMinor !== undefined ? { maxAmountMinor } : {}),
       ...(mediaAssetId ? { mediaAssetId } : {}),
+      ...(periodFrom ? { from: periodFrom } : {}),
+      ...(periodTo ? { to: periodTo } : {}),
     }),
   });
   return response.json() as Promise<{
@@ -245,6 +251,8 @@ export function MessageCenter({
   messagingReady,
   configurationNote,
   periodLabel,
+  periodFrom,
+  periodTo,
 }: {
   initialAudience: AudienceKey;
   counts: AudienceCounts;
@@ -253,6 +261,8 @@ export function MessageCenter({
   messagingReady: boolean;
   configurationNote?: string;
   periodLabel: string;
+  periodFrom: string;
+  periodTo: string;
 }) {
   const [audience, setAudience] = useState<AudienceKey>(initialAudience);
   const [message, setMessage] = useState(initialMessage);
@@ -302,6 +312,8 @@ export function MessageCenter({
         minAmount,
         maxAmount,
         mediaAssetId: mediaId,
+        periodFrom,
+        periodTo,
       });
       if (result.ok && result.data?.summary) {
         setSummary(result.data.summary);
@@ -327,6 +339,8 @@ export function MessageCenter({
         minAmount,
         maxAmount,
         mediaAssetId: mediaId,
+        periodFrom,
+        periodTo,
       });
       if (result.ok && result.data?.report) {
         setReport(result.data.report);
@@ -381,11 +395,10 @@ export function MessageCenter({
           />
           <div className="min-w-0">
             <p className="text-xs font-semibold text-foreground">
-              Giving window: {periodLabel}
+              Selected giving period: {periodLabel}
             </p>
             <p className="mt-0.5 text-[11px] leading-5 text-muted-foreground">
-              Every gift-based group below uses the payment records from these
-              dates.
+              Gift-based groups and amounts use only the records in this period.
             </p>
           </div>
         </div>

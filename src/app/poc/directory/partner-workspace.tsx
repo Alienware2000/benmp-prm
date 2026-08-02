@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   DEFAULT_PAGE_SIZE,
-  listBranchGroups,
+  listBranchGroupsCached,
   normalizeBranchKey,
   resolveBranchKey,
   searchDirectory,
@@ -12,25 +12,24 @@ import { DirectoryClient } from "./directory-client";
 
 export type PartnerSearchParams = Promise<{
   q?: string;
-  branch?: string;
   page?: string;
+  task?: string;
 }>;
 
 function PageLink({
-  params,
+  q,
   page,
   children,
   disabled,
 }: {
-  params: { q: string; branch: string };
+  q: string;
   page: number;
   children: React.ReactNode;
   disabled: boolean;
 }) {
   const qs = new URLSearchParams();
-  qs.set("mode", "partners");
-  if (params.q) qs.set("q", params.q);
-  if (params.branch) qs.set("branch", params.branch);
+  qs.set("task", "update");
+  if (q) qs.set("q", q);
   if (page > 1) qs.set("page", String(page));
   const cls =
     "rounded-lg border border-border px-3 py-1.5 text-xs font-semibold transition " +
@@ -52,13 +51,10 @@ export async function PartnerWorkspace({
 }) {
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
-  const branch = (sp.branch ?? "").trim();
   const page = Math.max(1, Number(sp.page) || 1);
-  const branches = await listBranchGroups();
-  const selected = branches.find((group) => group.key === branch);
+  const branches = await listBranchGroupsCached();
   const result = await searchDirectory({
     q,
-    branchVariants: selected?.variants,
     page,
     pageSize: DEFAULT_PAGE_SIZE,
   });
@@ -67,20 +63,26 @@ export async function PartnerWorkspace({
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
   const first = result.total === 0 ? 0 : (page - 1) * result.pageSize + 1;
   const last = Math.min(page * result.pageSize, result.total);
-  const filtered = Boolean(q || branch);
+  const filtered = Boolean(q);
 
   return (
     <PocShell
       current="/poc/messages"
       title="Messages"
-      subtitle="Choose partners from ministry records for personal updates or amount-aware giving messages."
+      subtitle="Choose the people, write the update and review it before sending."
     >
       <MessagesNav current="partners" />
+      <Link
+        href="/poc/messages"
+        className="mb-3 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
+      >
+        <span aria-hidden>←</span> Back to message choices
+      </Link>
       <form
         method="GET"
-        className="grid gap-2.5 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_220px_auto_auto] lg:items-end"
+        className="grid gap-2.5 rounded-lg border border-border bg-surface p-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end"
       >
-        <input type="hidden" name="mode" value="partners" />
+        <input type="hidden" name="task" value="update" />
         <div className="min-w-0">
           <label
             htmlFor="q"
@@ -96,27 +98,6 @@ export async function PartnerWorkspace({
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-success"
           />
         </div>
-        <div className="min-w-0">
-          <label
-            htmlFor="branch"
-            className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
-          >
-            Branch
-          </label>
-          <select
-            id="branch"
-            name="branch"
-            defaultValue={branch}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-success"
-          >
-            <option value="">All branches</option>
-            {branches.map((group) => (
-              <option key={group.key} value={group.key}>
-                {group.label} ({group.count.toLocaleString("en-US")})
-              </option>
-            ))}
-          </select>
-        </div>
         <button
           type="submit"
           className="h-10 rounded-md bg-success px-4 text-sm font-semibold text-white transition hover:opacity-90"
@@ -125,7 +106,7 @@ export async function PartnerWorkspace({
         </button>
         {filtered && (
           <Link
-            href="/poc/messages?mode=partners"
+            href="/poc/messages?task=update"
             className="inline-flex h-10 items-center justify-center rounded-md border border-border px-3 text-sm font-medium text-muted-foreground transition hover:text-foreground"
           >
             Clear
@@ -166,14 +147,14 @@ export async function PartnerWorkspace({
 
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-between gap-3">
-          <PageLink params={{ q, branch }} page={page - 1} disabled={page <= 1}>
+          <PageLink q={q} page={page - 1} disabled={page <= 1}>
             Previous
           </PageLink>
           <span className="text-xs tabular-nums text-muted-foreground">
             Page {page} of {totalPages.toLocaleString("en-US")}
           </span>
           <PageLink
-            params={{ q, branch }}
+            q={q}
             page={page + 1}
             disabled={page >= totalPages}
           >

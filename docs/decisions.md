@@ -277,3 +277,66 @@ _2026-07-28_
 **Why**: staff asked for a way to prioritize follow-up calls without a new data pipeline, and to always see which country a partner is in, not just their branch — the region import (0012) made country the more useful grouping for most of the table now that `partners` spans 70+ countries.
 
 **Said no to**: a configurable threshold UI for the two criteria (premature before anyone's used the page) · a new Supabase query for the calls list (the giving ledger already has everything needed) · call-outcome tracking / a dialer integration (that's the Phase 10 call queue, full MVP scope — this is a read-only priority list).
+
+## 0014 — Giver categories and message-workspace ownership
+
+_2026-08-01_
+
+**Decided**: apply Bishop Ebo's requested giver categories and keep batch communication in the Messages workspace.
+
+1. **Dashboard giver categories are mutually exclusive.** `Top` is the highest 20 people by total giving, matching the existing Calls rule (0013). After those people are removed, `Consistent` means two or more gifts; `Ordinary` is every other identifiable giver. Each Dashboard view shows up to 20 people, and no person appears in more than one category.
+2. **Active BENMP partners means identifiable people who gave in the loaded period.** It is a people count, not a transaction count and not a lifetime-status claim. The Dashboard separately reports the number of gift transactions.
+3. **Giving owns financial review; Messages owns batch communication.** Giving filters the ledger by date, name and inclusive minimum/maximum amount. Branch and country remain useful row context but branch is no longer the main filter. A row-level `Thank` action can still start one amount-aware acknowledgement. Preparing all acknowledgements or reminders happens only in Messages, with preview, explicit approval, opt-out enforcement and audit logging.
+4. **Twenty editable special-message drafts are shared by individual and selected-partner sending.** The library contains four drafts each for ordinary, consistent, top, first-time and returning givers. `{name}` and `{amount}` are resolved from the available partner/giving data, and staff can edit the result before review and send.
+
+**Why**: the office described top, consistent and ordinary givers as distinct working groups, asked for amount-led financial filtering, and asked for generic acknowledgements/reminders to move off the Dashboard. One message workspace prevents Giving and Messages from presenting competing versions of the same bulk-send workflow.
+
+**Said no to**: a separate GHS threshold for the Dashboard's `Top` category (would conflict with the established top-20 Calls rule) · duplicate mass-thank controls on Giving and Messages · treating active people as gifts · hiding branch/country context merely because amount is now the primary filter.
+
+## 0015 — Messages starts with the staff member's task
+
+_2026-08-01_
+
+**Decided**: the Messages workspace uses office language rather than implementation language. Its primary choices are **Thank people who gave**, **Send a reminder**, **Send a ministry update**, and **Message one person**. The old visible “Ready queues” concept is removed; reconciliation still prepares safe recipient groups underneath the guided workflow.
+
+1. Partner communication follows three visible steps: choose people, write the message, then review and send. Staff can edit the wording before preview and must explicitly approve the final recipient count.
+2. Acknowledgements automatically use each giver's recorded name and amount, exclude accepted acknowledgements, enforce opt-outs, and can optionally be narrowed by minimum and maximum gift amount.
+3. Reminders use only the current reconciliation cohort: registered partners without a recognized gift in the loaded period. They are not inferred from the 26,000-person international directory.
+4. Ministry updates retain deliberate partner search and selection. One-person messaging remains available for any valid international WhatsApp number.
+5. The twenty special drafts live inside the message-writing step for deliberately selected partners and one-person messages, grouped by giver context. The thank-everyone workflow uses one clear editable acknowledgement so a category-specific draft cannot accidentally be broadcast to the wrong audience.
+
+**Why**: the office should state what it wants to accomplish and let the system prepare the technical audience. Hiding queue terminology and progressively revealing filters makes the workflow usable for staff who are not technically inclined without weakening confirmation, opt-out, provider, and audit controls.
+
+**Said no to**: three competing recipient modes in the main navigation · exposing reconciliation vocabulary to staff · showing every audience filter at once · moving financial review back into Messages.
+
+## 0016 — Partner messages use cohorts, not individual picking
+
+_2026-08-01_
+
+**Decided**: staff never build a bulk audience by paging through the directory and ticking people one by one. The system resolves each audience from current partner and giving records when the preview is requested.
+
+1. The screen names the exact **Giving window** from the earliest and latest successful payment records. Its three primary choices are **All partners**, **Gave in this window**, and **No gift in this window**. Staff never have to guess what “this period” means.
+2. **Top 20 givers**, **Repeat givers**, and **Gift not linked to a profile** are available under one collapsed “More specific groups” control. Repeat means two or more gifts in the named window after the Top 20 are excluded; the last group means a gift exists but no registered partner record matches it. Gift-based groups can be narrowed with an optional inclusive minimum and maximum amount. “Ordinary giver” remains a Dashboard reporting category rather than a visible message label.
+3. Every bulk task uses the same composer: editable wording, the shared twenty-draft library, an optional attachment, a personalized preview, and explicit approval of the final sendable count. One-person messaging uses the same attachment library and review behavior.
+4. Audience membership is resolved again on the server at preview and send time. Client-supplied recipient lists are not trusted. Opt-outs, accepted thank-you deduplication, provider validation, allowlist rules, and audit logging remain in force.
+5. A synchronous send is capped at 2,000 recipients. Larger global audiences can still be previewed, but staff must choose a smaller group until provider campaigns and background batching are implemented.
+
+**Why**: manually selecting individuals does not scale to the 26,000-record directory and makes omissions likely. A few office-language cohorts are faster and clearer for non-technical staff, while one shared composer prevents the acknowledgement, reminder, and ministry-update paths from drifting into different tools.
+
+**Supersedes**: Decision 0011's directory search-and-selection mode and Decision 0015 item 4's deliberate partner selection workflow. The four task entry points remain; only the way a bulk audience is chosen has changed.
+
+**Said no to**: exposing every possible status as a filter · branch-first message targeting · using “ordinary giver” as a recipient-facing label · sending an unbounded global broadcast inside one web request · separate attachment controls for different message tasks.
+
+## 0017 — Live sending requires a verified BENMP sender device
+
+_2026-08-01_
+
+**Decided**: provider credentials alone do not make WhatsApp “ready.” When WaliChat is selected, the server verifies that the configured BENMP device still exists in the connected account and is operative before the Messages page enables sending and again immediately before dispatch.
+
+1. A missing, removed or disconnected sender blocks all sends with an office-language instruction to reconnect the BENMP number. Raw provider diagnostics and device identifiers are not shown to staff.
+2. The recipient field continues to accept any valid international WhatsApp number. Sender-device readiness, opt-outs and an explicitly configured safety allowlist are separate controls; an empty allowlist means no recipient restriction.
+3. Preview remains available while the sender is disconnected so staff can prepare and review work, but the API fails closed before attempting delivery.
+
+**Why**: a stale Wali device ID previously looked configured until a real send failed with a low-level “device invalid” response. Readiness must describe the live provider state, not merely the presence of environment variables.
+
+**Said no to**: silently falling back to mock delivery · removing the Wali device field · interpreting a disconnected sender as a recipient-number restriction · exposing provider internals as staff instructions.

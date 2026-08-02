@@ -164,6 +164,30 @@ describe("WaliMessagingAdapter", () => {
     expect(result.errorMessage).not.toContain("private-key");
   });
 
+  it("turns a stale device error into a staff-actionable message", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message:
+            "Device is invalid or does not exist. Specify the proper target device ID.",
+        }),
+        { status: 400 },
+      ),
+    );
+    const adapter = new WaliMessagingAdapter({
+      apiKey: "private-key",
+      deviceId: "stale-device",
+      fetcher,
+    });
+
+    expect(await adapter.send(message())).toMatchObject({
+      status: "failed",
+      errorMessage: expect.stringContaining(
+        "BENMP WhatsApp sender is disconnected",
+      ),
+    });
+  });
+
   it("fails before the network call for unsupported or incomplete sends", async () => {
     const fetcher = vi.fn();
 

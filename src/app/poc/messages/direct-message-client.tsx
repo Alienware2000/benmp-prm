@@ -2,8 +2,8 @@
 
 import {
   CheckCircle2,
+  BookOpenText,
   CircleDollarSign,
-  ImageIcon,
   LoaderCircle,
   MessageCircle,
   Paperclip,
@@ -11,25 +11,21 @@ import {
   Repeat2,
   RotateCcw,
   ShieldCheck,
-  Trash2,
-  Upload,
-  Video,
-  X,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { FeedbackNotice } from "@/components/feedback-notice";
+import {
+  renderSpecialMessage,
+  SPECIAL_MESSAGE_CATEGORY_LABELS,
+  SPECIAL_MESSAGE_TEMPLATES,
+  type SpecialMessageCategory,
+} from "@/lib/message-templates";
 import type { MessagingProvider } from "@/lib/messaging/types";
 import { normalizePhone } from "@/lib/phone";
-
-type MediaAsset = {
-  id: string;
-  filename: string;
-  mimeType: string;
-  sizeBytes: number;
-  kind: "image" | "video" | "audio" | "document";
-  url: string;
-  caption: string | null;
-};
+import {
+  MessageAttachmentField,
+  type MessageMediaAsset,
+} from "./message-attachment-field";
 
 type SendResult = {
   to: string;
@@ -52,12 +48,6 @@ function providerLabel(provider: MessagingProvider): string {
   return "Demo mode";
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes >= 1_000_000) return `${(bytes / 1_000_000).toFixed(1)} MB`;
-  if (bytes >= 1_000) return `${Math.round(bytes / 1_000)} KB`;
-  return `${bytes} B`;
-}
-
 function cleanProviderError(message: string): string {
   return message.replace(
     /^(Wali|WaliChat|WhatChimp|Twilio|Vonage|Infobip|Meta)\s*:\s*/i,
@@ -70,6 +60,7 @@ export function DirectMessageClient({
   initialName = "",
   initialPhone = "",
   initialMessage = "",
+  initialAmountMinor,
   contextNote,
   messagingReady,
   configurationNote,
@@ -78,6 +69,7 @@ export function DirectMessageClient({
   initialName?: string;
   initialPhone?: string;
   initialMessage?: string;
+  initialAmountMinor?: number;
   contextNote?: string;
   messagingReady: boolean;
   configurationNote?: string;
@@ -85,45 +77,21 @@ export function DirectMessageClient({
   const [fullName, setFullName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
   const [message, setMessage] = useState(initialMessage);
-  const [assets, setAssets] = useState<MediaAsset[]>([]);
-  const [incompatibleAssets, setIncompatibleAssets] = useState<MediaAsset[]>(
-    [],
-  );
+  const [templateId, setTemplateId] = useState("");
   const [mediaId, setMediaId] = useState("");
+  const [attached, setAttached] = useState<MessageMediaAsset | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SendResult | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const messageRef = useRef<HTMLTextAreaElement>(null);
-  const attachmentRef = useRef<HTMLSelectElement>(null);
+  const attachmentRef = useRef<HTMLDivElement>(null);
 
   const destination = normalizePhone(phone);
-  const attached = useMemo(
-    () => assets.find((asset) => asset.id === mediaId) ?? null,
-    [assets, mediaId],
-  );
   const ready = Boolean(destination && message.trim());
   const canSend = messagingReady && ready && confirmed && !busy && !result;
-
-  useEffect(() => {
-    fetch("/api/poc/media")
-      .then((response) => response.json())
-      .then((payload) => {
-        if (payload.ok && Array.isArray(payload.data?.assets)) {
-          setAssets(payload.data.assets);
-          setIncompatibleAssets(
-            Array.isArray(payload.data?.incompatible)
-              ? payload.data.incompatible
-              : [],
-          );
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   function resetSendState() {
     setConfirmed(false);
@@ -162,122 +130,20 @@ export function DirectMessageClient({
     setFullName("");
     setPhone("");
     setMessage("");
+    setTemplateId("");
     setMediaId("");
     resetSendState();
     requestAnimationFrame(() => nameRef.current?.focus());
   }
 
-  async function upload(file: File) {
-    setUploading(true);
-    setError(null);
-    try {
-      const signed = await fetch("/api/poc/media/sign", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          filename: file.name,
-          mimeType: file.type,
-          sizeBytes: file.size,
-        }),
-      }).then((response) => response.json());
-      if (!signed.ok) {
-        setError(
-          signed.error?.message ?? "The attachment could not be uploaded.",
-        );
-        return;
-      }
-
-      const transferred = await fetch(signed.data.uploadUrl, {
-        method: "PUT",
-        headers: { "content-type": file.type },
-        body: file,
-      });
-      if (!transferred.ok) {
-        setError("The attachment could not be transferred to the media vault.");
-        return;
-      }
-
-      const confirmedUpload = await fetch("/api/poc/media/confirm", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          path: signed.data.path,
-          filename: file.name,
-        }),
-      }).then((response) => response.json());
-      if (!confirmedUpload.ok) {
-        setError(
-          confirmedUpload.error?.message ??
-            "The attachment could not be added to the media vault.",
-        );
-        return;
-      }
-
-      const list = await fetch("/api/poc/media").then((response) =>
-        response.json(),
-      );
-      setAssets(list?.data?.assets ?? []);
-      setIncompatibleAssets(list?.data?.incompatible ?? []);
-      setMediaId(confirmedUpload.data.id);
-      resetSendState();
-    } catch {
-      setError("The attachment upload was interrupted. Try again.");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  function removeAttachment() {
-    setMediaId("");
+  function useSpecialTemplate() {
+    const template = SPECIAL_MESSAGE_TEMPLATES.find(
+      (item) => item.id === templateId,
+    );
+    if (!template) return;
+    setMessage(renderSpecialMessage(template, fullName, initialAmountMinor));
     resetSendState();
-  }
-
-  async function deleteAssets(
-    doomed: MediaAsset[],
-    confirmation: string,
-  ): Promise<void> {
-    if (deleting || doomed.length === 0 || !window.confirm(confirmation))
-      return;
-    setDeleting(true);
-    setError(null);
-    try {
-      const results = await Promise.all(
-        doomed.map(async (asset) => {
-          const response = await fetch(
-            `/api/poc/media?id=${encodeURIComponent(asset.id)}`,
-            { method: "DELETE" },
-          );
-          const payload = await response.json().catch(() => ({}));
-          return {
-            asset,
-            ok: response.ok && payload.ok,
-            message: payload.error?.message as string | undefined,
-          };
-        }),
-      );
-      const failed = results.filter((result) => !result.ok);
-      const deletedIds = new Set(
-        results.filter((result) => result.ok).map((result) => result.asset.id),
-      );
-      setAssets((current) =>
-        current.filter((asset) => !deletedIds.has(asset.id)),
-      );
-      setIncompatibleAssets((current) =>
-        current.filter((asset) => !deletedIds.has(asset.id)),
-      );
-      if (deletedIds.has(mediaId)) setMediaId("");
-      resetSendState();
-      if (failed.length > 0) {
-        setError(
-          failed[0].message ??
-            `${failed.length} attachment${failed.length === 1 ? "" : "s"} could not be deleted.`,
-        );
-      }
-    } catch {
-      setError("The attachment could not be deleted. Nothing else changed.");
-    } finally {
-      setDeleting(false);
-    }
+    requestAnimationFrame(() => messageRef.current?.focus());
   }
 
   async function send(event: FormEvent) {
@@ -336,7 +202,7 @@ export function DirectMessageClient({
         <FeedbackNotice
           tone="warning"
           className="lg:col-span-2"
-          title="Live WhatsApp is not configured in this deployment"
+          title="WhatsApp sending is unavailable"
         >
           {configurationNote}
         </FeedbackNotice>
@@ -384,6 +250,47 @@ export function DirectMessageClient({
             />
           </label>
 
+          <div className="grid gap-2 rounded-md border border-border bg-background p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <label className="grid min-w-0 gap-1.5 text-xs font-semibold">
+              Special message draft
+              <select
+                value={templateId}
+                onChange={(event) => setTemplateId(event.target.value)}
+                className="h-11 min-w-0 rounded-md border border-border bg-surface px-3 text-sm font-normal outline-none focus:border-success"
+              >
+                <option value="">Choose from 20 drafts</option>
+                {(
+                  Object.entries(SPECIAL_MESSAGE_CATEGORY_LABELS) as Array<
+                    [SpecialMessageCategory, string]
+                  >
+                ).map(([category, label]) => (
+                  <optgroup key={category} label={label}>
+                    {SPECIAL_MESSAGE_TEMPLATES.filter(
+                      (template) => template.category === category,
+                    ).map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={useSpecialTemplate}
+              disabled={!templateId}
+              className="inline-flex h-11 items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-3 text-xs font-semibold transition hover:bg-background disabled:opacity-40"
+            >
+              <BookOpenText className="h-4 w-4" aria-hidden />
+              Use draft
+            </button>
+            <p className="text-[11px] leading-5 text-muted-foreground sm:col-span-2">
+              Drafts are grouped by giver type. Staff can edit the wording
+              before reviewing and sending.
+            </p>
+          </div>
+
           <label className="grid gap-1.5 text-xs font-semibold">
             Message
             <textarea
@@ -403,110 +310,17 @@ export function DirectMessageClient({
             </span>
           </label>
 
-          <div className="grid gap-1.5 text-xs font-semibold">
-            <label htmlFor="direct-message-attachment">Attachment</label>
-            <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-              <select
-                ref={attachmentRef}
-                id="direct-message-attachment"
-                value={mediaId}
-                onChange={(event) => {
-                  setMediaId(event.target.value);
-                  resetSendState();
-                }}
-                className="h-11 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none focus:border-success"
-              >
-                <option value="">No attachment</option>
-                {assets.map((asset) => (
-                  <option key={asset.id} value={asset.id}>
-                    {asset.kind === "image"
-                      ? "Image"
-                      : asset.kind === "video"
-                        ? "Video"
-                        : "File"}{" "}
-                    — {asset.filename}
-                  </option>
-                ))}
-              </select>
-              <label className="inline-flex h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-3 text-xs font-semibold transition hover:bg-background sm:w-auto">
-                {uploading ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Upload className="h-4 w-4" aria-hidden />
-                )}
-                {uploading ? "Uploading" : attached ? "Replace" : "Add file"}
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/jpeg,image/png,video/mp4,video/3gpp,audio/mpeg,audio/ogg,application/pdf"
-                  disabled={uploading}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) void upload(file);
-                    event.target.value = "";
-                  }}
-                />
-              </label>
-            </div>
-
-            {attached && (
-              <div className="mt-1 flex flex-wrap items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
-                <span className="mr-auto min-w-0 text-xs font-normal text-muted-foreground">
-                  <b className="text-foreground">{attached.filename}</b>{" "}
-                  <span className="tabular-nums">
-                    · {formatFileSize(attached.sizeBytes)}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  onClick={removeAttachment}
-                  className="inline-flex h-8 items-center gap-1 rounded border border-border bg-surface px-2.5 text-xs font-semibold hover:bg-background"
-                >
-                  <X className="h-3.5 w-3.5" aria-hidden />
-                  Remove
-                </button>
-                <button
-                  type="button"
-                  disabled={deleting}
-                  onClick={() =>
-                    void deleteAssets(
-                      [attached],
-                      `Permanently delete ${attached.filename} from the BENMP media library?`,
-                    )
-                  }
-                  className="inline-flex h-8 items-center gap-1 rounded border border-red-200 bg-white px-2.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                  Delete file
-                </button>
-              </div>
-            )}
-
-            {incompatibleAssets.length > 0 && (
-              <FeedbackNotice
-                tone="warning"
-                className="mt-1"
-                title={`${incompatibleAssets.length} unusable attachment${incompatibleAssets.length === 1 ? "" : "s"} hidden`}
-                action={{
-                  label: deleting
-                    ? "Deleting..."
-                    : `Delete ${incompatibleAssets.length === 1 ? "file" : "files"}`,
-                  onClick: () =>
-                    void deleteAssets(
-                      incompatibleAssets,
-                      `Permanently delete ${incompatibleAssets.length} attachment${incompatibleAssets.length === 1 ? "" : "s"} that exceed the current WhatsApp limit?`,
-                    ),
-                }}
-                supportingText="New uploads are checked against the active provider before they enter the library."
-              >
-                {incompatibleAssets
-                  .map(
-                    (asset) =>
-                      `${asset.filename} (${formatFileSize(asset.sizeBytes)})`,
-                  )
-                  .join(", ")}
-              </FeedbackNotice>
-            )}
+          <div ref={attachmentRef} tabIndex={-1} className="outline-none">
+            <MessageAttachmentField
+              id="direct-message-attachment"
+              value={mediaId}
+              onChange={(nextMediaId) => {
+                setMediaId(nextMediaId);
+                resetSendState();
+              }}
+              onAssetChange={setAttached}
+              onError={setError}
+            />
           </div>
         </div>
       </section>
@@ -551,33 +365,10 @@ export function DirectMessageClient({
           </div>
 
           {attached && (
-            <div className="mt-3 overflow-hidden rounded-md border border-border bg-background">
-              {attached.kind === "image" ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={attached.url}
-                  alt={attached.caption ?? attached.filename}
-                  className="max-h-52 w-full object-cover"
-                />
-              ) : attached.kind === "video" ? (
-                <video
-                  src={attached.url}
-                  controls
-                  preload="metadata"
-                  className="max-h-52 w-full bg-black object-contain"
-                />
-              ) : null}
-              <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
-                {attached.kind === "image" ? (
-                  <ImageIcon className="h-3.5 w-3.5" aria-hidden />
-                ) : attached.kind === "video" ? (
-                  <Video className="h-3.5 w-3.5" aria-hidden />
-                ) : (
-                  <Paperclip className="h-3.5 w-3.5" aria-hidden />
-                )}
-                <span className="truncate">{attached.filename}</span>
-              </div>
-            </div>
+            <p className="mt-3 rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+              Attachment:{" "}
+              <b className="break-words text-foreground">{attached.filename}</b>
+            </p>
           )}
 
           <label className="mt-4 flex min-w-0 items-start gap-2.5 text-xs leading-5">

@@ -79,6 +79,40 @@ const DEFAULT_TEMPLATES: Templates = {
     `Hi ${name}, a gentle reminder to send your BENMP partnership gift by MoMo whenever you're ready. Thank you and God bless!`,
 };
 
+/** Build reconciliation templates from one staff-editable draft. */
+export function templatesFromDraft(draft: string): Templates {
+  const render = (name: string, amount?: string) =>
+    draft
+      .replace(/\{name\}/gi, name)
+      .replace(/\{amount\}/gi, amount ? `GHS ${amount}` : "your support");
+  return {
+    thankYou: (name, amount) => render(name, amount),
+    vip: (name, amount) => render(name, amount),
+    reminder: (name) => render(name),
+  };
+}
+
+/** Narrow only the two payer buckets; unpaid partners and statement rows stay intact. */
+export function filterPayersByAmount(
+  result: ReconciliationResult,
+  range: { minAmountMinor?: number; maxAmountMinor?: number },
+): ReconciliationResult {
+  const matches = (amountMinor: number) =>
+    (range.minAmountMinor === undefined ||
+      amountMinor >= range.minAmountMinor) &&
+    (range.maxAmountMinor === undefined ||
+      amountMinor <= range.maxAmountMinor);
+  return {
+    ...result,
+    registeredPaid: result.registeredPaid.filter((giver) =>
+      matches(giver.totalMinor),
+    ),
+    paidUnregistered: result.paidUnregistered.filter((giver) =>
+      matches(giver.totalMinor),
+    ),
+  };
+}
+
 /** Build the same personalized thank-you used by both automated and assisted sending. */
 export function buildThankYouMessage(
   rawName: string,

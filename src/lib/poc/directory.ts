@@ -437,6 +437,41 @@ export async function searchDirectory(
   };
 }
 
+/** Count the standing partner records without also loading their giving totals. */
+export async function countDirectoryPartners(): Promise<number> {
+  const { total } = await fetchWithCount(
+    buildDirectoryPath({ pageSize: 1 }),
+    0,
+    0,
+  );
+  return total;
+}
+
+/**
+ * Load the standing directory for a cohort broadcast. The full-table read is paged
+ * explicitly because PostgREST otherwise truncates the result at 1,000 rows.
+ */
+export async function loadAllDirectoryPartners(
+  fetcher: Fetcher = supabaseRestFetcher(),
+): Promise<DirectoryPartner[]> {
+  const [rows, payments] = await Promise.all([
+    fetchAllRows<DbPartner>(fetcher, `partners?select=${SELECT}`, "id.asc"),
+    fetcher<{
+      payer_phone_e164: string | null;
+      amount_minor: number | string;
+    }>(
+      "payments?select=payer_phone_e164,amount_minor&status=eq.Successful&limit=5000",
+    ),
+  ]);
+  return mapPartners(rows, givingByPhone(payments));
+}
+
+/** Keep repeated preview requests from re-reading all partner rows. */
+export const loadAllDirectoryPartnersCached = memoWithTtl(
+  () => loadAllDirectoryPartners(),
+  60_000,
+);
+
 /**
  * Distinct branches for the filter dropdown. PostgREST has no DISTINCT, so this pulls the
  * branch column and reduces it here — fine at 15k rows, and the result is cached per

@@ -1,17 +1,14 @@
 import Link from "next/link";
-import { CircleDollarSign, MessageCircle } from "lucide-react";
+import { CircleDollarSign, MessageCircle, MessagesSquare } from "lucide-react";
 import {
   type GivingEntry,
   UNATTRIBUTED,
-  branchOptions,
   filterGiving,
   loadGivingLedger,
   sortByDateDesc,
   summarizeGiving,
 } from "@/lib/poc/giving";
-import { messagingConfiguration } from "@/lib/messaging/configuration";
 import { PocShell } from "../nav";
-import { MassThankClient } from "./mass-thank-client";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +16,8 @@ type SearchParams = Promise<{
   from?: string;
   to?: string;
   name?: string;
-  branch?: string;
+  minAmount?: string;
+  maxAmount?: string;
 }>;
 
 /** "2026-06-15T09:20:00+00:00" -> "15 Jun 2026" (Ghana is UTC year-round). */
@@ -35,6 +33,13 @@ function ghs(minor: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function amountToMinor(value: string): number | undefined {
+  const normalized = value.trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return undefined;
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? Math.round(amount * 100) : undefined;
 }
 
 function thankYouHref(entry: GivingEntry): string | null {
@@ -64,50 +69,70 @@ export default async function GivingPage({
     from: (sp.from ?? "").trim(),
     to: (sp.to ?? "").trim(),
     name: (sp.name ?? "").trim(),
-    branch: (sp.branch ?? "").trim(),
+    minAmount: (sp.minAmount ?? "").trim(),
+    maxAmount: (sp.maxAmount ?? "").trim(),
   };
 
   const ledger = await loadGivingLedger();
-  const rows = sortByDateDesc(filterGiving(ledger, filters));
+  const rows = sortByDateDesc(
+    filterGiving(ledger, {
+      from: filters.from,
+      to: filters.to,
+      name: filters.name,
+      minAmountMinor: amountToMinor(filters.minAmount),
+      maxAmountMinor: amountToMinor(filters.maxAmount),
+    }),
+  );
   const totals = summarizeGiving(rows);
   const ledgerTotal = summarizeGiving(ledger);
   const isFiltered = Boolean(
-    filters.from || filters.to || filters.name || filters.branch,
+    filters.from ||
+    filters.to ||
+    filters.name ||
+    filters.minAmount ||
+    filters.maxAmount,
   );
-  const branches = branchOptions(ledger);
-  const unattributed = totals.byBranch.find((b) => b.branch === UNATTRIBUTED);
-  const messaging = messagingConfiguration();
-
+  const averageMinor = totals.count
+    ? Math.round(totals.totalMinor / totals.count)
+    : 0;
+  const highestMinor = rows.reduce(
+    (highest, row) => Math.max(highest, row.amountMinor),
+    0,
+  );
   return (
     <PocShell
       current="/poc/giving"
       title="Giving"
       subtitle="Review verified gifts and start amount-aware acknowledgements from the financial record."
     >
-      <section className="mb-4 flex items-start gap-3 border-l-4 border-success bg-emerald-50 px-4 py-3 text-emerald-950">
-        <CircleDollarSign
-          className="mt-0.5 h-5 w-5 flex-none text-success"
-          aria-hidden
-        />
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold">Thank from the gift record</h2>
-          <p className="mt-1 text-xs leading-5 text-emerald-900/80">
-            Use <b>Thank</b> beside one gift, or prepare a reviewed batch for
-            every eligible giver below. Both workflows use the verified payment
-            amount; neither depends on someone already being in the partner
-            directory.
-          </p>
+      <section className="mb-4 grid gap-3 border-l-4 border-success bg-emerald-50 px-4 py-3 text-emerald-950 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <div className="flex min-w-0 items-start gap-3">
+          <CircleDollarSign
+            className="mt-0.5 h-5 w-5 flex-none text-success"
+            aria-hidden
+          />
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">
+              Thank from the gift record
+            </h2>
+            <p className="mt-1 text-xs leading-5 text-emerald-900/80">
+              Use <b>Thank</b> beside one gift to open an amount-aware message
+              for that giver. To thank everyone who gave, open Messages and the
+              platform will prepare the recipient list for you.
+            </p>
+          </div>
         </div>
+        <Link
+          href="/poc/messages?task=thank"
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-950 transition hover:bg-emerald-100"
+        >
+          <MessagesSquare className="h-4 w-4" aria-hidden />
+          Thank people who gave
+        </Link>
       </section>
-
-      <MassThankClient
-        provider={messaging.provider}
-        messagingReady={messaging.ready}
-        configurationNote={messaging.note}
-      />
       <form
         method="GET"
-        className="grid gap-2.5 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-5"
+        className="grid gap-2.5 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-6"
       >
         <div>
           <label htmlFor="from" className={LABEL}>
@@ -146,22 +171,36 @@ export default async function GivingPage({
           />
         </div>
         <div>
-          <label htmlFor="branch" className={LABEL}>
-            Branch
+          <label htmlFor="minAmount" className={LABEL}>
+            Minimum amount
           </label>
-          <select
-            id="branch"
-            name="branch"
-            defaultValue={filters.branch}
+          <input
+            type="number"
+            id="minAmount"
+            name="minAmount"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            defaultValue={filters.minAmount}
+            placeholder="GHS 0"
             className={FIELD}
-          >
-            <option value="">All branches</option>
-            {branches.map((b) => (
-              <option key={b} value={b}>
-                {b}
-              </option>
-            ))}
-          </select>
+          />
+        </div>
+        <div>
+          <label htmlFor="maxAmount" className={LABEL}>
+            Maximum amount
+          </label>
+          <input
+            type="number"
+            id="maxAmount"
+            name="maxAmount"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            defaultValue={filters.maxAmount}
+            placeholder="No maximum"
+            className={FIELD}
+          />
         </div>
         <div className="flex items-end gap-2">
           <button
@@ -214,41 +253,16 @@ export default async function GivingPage({
         </div>
         <div className="rounded-2xl border border-border bg-surface p-4">
           <p className="text-[13px] font-medium text-muted-foreground">
-            Branches
+            Average gift
           </p>
           <p className="mt-2 text-[27px] font-semibold leading-none tracking-tight tabular-nums">
-            {totals.byBranch.filter((b) => b.branch !== UNATTRIBUTED).length}
+            {totals.currency} {ghs(averageMinor)}
           </p>
           <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
-            {unattributed
-              ? `${totals.currency} ${ghs(unattributed.amountMinor)} not yet matched to a branch`
-              : "all giving matched to a branch"}
+            Highest gift: {totals.currency} {ghs(highestMinor)}
           </p>
         </div>
       </section>
-
-      {totals.byBranch.length > 1 && (
-        <>
-          <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            By branch
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {totals.byBranch.map((b) => (
-              <span
-                key={b.branch}
-                className={
-                  "rounded-full border px-3 py-1 text-xs tabular-nums " +
-                  (b.branch === UNATTRIBUTED
-                    ? "border-border bg-background text-muted-foreground"
-                    : "border-emerald-100 bg-emerald-50 text-emerald-800")
-                }
-              >
-                {b.branch} · {totals.currency} {ghs(b.amountMinor)}
-              </span>
-            ))}
-          </div>
-        </>
-      )}
 
       <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         {isFiltered ? "Matching gifts" : "All gifts"}
@@ -344,16 +358,6 @@ export default async function GivingPage({
           )}
         </table>
       </div>
-
-      {unattributed && (
-        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-          <b className="text-foreground">Unattributed</b> means the gift
-          isn&apos;t tied to a branch yet — either the payer&apos;s number
-          isn&apos;t on a partner record, or the partner it matches has no
-          branch set. The money is still counted in every total; assigning those
-          partners a branch is what moves it out of this bucket.
-        </p>
-      )}
     </PocShell>
   );
 }

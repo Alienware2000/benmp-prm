@@ -102,6 +102,15 @@ describe("filterGiving", () => {
     ).toEqual(["r2"]);
   });
 
+  it("filters by an inclusive amount range", () => {
+    expect(
+      filterGiving(entries, {
+        minAmountMinor: 2_500,
+        maxAmountMinor: 5_000,
+      }).map((e) => e.reference),
+    ).toEqual(["r2", "r3"]);
+  });
+
   it("composes filters with AND", () => {
     expect(filterGiving(entries, { branch: "Qodesh", name: "kofi" })).toEqual(
       [],

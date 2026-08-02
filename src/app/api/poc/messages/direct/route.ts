@@ -11,6 +11,7 @@ import {
 } from "@/lib/poc/db";
 import { loadMediaAsset, validateMediaForProvider } from "@/lib/poc/media";
 import { parseAllowlist, sendPlanned } from "@/lib/send";
+import { messagingRuntimeConfiguration } from "@/lib/messaging/runtime-configuration";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +82,21 @@ export async function POST(request: Request) {
         },
       },
     });
+  }
+
+  const messaging = await messagingRuntimeConfiguration();
+  if (!messaging.ready) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: {
+          message:
+            messaging.note ??
+            "WhatsApp sending is unavailable. Nothing was sent.",
+        },
+      },
+      { status: 503 },
+    );
   }
 
   const media = parsed.data.mediaAssetId

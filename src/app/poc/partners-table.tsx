@@ -7,39 +7,49 @@ export type PartnerRow = {
   phoneMasked: string;
   status: "registered" | "new";
   amountGhs: string;
+  giftCount: number;
   /** Latest payment moment, pre-formatted ("5 Jul, 7:48 PM"). */
   when: string;
 };
 
 export type TableData = {
-  gifts: PartnerRow[];
-  unregistered: PartnerRow[];
-  recent: PartnerRow[];
+  top: PartnerRow[];
+  consistent: PartnerRow[];
+  ordinary: PartnerRow[];
 };
 
 const TABS = [
-  { key: "gifts", label: "Top gifts", title: "Top gifts" },
+  { key: "top", label: "Top", title: "Top givers" },
   {
-    key: "unregistered",
-    label: "Unregistered",
-    title: "Unregistered givers — included & thanked",
+    key: "consistent",
+    label: "Repeat",
+    title: "Repeat givers",
   },
-  { key: "recent", label: "Most recent", title: "Most recent payments" },
+  {
+    key: "ordinary",
+    label: "Ordinary",
+    title: "Ordinary givers",
+  },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
 
 export function PartnersTable({ data }: { data: TableData }) {
-  const [tab, setTab] = useState<TabKey>("gifts");
+  const [tab, setTab] = useState<TabKey>("top");
   const active = TABS.find((t) => t.key === tab)!;
   const rows = data[tab];
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-surface">
       <div className="grid gap-3 border-b border-border px-4 py-3 sm:flex sm:items-center sm:justify-between sm:px-5">
-        <h3 className="text-sm font-semibold text-foreground">
-          {active.title}
-        </h3>
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            {active.title}
+          </h3>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Showing up to 20 people · each giver appears in one category
+          </p>
+        </div>
         <div
           className="grid grid-cols-3 rounded-lg border border-border bg-background p-0.5 sm:flex"
           role="tablist"
@@ -69,6 +79,7 @@ export function PartnersTable({ data }: { data: TableData }) {
               <th className="px-4 pb-2 pt-3 sm:px-5">Partner</th>
               <th className="pb-2 pt-3 pr-4">Phone</th>
               <th className="pb-2 pt-3 pr-4">Status</th>
+              <th className="pb-2 pt-3 pr-4 text-right">Gifts</th>
               <th className="hidden pb-2 pt-3 pr-4 sm:table-cell">When</th>
               <th className="pb-2 pt-3 pr-4 text-right sm:pr-5">Amount</th>
             </tr>
@@ -77,10 +88,10 @@ export function PartnersTable({ data }: { data: TableData }) {
             {rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="border-t border-border px-4 py-6 text-sm text-muted-foreground sm:px-5"
                 >
-                  Nothing in this view for the period.
+                  Nothing in this group for the loaded giving window.
                 </td>
               </tr>
             ) : (
@@ -106,6 +117,9 @@ export function PartnersTable({ data }: { data: TableData }) {
                     >
                       {r.status}
                     </span>
+                  </td>
+                  <td className="py-2.5 pr-4 text-right font-mono text-xs tabular-nums text-muted-foreground">
+                    {r.giftCount}
                   </td>
                   <td className="hidden whitespace-nowrap py-2.5 pr-4 text-xs tabular-nums text-muted-foreground sm:table-cell">
                     {r.when}

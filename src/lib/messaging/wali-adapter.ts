@@ -58,6 +58,17 @@ function detail(data: WaliResponse, status: number): string {
   );
 }
 
+function actionableDetail(message: string): string {
+  if (
+    /device is invalid|device does not exist|proper target device id|device.+not operative/i.test(
+      message,
+    )
+  ) {
+    return "The BENMP WhatsApp sender is disconnected from WaliChat. Reconnect the BENMP number in WaliChat, then refresh the platform and try again.";
+  }
+  return `Wali: ${message}`;
+}
+
 function mapStatus(status: string | undefined): MessageSendResult["status"] {
   if (status === "processed") return "sent";
   if (status === "queued" || status === "processing" || !status) {
@@ -149,7 +160,7 @@ export class WaliMessagingAdapter implements MessagingAdapter {
 
       const providerMessageId = data.id ?? data._id ?? "";
       if (!response.ok) {
-        return failed(`Wali: ${detail(data, response.status)}`);
+        return failed(actionableDetail(detail(data, response.status)));
       }
       if (!providerMessageId) {
         return failed("Wali accepted the request without a message id");
@@ -158,7 +169,7 @@ export class WaliMessagingAdapter implements MessagingAdapter {
       const status = mapStatus(data.status);
       if (status === "failed") {
         return failed(
-          `Wali: ${detail(data, response.status)}`,
+          actionableDetail(detail(data, response.status)),
           providerMessageId,
         );
       }

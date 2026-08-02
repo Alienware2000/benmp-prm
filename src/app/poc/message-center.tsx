@@ -1,7 +1,28 @@
 "use client";
 
+import {
+  CircleDollarSign,
+  CalendarRange,
+  Crown,
+  Gift,
+  HeartHandshake,
+  SlidersHorizontal,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { useState } from "react";
 import { FeedbackNotice } from "@/components/feedback-notice";
+import {
+  SPECIAL_MESSAGE_CATEGORY_LABELS,
+  SPECIAL_MESSAGE_TEMPLATES,
+  type SpecialMessageCategory,
+} from "@/lib/message-templates";
+import type { MessagingProvider } from "@/lib/messaging/types";
+import type { AudienceCounts, AudienceKey } from "@/lib/poc/audiences";
+import {
+  MessageAttachmentField,
+  type MessageMediaAsset,
+} from "./messages/message-attachment-field";
 
 type Summary = {
   total: number;
@@ -11,6 +32,9 @@ type Summary = {
   alreadySent?: number;
   thankYou: number;
   reminder: number;
+  direct: number;
+  sendLimit?: number;
+  overSendLimit?: boolean;
   sample: Array<{
     kind: string;
     name: string;
@@ -26,221 +50,695 @@ type Report = {
   skipped: number;
   failed: number;
   skippedByReason?: Record<string, number>;
+  outcomes?: Array<{ status: string; reason?: string }>;
 };
 
-/** Explain skips as the safety features they are, not as failures. */
+type AudienceOption = {
+  key: AudienceKey;
+  label: string;
+  description: string;
+  Icon: typeof Users;
+};
+
+const PRIMARY_AUDIENCES: AudienceOption[] = [
+  {
+    key: "everyone",
+    label: "All partners",
+    description: "Every saved partner, once per WhatsApp number",
+    Icon: Users,
+  },
+  {
+    key: "paid",
+    label: "Gave in this window",
+    description: "A gift is recorded between the dates shown above",
+    Icon: HeartHandshake,
+  },
+  {
+    key: "unpaid",
+    label: "No gift in this window",
+    description: "Registered partners without a gift between these dates",
+    Icon: CircleDollarSign,
+  },
+];
+
+const SPECIFIC_AUDIENCES: AudienceOption[] = [
+  {
+    key: "top",
+    label: "Top 20 givers",
+    description: "The 20 highest recorded totals in this giving window",
+    Icon: Crown,
+  },
+  {
+    key: "consistent",
+    label: "Repeat givers",
+    description: "2 or more gifts in this window, excluding the Top 20",
+    Icon: Sparkles,
+  },
+  {
+    key: "new",
+    label: "Gift not linked to a profile",
+    description: "A gift exists, but no registered partner record matches it",
+    Icon: Gift,
+  },
+];
+
 const SKIP_LABELS: Record<string, string> = {
   "not in allowlist": "held by safety allowlist",
   "opted out": "opted out",
   "no phone": "no phone number",
 };
 
-function reportLine(r: Report): string {
-  const delivered = r.sent + r.queued;
-  const parts = [`${delivered} sent`];
-  for (const [reason, n] of Object.entries(r.skippedByReason ?? {})) {
-    parts.push(`${n} ${SKIP_LABELS[reason] ?? reason}`);
-  }
-  const unexplained =
-    r.skipped -
-    Object.values(r.skippedByReason ?? {}).reduce((s, n) => s + n, 0);
-  if (unexplained > 0) parts.push(`${unexplained} skipped`);
-  if (r.failed > 0) parts.push(`${r.failed} failed`);
-  return `${parts.join(" · ")} (of ${r.total})`;
+function providerLabel(provider: MessagingProvider): string {
+  if (provider === "wali") return "WaliChat WhatsApp";
+  if (provider === "whatchimp") return "WhatChimp WhatsApp";
+  if (provider === "vonage") return "Vonage WhatsApp";
+  if (provider === "infobip") return "Infobip WhatsApp";
+  if (provider === "meta-cloud-api") return "Meta Cloud API";
+  if (provider === "twilio") return "Twilio WhatsApp";
+  return "Demo mode";
 }
 
-type Kind = "thank_you" | "reminder";
+function reportLine(report: Report): string {
+  const delivered = report.sent + report.queued;
+  const parts = [`${delivered} sent`];
+  for (const [reason, count] of Object.entries(report.skippedByReason ?? {})) {
+    parts.push(`${count} ${SKIP_LABELS[reason] ?? reason}`);
+  }
+  const explained = Object.values(report.skippedByReason ?? {}).reduce(
+    (sum, count) => sum + count,
+    0,
+  );
+  if (report.skipped > explained) {
+    parts.push(`${report.skipped - explained} skipped`);
+  }
+  if (report.failed > 0) parts.push(`${report.failed} failed`);
+  return `${parts.join(" · ")} (of ${report.total})`;
+}
 
-async function post(kind: Kind, confirm: boolean) {
-  const res = await fetch("/api/poc/send", {
+function reportFailure(report: Report): string | null {
+  const reason = report.outcomes?.find(
+    (outcome) => outcome.status === "failed" && outcome.reason,
+  )?.reason;
+  return reason ? reason.replace(/^(Wali|WaliChat)\s*:\s*/i, "") : null;
+}
+
+function amountToMinor(value: string): number | undefined {
+  const normalized = value.trim();
+  if (!normalized || !/^\d+(?:\.\d{1,2})?$/.test(normalized)) {
+    return undefined;
+  }
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? Math.round(amount * 100) : undefined;
+}
+
+async function post({
+  audience,
+  confirm,
+  message,
+  minAmount,
+  maxAmount,
+  mediaAssetId,
+}: {
+  audience: AudienceKey;
+  confirm: boolean;
+  message: string;
+  minAmount: string;
+  maxAmount: string;
+  mediaAssetId: string;
+}) {
+  const minAmountMinor = amountToMinor(minAmount);
+  const maxAmountMinor = amountToMinor(maxAmount);
+  const response = await fetch("/api/poc/send", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ kind, confirm }),
+    body: JSON.stringify({
+      audience,
+      confirm,
+      message,
+      ...(minAmountMinor !== undefined ? { minAmountMinor } : {}),
+      ...(maxAmountMinor !== undefined ? { maxAmountMinor } : {}),
+      ...(mediaAssetId ? { mediaAssetId } : {}),
+    }),
   });
-  return res.json() as Promise<{
+  return response.json() as Promise<{
     ok: boolean;
     data?: { summary?: Summary; report?: Report };
     error?: { message: string };
   }>;
 }
 
-function QueueRow({
-  kind,
+function AudienceCard({
+  option,
   count,
-  title,
-  subtitle,
-  idleChip,
+  selected,
+  onSelect,
 }: {
-  kind: Kind;
+  option: AudienceOption;
   count: number;
-  title: string;
-  subtitle: string;
-  idleChip: string;
+  selected: boolean;
+  onSelect: () => void;
 }) {
-  const [busy, setBusy] = useState(false);
+  const Icon = option.Icon;
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      onClick={onSelect}
+      className={
+        "grid min-h-[92px] w-full grid-cols-[36px_minmax(0,1fr)] gap-3 rounded-lg border p-3 text-left transition " +
+        (selected
+          ? "border-success bg-success/5 ring-1 ring-success/20"
+          : "border-border bg-background hover:border-success/40")
+      }
+    >
+      <span
+        className={
+          "grid h-9 w-9 place-items-center rounded-md " +
+          (selected
+            ? "bg-success text-white"
+            : "bg-surface text-muted-foreground")
+        }
+      >
+        <Icon className="h-4 w-4" aria-hidden />
+      </span>
+      <span className="min-w-0">
+        <span className="flex flex-wrap items-baseline justify-between gap-2">
+          <b className="text-sm text-foreground">{option.label}</b>
+          <span className="text-xs font-semibold tabular-nums text-success">
+            {count.toLocaleString("en-US")}
+          </span>
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+          {option.description}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+export function MessageCenter({
+  initialAudience,
+  counts,
+  initialMessage,
+  provider,
+  messagingReady,
+  configurationNote,
+  periodLabel,
+}: {
+  initialAudience: AudienceKey;
+  counts: AudienceCounts;
+  initialMessage: string;
+  provider: MessagingProvider;
+  messagingReady: boolean;
+  configurationNote?: string;
+  periodLabel: string;
+}) {
+  const [audience, setAudience] = useState<AudienceKey>(initialAudience);
+  const [message, setMessage] = useState(initialMessage);
+  const [preset, setPreset] = useState("");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+  const [mediaId, setMediaId] = useState("");
+  const [attached, setAttached] = useState<MessageMediaAsset | null>(null);
+  const [busy, setBusy] = useState<"preview" | "send" | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+
+  function resetReview() {
+    setSummary(null);
+    setReport(null);
+    setConfirmed(false);
+    setError(null);
+  }
+
+  function chooseAudience(next: AudienceKey) {
+    setAudience(next);
+    setMinAmount("");
+    setMaxAmount("");
+    resetReview();
+  }
+
+  function choosePreset(value: string) {
+    const next = SPECIAL_MESSAGE_TEMPLATES.find((item) => item.id === value);
+    setPreset(value);
+    if (!next) return;
+    setMessage(next.body);
+    resetReview();
+  }
 
   async function preview() {
-    setBusy(true);
+    setBusy("preview");
     setError(null);
     setReport(null);
+    setConfirmed(false);
     try {
-      const r = await post(kind, false);
-      if (r.ok && r.data?.summary) setSummary(r.data.summary);
-      else setError(r.error?.message ?? "Could not build the preview.");
+      const result = await post({
+        audience,
+        confirm: false,
+        message,
+        minAmount,
+        maxAmount,
+        mediaAssetId: mediaId,
+      });
+      if (result.ok && result.data?.summary) {
+        setSummary(result.data.summary);
+      } else {
+        setError(result.error?.message ?? "Could not prepare the preview.");
+      }
     } catch {
-      setError("Could not reach the server.");
+      setError("Could not reach the server. Nothing was sent.");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
   async function send() {
-    setBusy(true);
+    if (!summary || !confirmed || !messagingReady) return;
+    setBusy("send");
     setError(null);
     try {
-      const r = await post(kind, true);
-      if (r.ok && r.data?.report) setReport(r.data.report);
-      else setError(r.error?.message ?? "Send failed.");
+      const result = await post({
+        audience,
+        confirm: true,
+        message,
+        minAmount,
+        maxAmount,
+        mediaAssetId: mediaId,
+      });
+      if (result.ok && result.data?.report) {
+        setReport(result.data.report);
+        setConfirmed(false);
+      } else {
+        setError(result.error?.message ?? "The messages could not be sent.");
+      }
     } catch {
-      setError("Could not reach the server.");
+      setError("Could not reach the server. Nothing was sent.");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
-  const previewed = summary !== null;
-  const sendable = summary?.sendable ?? 0;
+  const amountRefinement = ["paid", "top", "consistent", "new"].includes(
+    audience,
+  );
+  const invalidAmountRange =
+    amountToMinor(minAmount) !== undefined &&
+    amountToMinor(maxAmount) !== undefined &&
+    (amountToMinor(minAmount) ?? 0) > (amountToMinor(maxAmount) ?? 0);
+  const draftReady = message.trim().length > 0 && !invalidAmountRange;
 
   return (
-    <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3 border-t border-border px-4 py-4 first:border-t-0 sm:grid-cols-[auto_1fr_auto] sm:px-5">
-      <span
-        className={
-          "min-w-[56px] text-right text-[21px] font-bold tabular-nums " +
-          (kind === "thank_you" ? "text-success" : "text-warning")
-        }
-      >
-        {count}
-      </span>
-      <span>
-        <span className="block text-sm font-semibold text-foreground">
-          {title}
-        </span>
-        <span className="text-xs text-muted-foreground">{subtitle}</span>
-      </span>
-      <span className="col-span-2 flex items-center justify-end gap-2 sm:col-span-1">
-        <span
-          className={
-            "rounded-full px-2.5 py-1 text-[11px] font-semibold " +
-            (previewed
-              ? "bg-success/10 text-success"
-              : "bg-warning/10 text-warning")
-          }
+    <div className="space-y-3">
+      {!messagingReady && configurationNote && (
+        <FeedbackNotice tone="warning" title="WhatsApp sending is unavailable">
+          {configurationNote}
+        </FeedbackNotice>
+      )}
+
+      <section className="rounded-lg border border-border bg-surface p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-success">
+          Step 1
+        </p>
+        <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold">Choose a group</h2>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              The platform selects the matching people from current records.
+            </p>
+          </div>
+          <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-semibold tabular-nums text-success">
+            {counts[audience].toLocaleString("en-US")} records
+          </span>
+        </div>
+
+        <div className="mt-3 flex items-start gap-3 rounded-md border border-border bg-background px-3 py-2.5">
+          <CalendarRange
+            className="mt-0.5 h-4 w-4 flex-none text-success"
+            aria-hidden
+          />
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-foreground">
+              Giving window: {periodLabel}
+            </p>
+            <p className="mt-0.5 text-[11px] leading-5 text-muted-foreground">
+              Every gift-based group below uses the payment records from these
+              dates.
+            </p>
+          </div>
+        </div>
+
+        <div
+          role="radiogroup"
+          aria-label="Message audience"
+          className="mt-3 grid gap-2 sm:grid-cols-3"
         >
-          {report ? "sent" : previewed ? "previewed" : idleChip}
-        </span>
+          {PRIMARY_AUDIENCES.map((option) => (
+            <AudienceCard
+              key={option.key}
+              option={option}
+              count={counts[option.key]}
+              selected={audience === option.key}
+              onSelect={() => chooseAudience(option.key)}
+            />
+          ))}
+        </div>
+
+        <details className="mt-2 rounded-md border border-border bg-background">
+          <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 px-3 text-xs font-semibold">
+            <SlidersHorizontal
+              className="h-4 w-4 text-muted-foreground"
+              aria-hidden
+            />
+            More specific groups
+          </summary>
+          <div
+            role="radiogroup"
+            aria-label="Specific message audiences"
+            className="grid gap-2 border-t border-border p-3 sm:grid-cols-3"
+          >
+            {SPECIFIC_AUDIENCES.map((option) => (
+              <AudienceCard
+                key={option.key}
+                option={option}
+                count={counts[option.key]}
+                selected={audience === option.key}
+                onSelect={() => chooseAudience(option.key)}
+              />
+            ))}
+          </div>
+        </details>
+
+        {amountRefinement && (
+          <details className="mt-2 rounded-md border border-border bg-background">
+            <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 px-3 text-xs font-semibold">
+              <CircleDollarSign
+                className="h-4 w-4 text-muted-foreground"
+                aria-hidden
+              />
+              Refine by gift amount
+              <span className="font-normal text-muted-foreground">
+                optional
+              </span>
+            </summary>
+            <div className="grid gap-3 border-t border-border p-3 sm:grid-cols-2">
+              <label className="grid gap-1 text-xs font-semibold">
+                Minimum amount (GHS)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={minAmount}
+                  onChange={(event) => {
+                    setMinAmount(event.target.value);
+                    resetReview();
+                  }}
+                  placeholder="No minimum"
+                  className="h-10 rounded-md border border-border bg-surface px-3 text-sm font-normal outline-none focus:border-success"
+                />
+              </label>
+              <label className="grid gap-1 text-xs font-semibold">
+                Maximum amount (GHS)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={maxAmount}
+                  onChange={(event) => {
+                    setMaxAmount(event.target.value);
+                    resetReview();
+                  }}
+                  placeholder="No maximum"
+                  className="h-10 rounded-md border border-border bg-surface px-3 text-sm font-normal outline-none focus:border-success"
+                />
+              </label>
+              {invalidAmountRange && (
+                <p className="text-xs font-medium text-red-700 sm:col-span-2">
+                  The minimum amount must be lower than the maximum.
+                </p>
+              )}
+            </div>
+          </details>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-border bg-surface p-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-success">
+              Step 2
+            </p>
+            <h2 className="mt-1 text-sm font-semibold">Write the message</h2>
+          </div>
+          <span className="text-xs font-medium text-success">
+            {providerLabel(provider)}
+          </span>
+        </div>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          Names and gift amounts are filled in for each person when available.
+        </p>
+
+        <div className="mt-3 grid gap-2 rounded-md border border-border bg-background p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <label className="grid min-w-0 gap-1.5 text-xs font-semibold">
+            Message draft
+            <select
+              value={preset}
+              onChange={(event) => choosePreset(event.target.value)}
+              className="h-11 min-w-0 rounded-md border border-border bg-surface px-3 text-sm font-normal outline-none focus:border-success"
+            >
+              <option value="">Keep current wording</option>
+              {(
+                Object.entries(SPECIAL_MESSAGE_CATEGORY_LABELS) as Array<
+                  [SpecialMessageCategory, string]
+                >
+              ).map(([category, label]) => (
+                <optgroup key={category} label={label}>
+                  {SPECIAL_MESSAGE_TEMPLATES.filter(
+                    (template) => template.category === category,
+                  ).map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <span className="pb-0.5 text-[11px] leading-5 text-muted-foreground">
+            20 editable drafts
+          </span>
+        </div>
+
+        <label className="mt-3 grid gap-1.5 text-xs font-semibold">
+          Message
+          <textarea
+            value={message}
+            onChange={(event) => {
+              setMessage(event.target.value);
+              setPreset("");
+              resetReview();
+            }}
+            maxLength={1000}
+            rows={5}
+            className="min-h-28 w-full resize-y rounded-md border border-border bg-background px-3 py-2.5 text-sm font-normal leading-6 outline-none focus:border-success"
+          />
+          <span className="flex flex-wrap justify-between gap-2 font-normal text-muted-foreground">
+            <span>
+              Personalization: <b>{"{name}"}</b> and <b>{"{amount}"}</b>
+            </span>
+            <span className="tabular-nums">{message.length}/1000</span>
+          </span>
+        </label>
+
+        <div className="mt-3">
+          <MessageAttachmentField
+            id="bulk-message-attachment"
+            value={mediaId}
+            onChange={(next) => {
+              setMediaId(next);
+              resetReview();
+            }}
+            onAssetChange={setAttached}
+            onError={setError}
+          />
+        </div>
+
         <button
+          type="button"
           onClick={preview}
-          disabled={busy}
-          className="rounded-lg border border-border bg-surface px-3.5 py-2 text-xs font-semibold text-foreground transition hover:border-muted-foreground/40 disabled:opacity-45"
+          disabled={!draftReady || busy !== null}
+          className="mt-3 min-h-10 rounded-md bg-success px-4 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Preview
+          {busy === "preview"
+            ? "Preparing..."
+            : summary
+              ? "Refresh preview"
+              : "Review people and message"}
         </button>
-        <button
-          onClick={send}
-          disabled={busy || !previewed || sendable === 0 || report !== null}
-          title={
-            !previewed ? "Preview first — nothing sends unseen" : undefined
-          }
-          className="rounded-lg bg-success px-3.5 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-45"
-        >
-          {report ? "Sent" : previewed ? `Send ${sendable}` : "Send"}
-        </button>
-      </span>
+      </section>
 
       {error && (
         <FeedbackNotice
           tone="error"
-          className="col-span-full"
           title="This message step could not be completed"
-          supportingText="Nothing new was sent. You can retry without rebuilding the queue."
+          supportingText="Your group, filters, wording and attachment are still here. Nothing new was sent."
           onDismiss={() => setError(null)}
         >
           {error}
         </FeedbackNotice>
       )}
 
-      {summary && !report && (
-        <div className="col-span-full grid gap-2 rounded-xl border border-border bg-background p-3">
-          {summary.sample
-            .filter((m) => m.kind === kind)
-            .slice(0, 2)
-            .map((m, i) => (
-              <p
-                key={i}
-                className="rounded-lg border border-border bg-surface px-3 py-2 text-xs leading-5 text-foreground/80"
-              >
-                {m.body}
-              </p>
-            ))}
-          <p className="text-[11px] text-muted-foreground">
-            Showing 2 of{" "}
-            {kind === "thank_you" ? summary.thankYou : summary.reminder} ·{" "}
-            {summary.skippedNoPhone} skipped (no phone number)
-            {summary.optedOut > 0 && <> · {summary.optedOut} opted out</>}
-            {(summary.alreadySent ?? 0) > 0 && (
-              <> · {summary.alreadySent} already sent</>
-            )}
-          </p>
-        </div>
-      )}
-
-      {report && (
-        <p className="col-span-full rounded-xl border border-border bg-background px-3 py-2.5 text-xs text-foreground">
-          {reportLine(report)}
+      <section className="rounded-lg border border-border bg-surface p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-success">
+          Step 3
         </p>
-      )}
-    </div>
-  );
-}
+        <h2 className="mt-1 text-sm font-semibold">Review and send</h2>
 
-export function MessageCenter({
-  thankYous,
-  reminders,
-  provider,
-}: {
-  thankYous: number;
-  reminders: number;
-  provider: string;
-}) {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-      <QueueRow
-        kind="thank_you"
-        count={thankYous}
-        title="Thank-you messages"
-        subtitle="WhatsApp · personalized by name and amount"
-        idleChip="preview required"
-      />
-      <QueueRow
-        kind="reminder"
-        count={reminders}
-        title="Gentle reminders"
-        subtitle="WhatsApp · for registered partners who haven't given this period"
-        idleChip="preview required"
-      />
-      <div className="flex flex-wrap justify-between gap-2 border-t border-border bg-background/60 px-4 py-2.5 text-[11px] text-muted-foreground sm:px-5">
-        <span>
-          Provider: <span className="font-semibold">{provider}</span>
-          {provider === "mock" ? " · no real messages leave the system" : ""}
-        </span>
-        <span>
-          Preview required before any send · opted-out numbers skipped · every
-          send logged
-        </span>
-      </div>
+        {!summary && !report && (
+          <p className="mt-2 rounded-md border border-dashed border-border bg-background px-3 py-4 text-xs leading-5 text-muted-foreground">
+            Use <b>Review people and message</b> above to see who will receive
+            it. Nothing is sent during review.
+          </p>
+        )}
+
+        {summary && !report && (
+          <div className="mt-3 space-y-3">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-md bg-background px-3 py-2.5">
+                <span className="block text-[11px] text-muted-foreground">
+                  Ready to send
+                </span>
+                <b className="mt-1 block text-lg tabular-nums text-success">
+                  {summary.sendable.toLocaleString("en-US")}
+                </b>
+              </div>
+              <div className="rounded-md bg-background px-3 py-2.5">
+                <span className="block text-[11px] text-muted-foreground">
+                  No phone or opted out
+                </span>
+                <b className="mt-1 block text-lg tabular-nums">
+                  {(summary.skippedNoPhone + summary.optedOut).toLocaleString(
+                    "en-US",
+                  )}
+                </b>
+              </div>
+              <div className="rounded-md bg-background px-3 py-2.5">
+                <span className="block text-[11px] text-muted-foreground">
+                  Already acknowledged
+                </span>
+                <b className="mt-1 block text-lg tabular-nums">
+                  {audience === "paid" ? (summary.alreadySent ?? 0) : "—"}
+                </b>
+              </div>
+            </div>
+
+            {attached && (
+              <p className="rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+                Attachment:{" "}
+                <b className="text-foreground">{attached.filename}</b>
+              </p>
+            )}
+
+            {summary.overSendLimit && (
+              <FeedbackNotice
+                tone="warning"
+                title="Choose a smaller group for this send"
+                supportingText="The full group remains selected; nothing has been sent."
+              >
+                This preview has {summary.sendable.toLocaleString("en-US")}{" "}
+                sendable people. One immediate send can contain up to{" "}
+                {(summary.sendLimit ?? 2_000).toLocaleString("en-US")}{" "}
+                recipients.
+              </FeedbackNotice>
+            )}
+
+            <div>
+              <p className="text-xs font-semibold">Message examples</p>
+              <div className="mt-2 grid gap-2">
+                {summary.sample.slice(0, 4).map((item, index) => (
+                  <div
+                    key={`${item.to ?? "none"}-${index}`}
+                    className="rounded-md border border-border bg-background px-3 py-2"
+                  >
+                    <p className="text-[11px] font-medium text-muted-foreground">
+                      {item.name} · {item.to ?? "no phone"}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-foreground">
+                      {item.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {summary.sendable > 0 ? (
+              <div className="grid gap-3 border-t border-border pt-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <label className="flex items-start gap-2.5 text-xs leading-5">
+                  <input
+                    type="checkbox"
+                    checked={confirmed}
+                    onChange={(event) => setConfirmed(event.target.checked)}
+                    className="mt-0.5 h-4 w-4 flex-none accent-[var(--success)]"
+                  />
+                  <span>
+                    I reviewed this group and approve sending to{" "}
+                    <b>{summary.sendable.toLocaleString("en-US")} people</b>.
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  onClick={send}
+                  disabled={
+                    !confirmed ||
+                    !messagingReady ||
+                    busy !== null ||
+                    summary.overSendLimit
+                  }
+                  className="min-h-10 rounded-md bg-success px-4 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {busy === "send"
+                    ? "Sending..."
+                    : `Send ${summary.sendable.toLocaleString("en-US")} messages`}
+                </button>
+              </div>
+            ) : (
+              <p className="border-t border-border pt-3 text-xs font-medium text-muted-foreground">
+                There are no sendable messages in this group.
+              </p>
+            )}
+          </div>
+        )}
+
+        {report && report.failed === 0 && (
+          <FeedbackNotice tone="info" className="mt-3" title="Send complete">
+            {reportLine(report)}
+          </FeedbackNotice>
+        )}
+
+        {report && report.failed > 0 && (
+          <FeedbackNotice
+            tone="error"
+            className="mt-3"
+            title={
+              report.sent + report.queued > 0
+                ? "Some messages were not sent"
+                : "Messages were not sent"
+            }
+            supportingText={reportLine(report)}
+          >
+            {reportFailure(report) ??
+              "The messaging provider rejected one or more messages. Nothing marked as failed was delivered."}
+          </FeedbackNotice>
+        )}
+
+        <p className="mt-3 border-t border-border pt-3 text-[11px] leading-5 text-muted-foreground">
+          Opt-outs are skipped and every attempt is recorded.
+        </p>
+      </section>
     </div>
   );
 }

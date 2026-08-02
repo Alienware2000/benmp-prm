@@ -66,6 +66,10 @@ export type GivingFilters = {
   to?: string;
   /** Case-insensitive substring match on the payer name. */
   name?: string;
+  /** Inclusive lower gift amount in integer minor units. */
+  minAmountMinor?: number;
+  /** Inclusive upper gift amount in integer minor units. */
+  maxAmountMinor?: number;
   /** Exact branch, including UNATTRIBUTED. */
   branch?: string;
 };
@@ -112,11 +116,15 @@ export function filterGiving(
   const branch = (f.branch ?? "").trim();
   const from = (f.from ?? "").trim();
   const to = (f.to ?? "").trim();
+  const minAmount = f.minAmountMinor;
+  const maxAmount = f.maxAmountMinor;
 
   return entries.filter((e) => {
     // A row with no date can't satisfy a date bound; excluding it keeps the total honest.
     if (from && (!e.paidOn || e.paidOn < from)) return false;
     if (to && (!e.paidOn || e.paidOn > to)) return false;
+    if (minAmount !== undefined && e.amountMinor < minAmount) return false;
+    if (maxAmount !== undefined && e.amountMinor > maxAmount) return false;
     if (branch && e.branch !== branch) return false;
     if (name && !e.name.toLowerCase().includes(name)) return false;
     return true;

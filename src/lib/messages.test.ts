@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { buildThankYouMessage, planMessages, firstName } from "./messages";
+import {
+  buildThankYouMessage,
+  planMessages,
+  firstName,
+  filterPayersByAmount,
+  templatesFromDraft,
+} from "./messages";
 import type {
   ReconciliationResult,
   RegistrationRow,
@@ -92,6 +98,43 @@ describe("buildThankYouMessage", () => {
     expect(buildThankYouMessage("Mr. Kofi Boateng", 100_00)).toContain(
       "Dear Kofi",
     );
+  });
+});
+
+describe("templatesFromDraft", () => {
+  it("personalizes an editable acknowledgement with the recorded amount", () => {
+    const templates = templatesFromDraft(
+      "Hello {name}, thank you for {amount}.",
+    );
+    expect(templates.thankYou("Kofi", "50.50")).toBe(
+      "Hello Kofi, thank you for GHS 50.50.",
+    );
+  });
+
+  it("keeps reminder drafts grammatical when no amount is available", () => {
+    const templates = templatesFromDraft(
+      "Hello {name}, thank you for {amount}.",
+    );
+    expect(templates.reminder("Ama")).toBe(
+      "Hello Ama, thank you for your support.",
+    );
+  });
+});
+
+describe("filterPayersByAmount", () => {
+  it("narrows registered and unregistered givers using inclusive amounts", () => {
+    const filtered = filterPayersByAmount(result, {
+      minAmountMinor: 10_000,
+      maxAmountMinor: 10_550,
+    });
+    expect(filtered.registeredPaid.map((giver) => giver.totalMinor)).toEqual([
+      10_000,
+    ]);
+    expect(filtered.paidUnregistered.map((giver) => giver.totalMinor)).toEqual([
+      10_550,
+    ]);
+    expect(filtered.registeredUnpaid).toBe(result.registeredUnpaid);
+    expect(filtered.statementRows).toBe(result.statementRows);
   });
 });
 

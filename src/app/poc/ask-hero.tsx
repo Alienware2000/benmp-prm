@@ -6,7 +6,7 @@ import { FeedbackNotice } from "@/components/feedback-notice";
 
 const SUGGESTIONS = [
   "Who hasn't given yet?",
-  "Biggest gifts this period",
+  "Biggest recorded gifts",
   "Who gave without registering?",
   "Total collected",
 ];
@@ -60,7 +60,7 @@ export function AskHero() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Ask anything about your partners…"
-          aria-label="Ask about this period"
+          aria-label="Ask about loaded giving records"
           className="min-w-0 flex-1 bg-transparent py-2.5 text-[15px] text-foreground outline-none placeholder:text-muted-foreground/70"
         />
         <button
@@ -116,8 +116,8 @@ export function AskHero() {
               </p>
               <p className="mt-3 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
                 {usedModel
-                  ? "Answered by the assistant, grounded to this period's reconciled figures — nothing is estimated."
-                  : "Deterministic answer computed from this period's reconciled figures."}
+                  ? "Answered by the assistant, grounded to the loaded giving records — nothing is estimated."
+                  : "Deterministic answer computed from the loaded giving records."}
               </p>
             </>
           )}

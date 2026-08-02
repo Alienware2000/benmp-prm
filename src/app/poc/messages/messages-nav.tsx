@@ -1,20 +1,20 @@
 import Link from "next/link";
-import { ListChecks, Send } from "lucide-react";
+import { Send, UsersRound } from "lucide-react";
 
-export type MessageMode = "number" | "partners";
+export type MessageMode = "partners" | "number";
 
 const MODES = [
   {
-    key: "number",
-    href: "/poc/messages?mode=number",
-    label: "Single number",
-    Icon: Send,
+    key: "partners",
+    href: "/poc/messages",
+    label: "Partner messages",
+    Icon: UsersRound,
   },
   {
-    key: "partners",
-    href: "/poc/messages?mode=partners",
-    label: "Choose partners",
-    Icon: ListChecks,
+    key: "number",
+    href: "/poc/messages?mode=number",
+    label: "One person",
+    Icon: Send,
   },
 ] as const;
 

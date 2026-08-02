@@ -3,6 +3,11 @@
 import { Upload, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { FeedbackNotice } from "@/components/feedback-notice";
+import {
+  SPECIAL_MESSAGE_CATEGORY_LABELS,
+  SPECIAL_MESSAGE_TEMPLATES,
+  type SpecialMessageCategory,
+} from "@/lib/message-templates";
 
 export type DirectoryRow = {
   id: string;
@@ -74,18 +79,11 @@ function formatPhone(phone: string | null): string {
   return phone ?? "no phone";
 }
 
-const DEFAULT_MESSAGE = "Hi {name}, God bless you from all of us at BENMP.";
-const GIVING_MESSAGE =
-  "Hi {name}, thank you for {amount}. Your partnership with BENMP means so much. God richly bless you!";
-
-const MESSAGE_PRESETS = [
-  {
-    value: "general",
-    label: "General personal message",
-    body: DEFAULT_MESSAGE,
-  },
-  { value: "giving", label: "Giving thank-you", body: GIVING_MESSAGE },
-] as const;
+const DEFAULT_TEMPLATE_ID = "ordinary-grateful";
+const DEFAULT_MESSAGE =
+  SPECIAL_MESSAGE_TEMPLATES.find(
+    (template) => template.id === DEFAULT_TEMPLATE_ID,
+  )?.body ?? "Hi {name}, thank you for your support of BENMP.";
 
 type MediaAsset = {
   id: string;
@@ -110,7 +108,7 @@ export function DirectoryClient({
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
-  const [preset, setPreset] = useState("general");
+  const [preset, setPreset] = useState(DEFAULT_TEMPLATE_ID);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -222,9 +220,9 @@ export function DirectoryClient({
   }
 
   function choosePreset(value: string) {
-    const next = MESSAGE_PRESETS.find((item) => item.value === value);
+    const next = SPECIAL_MESSAGE_TEMPLATES.find((item) => item.id === value);
     if (!next) return;
-    setPreset(next.value);
+    setPreset(next.id);
     setMessage(next.body);
     setSummary(null);
     setReport(null);
@@ -278,11 +276,72 @@ export function DirectoryClient({
               Select one or more partners with a WhatsApp number.
             </p>
           </div>
-          <span className="text-xs font-medium tabular-nums text-success">
-            {selected.size} selected
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleAll}
+              disabled={selectable.length === 0}
+              className="rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-foreground disabled:opacity-40 sm:hidden"
+            >
+              {allSelected ? "Clear page" : "Select page"}
+            </button>
+            <span className="text-xs font-medium tabular-nums text-success">
+              {selected.size} selected
+            </span>
+          </div>
         </div>
-        <div className="max-h-[440px] overflow-auto border-t border-border">
+        <div className="max-h-[440px] overflow-auto border-t border-border sm:hidden">
+          {partners.length === 0 && (
+            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+              No partners to show.
+            </p>
+          )}
+          {partners.map((partner) => (
+            <label
+              key={partner.id}
+              className={
+                "flex items-start gap-3 border-b border-border/60 px-4 py-3 last:border-0 " +
+                (partner.messageable ? "cursor-pointer" : "opacity-55")
+              }
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(partner.id)}
+                onChange={() => toggle(partner.id)}
+                disabled={!partner.messageable}
+                aria-label={`Select ${partner.name}`}
+                className="mt-1 h-4 w-4 flex-none accent-[var(--success)] disabled:opacity-30"
+              />
+              <span className="min-w-0 flex-1">
+                <span
+                  className={
+                    "block break-words text-sm " +
+                    (partner.name === "Unknown"
+                      ? "italic text-muted-foreground"
+                      : "font-semibold text-foreground")
+                  }
+                >
+                  {partner.name}
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                  {partner.country}
+                  {partner.branch !== "Unassigned" && ` · ${partner.branch}`}
+                </span>
+                <span className="mt-0.5 block break-all text-xs tabular-nums text-muted-foreground">
+                  {partner.messageable
+                    ? formatPhone(partner.phone)
+                    : "No WhatsApp number"}
+                </span>
+              </span>
+              {partner.givenMinor > 0 && (
+                <span className="flex-none text-xs font-semibold tabular-nums text-success">
+                  GHS {ghs(partner.givenMinor)}
+                </span>
+              )}
+            </label>
+          ))}
+        </div>
+        <div className="hidden max-h-[440px] overflow-auto border-t border-border sm:block">
           <table
             className={`w-full text-sm ${messaging ? "min-w-[680px]" : "min-w-[620px]"}`}
           >
@@ -391,16 +450,26 @@ export function DirectoryClient({
 
           <div className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3 sm:grid-cols-[minmax(0,240px)_1fr] sm:items-end">
             <label className="grid gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Starting template
+              Special message draft
               <select
                 value={preset}
                 onChange={(event) => choosePreset(event.target.value)}
                 className="h-10 min-w-0 rounded-md border border-border bg-surface px-3 text-sm font-medium normal-case tracking-normal text-foreground outline-none focus:border-success"
               >
-                {MESSAGE_PRESETS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
+                {(
+                  Object.entries(SPECIAL_MESSAGE_CATEGORY_LABELS) as Array<
+                    [SpecialMessageCategory, string]
+                  >
+                ).map(([category, label]) => (
+                  <optgroup key={category} label={label}>
+                    {SPECIAL_MESSAGE_TEMPLATES.filter(
+                      (template) => template.category === category,
+                    ).map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.label}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
                 {preset === "custom" && (
                   <option value="custom">Custom message</option>

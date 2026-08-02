@@ -61,7 +61,7 @@ export default async function CallsPage({
             defaultChecked={consistent}
             className="h-4 w-4 accent-[var(--success)]"
           />
-          Consistent givers (2+ gifts)
+          Repeat givers (2+ gifts)
         </label>
         <label className={`flex items-center gap-2 ${FIELD_LABEL}`}>
           <input

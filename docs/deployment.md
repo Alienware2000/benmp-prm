@@ -16,14 +16,14 @@ Do not point previews at production Supabase unless branch isolation and permiss
 
 ## 2. Hosting Split
 
-| Responsibility      | Recommended Owner                                               |
-| ------------------- | --------------------------------------------------------------- |
-| Web app hosting     | Vercel project under the correct account.                       |
-| Database/auth       | Supabase project controlled by BENMP or agreed technical owner. |
+| Responsibility      | Recommended Owner                                                                    |
+| ------------------- | ------------------------------------------------------------------------------------ |
+| Web app hosting     | Vercel project under the correct account.                                            |
+| Database/auth       | Supabase project controlled by BENMP or agreed technical owner.                      |
 | AI model            | GCP project with **Vertex AI** enabled (Claude in Model Garden) + a service account. |
-| Payment providers   | BENMP legal entity/provider accounts.                           |
-| Messaging providers | BENMP-owned Twilio/Meta/Resend accounts.                        |
-| Secrets             | Vercel environment variables and Supabase secret storage.       |
+| Payment providers   | BENMP legal entity/provider accounts.                                                |
+| Messaging providers | BENMP-owned Twilio/Meta/Resend accounts.                                             |
+| Secrets             | Vercel environment variables and Supabase secret storage.                            |
 
 ## 3. Repository Commands
 
@@ -84,33 +84,33 @@ Manual verification:
 
 Current keys from `.env.example`:
 
-| Variable                        | Environment    | Notes                                                   |
-| ------------------------------- | -------------- | ------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_URL`           | All            | Public app base URL.                                    |
-| `BENMP_DATA_PROVIDER`           | All            | `mock`, `supabase`, or future `postgres`. Default mock. |
-| `BENMP_MESSAGING_PROVIDER`      | All            | `mock`, `wali`, `twilio`, `meta-cloud-api`, `infobip`, `vonage`, or `whatchimp`. |
-| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase envs  | Public Supabase URL.                                    |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase envs  | Public anon key; RLS backstops data.                    |
-| `SUPABASE_SERVICE_ROLE_KEY`     | Server only    | Never expose to client bundles. Bypasses RLS — trusted server code only. |
-| `GOOGLE_VERTEX_PROJECT`         | AI envs        | GCP project id for Claude on Vertex.                    |
-| `GOOGLE_VERTEX_LOCATION`        | AI envs        | Vertex region, e.g. `us-east5`.                         |
-| `GOOGLE_APPLICATION_CREDENTIALS`| Server only    | Vertex service-account (path or inline JSON); not in git.|
-| `BENMP_DEFAULT_MODEL`           | AI envs        | Claude model id resolved via the registry.              |
-| `TWILIO_ACCOUNT_SID`            | Messaging envs | Server only.                                            |
-| `TWILIO_AUTH_TOKEN`             | Messaging envs | Server only.                                            |
-| `TWILIO_MESSAGING_SERVICE_SID`  | Messaging envs | Server only.                                            |
-| `TWILIO_WHATSAPP_SENDER`        | Messaging envs | Server only.                                            |
-| `META_WHATSAPP_TOKEN`           | Messaging envs | Server-only Meta Cloud API access token.                |
-| `META_WHATSAPP_PHONE_NUMBER_ID` | Messaging envs | Meta sender ID, not the displayed phone number.         |
-| `META_GRAPH_API_VERSION`        | Messaging envs | Optional; defaults to `v23.0`.                          |
-| `VONAGE_API_KEY`                | Messaging envs | Server only; sandbox account API key.                   |
-| `VONAGE_API_SECRET`             | Messaging envs | Server only; sandbox account API secret.                |
-| `VONAGE_WHATSAPP_SENDER`        | Messaging envs | Sandbox sender shown in the Vonage dashboard.           |
-| `VONAGE_MESSAGES_API_URL`       | Messaging envs | Optional; defaults to the Vonage v1 sandbox endpoint.   |
-| `WALI_API_KEY`                  | Messaging envs | Server-only Wali API key.                               |
-| `WALI_DEVICE_ID`                | Messaging envs | Wali device for the BENMP-owned WhatsApp number.        |
-| `WALI_API_URL`                  | Messaging envs | Optional; defaults to `https://api.wali.chat/v1/messages`. |
-| `RESEND_API_KEY`                | Messaging envs | Server only.                                            |
+| Variable                         | Environment    | Notes                                                                            |
+| -------------------------------- | -------------- | -------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_URL`            | All            | Public app base URL.                                                             |
+| `BENMP_DATA_PROVIDER`            | All            | `mock`, `supabase`, or future `postgres`. Default mock.                          |
+| `BENMP_MESSAGING_PROVIDER`       | All            | `mock`, `wali`, `twilio`, `meta-cloud-api`, `infobip`, `vonage`, or `whatchimp`. |
+| `NEXT_PUBLIC_SUPABASE_URL`       | Supabase envs  | Public Supabase URL.                                                             |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Supabase envs  | Public anon key; RLS backstops data.                                             |
+| `SUPABASE_SERVICE_ROLE_KEY`      | Server only    | Never expose to client bundles. Bypasses RLS — trusted server code only.         |
+| `GOOGLE_VERTEX_PROJECT`          | AI envs        | GCP project id for Claude on Vertex.                                             |
+| `GOOGLE_VERTEX_LOCATION`         | AI envs        | Vertex region, e.g. `us-east5`.                                                  |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Server only    | Vertex service-account (path or inline JSON); not in git.                        |
+| `BENMP_DEFAULT_MODEL`            | AI envs        | Claude model id resolved via the registry.                                       |
+| `TWILIO_ACCOUNT_SID`             | Messaging envs | Server only.                                                                     |
+| `TWILIO_AUTH_TOKEN`              | Messaging envs | Server only.                                                                     |
+| `TWILIO_MESSAGING_SERVICE_SID`   | Messaging envs | Server only.                                                                     |
+| `TWILIO_WHATSAPP_SENDER`         | Messaging envs | Server only.                                                                     |
+| `META_WHATSAPP_TOKEN`            | Messaging envs | Server-only Meta Cloud API access token.                                         |
+| `META_WHATSAPP_PHONE_NUMBER_ID`  | Messaging envs | Meta sender ID, not the displayed phone number.                                  |
+| `META_GRAPH_API_VERSION`         | Messaging envs | Optional; defaults to `v23.0`.                                                   |
+| `VONAGE_API_KEY`                 | Messaging envs | Server only; sandbox account API key.                                            |
+| `VONAGE_API_SECRET`              | Messaging envs | Server only; sandbox account API secret.                                         |
+| `VONAGE_WHATSAPP_SENDER`         | Messaging envs | Sandbox sender shown in the Vonage dashboard.                                    |
+| `VONAGE_MESSAGES_API_URL`        | Messaging envs | Optional; defaults to the Vonage v1 sandbox endpoint.                            |
+| `WALI_API_KEY`                   | Messaging envs | Server-only Wali API key.                                                        |
+| `WALI_DEVICE_ID`                 | Messaging envs | Wali device for the BENMP-owned WhatsApp number.                                 |
+| `WALI_API_URL`                   | Messaging envs | Optional; defaults to `https://api.wali.chat/v1/messages`.                       |
+| `RESEND_API_KEY`                 | Messaging envs | Server only.                                                                     |
 
 Add later when implemented:
 
@@ -122,9 +122,9 @@ There are **no payment-provider env vars** — the system integrates no payment 
 
 The only inbound webhooks are messaging delivery/inbound callbacks — **there are no payment webhooks** (Decision 0007).
 
-| Provider       | URL Shape                      | Environment                             |
-| -------------- | ------------------------------ | --------------------------------------- |
-| Twilio status  | `/api/webhooks/twilio/status`  | Phase 7.                                |
+| Provider       | URL Shape                      | Environment                                 |
+| -------------- | ------------------------------ | ------------------------------------------- |
+| Twilio status  | `/api/webhooks/twilio/status`  | Phase 7.                                    |
 | Twilio inbound | `/api/webhooks/twilio/inbound` | Phase 7 (opt-out; claim loop if triggered). |
 
 Rules:
@@ -180,13 +180,13 @@ Not required in Phase 1A.
 
 Planned jobs:
 
-| Job                            | Phase | Candidate Runtime                                 |
-| ------------------------------ | ----- | ------------------------------------------------- |
-| Statement import reminders     | 7     | Staff workflow first; automation later.           |
-| Message batch dispatch         | 7     | Vercel cron or Supabase scheduled function.       |
+| Job                            | Phase | Candidate Runtime                                                                 |
+| ------------------------------ | ----- | --------------------------------------------------------------------------------- |
+| Statement import reminders     | 7     | Staff workflow first; automation later.                                           |
+| Message batch dispatch         | 7     | Vercel cron or Supabase scheduled function.                                       |
 | Pledge reminder run            | 9     | Cron builds the reminder batch from unpaid pledges (no charging — Decision 0007). |
-| Month-close snapshots          | 9     | Vercel cron route or Supabase scheduled function. |
-| Lapsed partner task generation | 9     | Same job as month-close or follow-up worker.      |
+| Month-close snapshots          | 9     | Vercel cron route or Supabase scheduled function.                                 |
+| Lapsed partner task generation | 9     | Same job as month-close or follow-up worker.                                      |
 
 (Phase numbers per `docs/phases.md`.)
 
@@ -271,4 +271,4 @@ npx vercel link           # link this repo to a Vercel project
 npx vercel --prod         # deploy
 ```
 
-**Before sharing publicly, verify:** opening `/poc` prompts for the password (no prompt = `POC_PASSWORD` not set), run `npm run wali:check` against the environment, and keep `BENMP_SEND_ALLOWLIST` set until leadership approves broader sends.
+**Before sharing publicly, verify:** opening `/poc` prompts for the password (no prompt = `POC_PASSWORD` not set), then run `npm run wali:check` against the environment. The check must find the configured BENMP device in the Wali account with an `operative` status; if the account returns no devices, reconnect the BENMP number in WaliChat (and renew the plan if required) before updating `WALI_DEVICE_ID`. Keep `BENMP_SEND_ALLOWLIST` set only while a restricted pilot is intended; an unset or empty value allows any valid international WhatsApp recipient, subject to opt-outs and staff confirmation.

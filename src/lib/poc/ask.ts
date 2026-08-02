@@ -10,6 +10,7 @@
 
 import type { ReconciliationResult } from "../reconcile";
 import { headlineAnswers, formatGhs, type HeadlineAnswers } from "./answers";
+import { reportingPeriod } from "./reporting-period";
 
 /** Minimal model surface — the real Gemini/Vertex client is injected at POC-5 when creds exist. */
 export interface PocModelClient {
@@ -32,10 +33,13 @@ function sampleNames(a: HeadlineAnswers): string {
 }
 
 /** A compact, factual grounding block the model must answer from — no figures invented. */
-export function buildGrounding(a: HeadlineAnswers): string {
+export function buildGrounding(
+  a: HeadlineAnswers,
+  periodLabel = "the loaded giving window",
+): string {
   const names = a.unregistered.length > 0 ? sampleNames(a) : "";
   return [
-    `Period figures (use ONLY these; do not compute or invent numbers):`,
+    `Giving figures for ${periodLabel} (use ONLY these; do not compute or invent numbers):`,
     `- People who paid: ${a.paidCount} (${a.registeredPaidCount} registered + ${a.unregisteredCount} unregistered).`,
     `- Registered partners who have NOT paid: ${a.unpaidCount}.`,
     `- Paid but not on the register (still included and thanked): ${a.unregisteredCount}. Largest: ${names || "none"}.`,
@@ -47,13 +51,18 @@ export function buildGrounding(a: HeadlineAnswers): string {
   ].join("\n");
 }
 
-export function answerLocally(question: string, a: HeadlineAnswers): string {
+export function answerLocally(
+  question: string,
+  a: HeadlineAnswers,
+  periodLabel = "the loaded giving window",
+): string {
   const q = question.toLowerCase();
   const isUnregistered =
     q.includes("unregist") ||
     q.includes("not on the register") ||
     q.includes("paid but") ||
-    (q.includes("regist") && (q.includes("not") || q.includes("isn't") || q.includes("without")));
+    (q.includes("regist") &&
+      (q.includes("not") || q.includes("isn't") || q.includes("without")));
   const isUnpaid =
     q.includes("haven't") ||
     q.includes("hasn't") ||
@@ -63,7 +72,11 @@ export function answerLocally(question: string, a: HeadlineAnswers): string {
     q.includes("owe") ||
     q.includes("yet to");
   const isTotal =
-    q.includes("total") || q.includes("how much") || q.includes("amount") || q.includes("collect") || q.includes("rais");
+    q.includes("total") ||
+    q.includes("how much") ||
+    q.includes("amount") ||
+    q.includes("collect") ||
+    q.includes("rais");
   const isPaid = q.includes("paid") || q.includes("gave") || q.includes("give");
 
   if (isUnregistered) {
@@ -75,17 +88,17 @@ export function answerLocally(question: string, a: HeadlineAnswers): string {
     return `${a.unregisteredCount} paid but are not on the register — they are still included and thanked${names ? `. Largest: ${names}.` : "."}${tail}`;
   }
   if (isUnpaid) {
-    return `${a.unpaidCount} registered partners have not paid this period yet.`;
+    return `${a.unpaidCount} registered partners have not paid during ${periodLabel}; no gift is recorded for them in that window.`;
   }
   if (isTotal) {
-    return `GHS ${a.totalCollectedGhs} collected this period from ${a.paidCount} gifts.`;
+    return `GHS ${a.totalCollectedGhs} collected from ${periodLabel}. ${a.paidCount} identifiable people gave, alongside ${a.statementRowCount} bank or interoperability statement rows.`;
   }
   if (isPaid) {
-    return `${a.paidCount} people paid this period (${a.registeredPaidCount} registered + ${a.unregisteredCount} unregistered).`;
+    return `${a.paidCount} people gave from ${periodLabel} (${a.registeredPaidCount} registered + ${a.unregisteredCount} not yet registered).`;
   }
   return (
-    `This period: ${a.paidCount} paid (${a.registeredPaidCount} registered + ${a.unregisteredCount} unregistered), ` +
-    `${a.unpaidCount} registered still unpaid, GHS ${a.totalCollectedGhs} collected.`
+    `From ${periodLabel}: ${a.paidCount} gave (${a.registeredPaidCount} registered + ${a.unregisteredCount} not yet registered), ` +
+    `${a.unpaidCount} registered partners have no recorded gift, and GHS ${a.totalCollectedGhs} was collected.`
   );
 }
 
@@ -95,18 +108,22 @@ export async function askAi(
   opts: AskOptions = {},
 ): Promise<string> {
   const a = headlineAnswers(result);
+  const periodLabel = reportingPeriod(result).label;
   if (opts.model) {
-    const prompt = `${buildGrounding(a)}\n\nQuestion: ${question}\n\nAnswer in one or two sentences using ONLY the figures above. Lead with the number; never list more than ${MAX_NAMES_IN_ANSWER} names.`;
+    const prompt = `${buildGrounding(a, periodLabel)}\n\nQuestion: ${question}\n\nAnswer in one or two sentences using ONLY the figures above. Lead with the number; never list more than ${MAX_NAMES_IN_ANSWER} names.`;
     try {
       return await opts.model.generate(prompt);
     } catch (err) {
       // A model outage must never break the ask box — fall back to the same
       // grounded deterministic answer used when no model is configured.
       console.error(
-        JSON.stringify({ evt: "poc_ask_model_failed", error: err instanceof Error ? err.message : String(err) }),
+        JSON.stringify({
+          evt: "poc_ask_model_failed",
+          error: err instanceof Error ? err.message : String(err),
+        }),
       );
-      return answerLocally(question, a);
+      return answerLocally(question, a, periodLabel);
     }
   }
-  return answerLocally(question, a);
+  return answerLocally(question, a, periodLabel);
 }

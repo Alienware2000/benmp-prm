@@ -1,6 +1,8 @@
-import { BellRing, CircleDollarSign, PieChart, UserPlus } from "lucide-react";
+import { BellRing, CircleDollarSign, UserPlus, Users } from "lucide-react";
 import { loadReconciliation } from "@/lib/poc/db";
 import { headlineAnswers, formatGhs } from "@/lib/poc/answers";
+import { giverInsightGroups } from "@/lib/poc/giver-insights";
+import { reportingPeriod } from "@/lib/poc/reporting-period";
 import { normalizePhone } from "@/lib/phone";
 import { AskHero } from "./ask-hero";
 import {
@@ -8,7 +10,6 @@ import {
   type PartnerRow,
   type TableData,
 } from "./partners-table";
-import { MessageCenter } from "./message-center";
 import { PocNav } from "./nav";
 
 export const dynamic = "force-dynamic";
@@ -24,8 +25,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     </p>
   );
 }
-
-type Row = PartnerRow & { amountMinor: number; latest: string };
 
 /**
  * "2026-07-05T19:48:01+00:00" -> "5 Jul" (Ghana is UTC year-round).
@@ -46,82 +45,42 @@ export default async function PocPage() {
   const result = await loadReconciliation();
   const a = headlineAnswers(result);
 
-  const registeredRows: Row[] = result.registeredPaid.map((rp) => {
-    const latest = rp.payments.reduce(
-      (m, p) => (p.paidAt > m ? p.paidAt : m),
-      "",
-    );
-    return {
-      name: rp.registration.fullName,
-      phoneMasked: mask(rp.registration.phone),
-      status: "registered" as const,
-      amountMinor: rp.totalMinor,
-      amountGhs: `GHS ${formatGhs(rp.totalMinor)}`,
-      latest,
-      when: formatWhen(latest),
-    };
+  const insightGroups = giverInsightGroups(result, { limit: 20 });
+  const toPartnerRow = (
+    giver: (typeof insightGroups)["top"][number],
+  ): PartnerRow => ({
+    name: giver.name,
+    phoneMasked: mask(giver.phone),
+    status: giver.registered ? "registered" : "new",
+    amountGhs: `GHS ${formatGhs(giver.amountMinor)}`,
+    when: formatWhen(giver.latest),
+    giftCount: giver.giftCount,
   });
-  const unregisteredRows: Row[] = result.paidUnregistered.map((pu) => {
-    const latest = pu.payments.reduce(
-      (m, p) => (p.paidAt > m ? p.paidAt : m),
-      "",
-    );
-    return {
-      name: pu.suggestedName ?? "Unknown",
-      phoneMasked: mask(pu.phone),
-      status: "new" as const,
-      amountMinor: pu.totalMinor,
-      amountGhs: `GHS ${formatGhs(pu.totalMinor)}`,
-      latest,
-      when: formatWhen(latest),
-    };
-  });
-
-  const all = [...registeredRows, ...unregisteredRows];
   const tableData: TableData = {
-    gifts: [...all].sort((x, y) => y.amountMinor - x.amountMinor).slice(0, 8),
-    unregistered: [...unregisteredRows]
-      .sort((x, y) => y.amountMinor - x.amountMinor)
-      .slice(0, 8),
-    recent: [...all].sort((x, y) => (x.latest > y.latest ? -1 : 1)).slice(0, 8),
+    top: insightGroups.top.map(toPartnerRow),
+    consistent: insightGroups.consistent.map(toPartnerRow),
+    ordinary: insightGroups.ordinary.map(toPartnerRow),
   };
 
   const gaveCount = a.registeredPaidCount + a.unregisteredCount;
-  const denom = gaveCount + a.unpaidCount;
-  const pct = denom > 0 ? Math.round((gaveCount / denom) * 100) : 0;
-  // Average over person-attributed money only — statement rows have no giver to average.
-  const attributedMinor = a.totalCollectedMinor - a.statementTotalMinor;
+  const giftCount =
+    result.registeredPaid.reduce(
+      (count, giver) => count + giver.payments.length,
+      0,
+    ) +
+    result.paidUnregistered.reduce(
+      (count, giver) => count + giver.payments.length,
+      0,
+    ) +
+    result.statementRows.length;
   const avgGiftGhs =
-    a.paidCount > 0
-      ? formatGhs(Math.round(attributedMinor / a.paidCount / 100) * 100)
+    giftCount > 0
+      ? formatGhs(Math.round(a.totalCollectedMinor / giftCount))
       : "0";
   const newGiverShare =
     gaveCount > 0 ? Math.round((a.unregisteredCount / gaveCount) * 100) : 0;
   const registerTotal = a.registeredPaidCount + a.unpaidCount;
-  const ringC = 2 * Math.PI * 30;
-  const configuredProvider = process.env.BENMP_MESSAGING_PROVIDER;
-  const provider =
-    configuredProvider === "twilio" ||
-    configuredProvider === "meta-cloud-api" ||
-    configuredProvider === "infobip" ||
-    configuredProvider === "vonage" ||
-    configuredProvider === "whatchimp" ||
-    configuredProvider === "wali"
-      ? configuredProvider
-      : "mock";
-
-  // The statement covers a window, not a calendar month — label it honestly.
-  const paidDates = [
-    ...result.registeredPaid.flatMap((rp) => rp.payments),
-    ...result.paidUnregistered.flatMap((pu) => pu.payments),
-  ]
-    .map((p) => p.paidAt)
-    .filter(Boolean)
-    .sort();
-  const periodLabel =
-    paidDates.length > 0
-      ? `${formatWhen(paidDates[0])} – ${formatWhen(paidDates[paidDates.length - 1])}`
-      : "This period";
+  const period = reportingPeriod(result);
 
   return (
     <div className="min-h-screen bg-background pb-14 text-foreground">
@@ -134,7 +93,7 @@ export default async function PocPage() {
             <span className="truncate">Global Crusade Partners</span>
           </span>
           <span className="max-w-[46%] whitespace-nowrap rounded-full border border-border bg-background px-2.5 py-1 text-[11px] tabular-nums text-muted-foreground sm:max-w-none sm:px-3 sm:text-xs">
-            {periodLabel}
+            Giving: {period.compactLabel}
           </span>
         </div>
       </header>
@@ -143,96 +102,34 @@ export default async function PocPage() {
       <main className="mx-auto max-w-4xl px-4 sm:px-5">
         <section className="pt-8">
           <h1 className="text-[22px] font-semibold tracking-tight">
-            Ask about this period
+            Ask about giving
           </h1>
           <p className="mb-4 mt-1 text-sm text-muted-foreground">
-            Answers come from the reconciled giving — {denom} partners,{" "}
-            {a.paidCount} payments.
+            Answers use gifts recorded from {period.label} —{" "}
+            {a.totalPeople.toLocaleString("en-US")} tracked people,{" "}
+            {gaveCount.toLocaleString("en-US")} active givers.
           </p>
           <AskHero />
         </section>
 
-        <SectionLabel>This period at a glance</SectionLabel>
+        <SectionLabel>Giving overview</SectionLabel>
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="text-[13px] font-medium text-muted-foreground">
-                Giving progress
+                Active BENMP partners
               </p>
               <span className="grid h-8 w-8 flex-none place-items-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
-                <PieChart className="h-4 w-4" aria-hidden />
+                <Users className="h-4 w-4" aria-hidden />
               </span>
             </div>
-            <div className="flex flex-1 items-center gap-4 py-3">
-              <svg
-                viewBox="0 0 72 72"
-                className="h-[72px] w-[72px] flex-none"
-                role="img"
-                aria-label={`${pct}% given`}
-              >
-                <circle
-                  cx="36"
-                  cy="36"
-                  r="30"
-                  fill="none"
-                  stroke="var(--border)"
-                  strokeWidth="7.5"
-                />
-                <circle
-                  cx="36"
-                  cy="36"
-                  r="30"
-                  fill="none"
-                  stroke="var(--success)"
-                  strokeWidth="7.5"
-                  strokeLinecap="round"
-                  strokeDasharray={`${(ringC * pct) / 100} ${ringC}`}
-                  transform="rotate(-90 36 36)"
-                />
-                <text
-                  x="36"
-                  y="34"
-                  textAnchor="middle"
-                  className="fill-[var(--foreground)] text-[15px] font-bold"
-                  style={{ fontVariantNumeric: "tabular-nums" }}
-                >
-                  {pct}%
-                </text>
-                <text
-                  x="36"
-                  y="46"
-                  textAnchor="middle"
-                  className="fill-[var(--muted-foreground)] text-[8px]"
-                >
-                  given
-                </text>
-              </svg>
-              <div className="space-y-2 text-xs leading-none">
-                <p className="flex items-center gap-2 whitespace-nowrap text-muted-foreground">
-                  <span
-                    className="h-2 w-2 rounded-full bg-success"
-                    aria-hidden
-                  />
-                  Gave&nbsp;
-                  <b className="text-foreground tabular-nums">{gaveCount}</b>
-                </p>
-                <p className="flex items-center gap-2 whitespace-nowrap text-muted-foreground">
-                  <span
-                    className="h-2 w-2 rounded-full bg-border"
-                    aria-hidden
-                  />
-                  Not yet&nbsp;
-                  <b className="text-foreground tabular-nums">
-                    {a.unpaidCount}
-                  </b>
-                </p>
-              </div>
+            <div className="flex flex-1 items-center py-3">
+              <p className="text-[27px] font-semibold leading-none tracking-tight tabular-nums">
+                {gaveCount.toLocaleString("en-US")}
+              </p>
             </div>
             <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
-              <b className="font-semibold text-emerald-700 tabular-nums">
-                {gaveCount}
-              </b>{" "}
-              of {denom.toLocaleString("en-US")} have given
+              Identifiable people who gave in the loaded giving window
             </p>
           </div>
 
@@ -251,7 +148,7 @@ export default async function PocPage() {
               </p>
             </div>
             <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
-              {a.paidCount} gifts · avg{" "}
+              {giftCount.toLocaleString("en-US")} gifts · avg{" "}
               <b className="font-semibold text-emerald-700 tabular-nums">
                 GHS {avgGiftGhs}
               </b>
@@ -308,15 +205,8 @@ export default async function PocPage() {
           </div>
         </section>
 
-        <SectionLabel>Partners this period</SectionLabel>
+        <SectionLabel>Giver groups</SectionLabel>
         <PartnersTable data={tableData} />
-
-        <SectionLabel>Message center</SectionLabel>
-        <MessageCenter
-          thankYous={gaveCount}
-          reminders={a.unpaidCount}
-          provider={provider}
-        />
 
         <footer className="mt-10 flex flex-wrap justify-between gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground/80">
           <span>Staff workspace · confidential partner records</span>

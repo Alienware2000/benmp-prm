@@ -27,9 +27,19 @@ if (!Array.isArray(devices)) {
   fail("API returned an unexpected device response");
 }
 
-const device = devices.find((candidate) => candidate?.id === expectedDeviceId);
+if (devices.length === 0) {
+  fail(
+    "no WhatsApp device is connected to this Wali account. Reconnect the BENMP number (and renew the plan if required), then update WALI_DEVICE_ID",
+  );
+}
+
+const device = devices.find(
+  (candidate) => (candidate?.id ?? candidate?._id) === expectedDeviceId,
+);
 if (!device) {
-  fail("configured device was not returned by the Wali account");
+  fail(
+    "the saved WALI_DEVICE_ID is not connected to this Wali account. Copy the current device ID from WaliChat and update the deployment",
+  );
 }
 
 if (device.status !== "operative") {

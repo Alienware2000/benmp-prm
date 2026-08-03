@@ -10,10 +10,10 @@ afterEach(() => {
   delete process.env.BENMP_POC_MODEL;
 });
 
-describe("model registry — POC (Gemini 2.5, read-only)", () => {
-  it("defaults the POC model to Gemini 2.5, overridable via env", () => {
+describe("model registry - POC assistant", () => {
+  it("defaults to a stable Flash model and remains overridable via env", () => {
     expect(pocModelId()).toBe(POC_MODEL);
-    expect(POC_MODEL).toBe("gemini-3.5-flash");
+    expect(POC_MODEL).toBe("gemini-3.6-flash");
     process.env.BENMP_POC_MODEL = "gemini-flash-latest";
     expect(pocModelId()).toBe("gemini-flash-latest");
   });

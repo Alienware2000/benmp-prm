@@ -1,17 +1,39 @@
 import { describe, it, expect, vi } from "vitest";
-import { askAi, answerLocally, buildGrounding, type PocModelClient } from "./ask";
+import {
+  askAi,
+  askAiDetailed,
+  answerLocally,
+  buildGrounding,
+  buildWorkspaceGrounding,
+  type PocModelClient,
+} from "./ask";
 import { headlineAnswers } from "./answers";
 import type { ReconciliationResult } from "../reconcile";
 
 const result: ReconciliationResult = {
   registeredPaid: [
-    { registration: { id: "reg_0", fullName: "Kofi", phone: "+233244000001" }, payments: [], totalMinor: 5000 },
-    { registration: { id: "reg_1", fullName: "Ama", phone: "+233244000002" }, payments: [], totalMinor: 10000 },
+    {
+      registration: { id: "reg_0", fullName: "Kofi", phone: "+233244000001" },
+      payments: [],
+      totalMinor: 5000,
+    },
+    {
+      registration: { id: "reg_1", fullName: "Ama", phone: "+233244000002" },
+      payments: [],
+      totalMinor: 10000,
+    },
   ],
   paidUnregistered: [
     {
       payments: [
-        { reference: "TXN2", payerName: "Kwesi Stranger", payerPhone: "+233209999999", amountMinor: 7550, currency: "GHS", paidAt: "2026-07-10" },
+        {
+          reference: "TXN2",
+          payerName: "Kwesi Stranger",
+          payerPhone: "+233209999999",
+          amountMinor: 7550,
+          currency: "GHS",
+          paidAt: "2026-07-10",
+        },
       ],
       totalMinor: 7550,
       phone: "+233209999999",
@@ -63,16 +85,83 @@ describe("askAi", () => {
     expect(ans).toContain("225.50"); // grounded fallback, not an error
   });
 
+  it("reports when a model failure used the record-based fallback", async () => {
+    const model: PocModelClient = {
+      generate: vi.fn(async () => {
+        throw new Error("model unavailable");
+      }),
+    };
+    const response = await askAiDetailed("How much did we collect?", result, {
+      model,
+    });
+    expect(response.usedModel).toBe(false);
+    expect(response.answer).toContain("225.50");
+    expect(response.groundedIn).toContain("selected giving records");
+    expect(response.periodLabel).toBe("July 10, 2026");
+  });
+
   it("delegates phrasing to the model, grounding the prompt with the real figures", async () => {
     const model: PocModelClient = {
-      generate: vi.fn(async () => "We collected two hundred twenty-five cedis fifty."),
+      generate: vi.fn(
+        async () => "We collected two hundred twenty-five cedis fifty.",
+      ),
     };
     const ans = await askAi("How much did we collect?", result, { model });
     expect(ans).toBe("We collected two hundred twenty-five cedis fifty.");
     // the model must be grounded in the computed figures, not left to invent them
-    const prompt = (model.generate as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    const prompt = (model.generate as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as string;
     expect(prompt).toContain("225.50");
-    expect(prompt).toContain("Question: How much did we collect?");
+    expect(prompt).toContain("Current question: How much did we collect?");
+  });
+
+  it("normalizes basic model markdown for the plain-text chat surface", async () => {
+    const model: PocModelClient = {
+      generate: vi.fn(async () => "**Top givers**\n* Kofi\n* Ama"),
+    };
+    const response = await askAiDetailed("Who are the top givers?", result, {
+      model,
+    });
+    expect(response.answer).toBe("Top givers\n- Kofi\n- Ama");
+  });
+});
+
+describe("workspace assistant grounding", () => {
+  it("grounds a named partner without exposing their phone number", () => {
+    const grounding = buildWorkspaceGrounding(result, "Tell me about Kofi");
+    expect(grounding.prompt).toContain("Kofi: registered giver");
+    expect(grounding.prompt).toContain("GHS 50");
+    expect(grounding.prompt).not.toContain("+233244000001");
+    expect(grounding.groundedIn).toContain("relevant partner records");
+  });
+
+  it("includes category facts only when relevant to the question", () => {
+    const grounding = buildWorkspaceGrounding(
+      result,
+      "Who are the top givers?",
+    );
+    expect(grounding.prompt).toContain("Relevant giver groups");
+    expect(grounding.prompt).toContain("Top givers");
+  });
+
+  it("passes recent conversation context for follow-up questions", async () => {
+    const model: PocModelClient = {
+      generate: vi.fn(async () => "Kofi gave GHS 50."),
+    };
+    await askAiDetailed("How much did he give?", result, {
+      model,
+      history: [
+        {
+          question: "Tell me about Kofi",
+          answer: "Kofi is a registered giver.",
+        },
+      ],
+    });
+    const prompt = (model.generate as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as string;
+    expect(prompt).toContain("Previous conversation");
+    expect(prompt).toContain("Tell me about Kofi");
+    expect(prompt).toContain("Kofi: registered giver");
   });
 });
 
@@ -93,7 +182,14 @@ describe("answers stay concise with many unregistered givers (no name dumps)", (
     statementRows: [],
     paidUnregistered: Array.from({ length: 120 }, (_, i) => ({
       payments: [
-        { reference: `TX${i}`, payerName: `Giver ${i}`, payerPhone: `+23320${String(1000000 + i)}`, amountMinor: 1000 + i, currency: "GHS", paidAt: "2026-07-01" },
+        {
+          reference: `TX${i}`,
+          payerName: `Giver ${i}`,
+          payerPhone: `+23320${String(1000000 + i)}`,
+          amountMinor: 1000 + i,
+          currency: "GHS",
+          paidAt: "2026-07-01",
+        },
       ],
       totalMinor: 1000 + i,
       phone: `+23320${String(1000000 + i)}`,
@@ -112,11 +208,14 @@ describe("answers stay concise with many unregistered givers (no name dumps)", (
   });
 
   it("deterministic answer gives the count, top examples, and points to the table", () => {
-    const ans = answerLocally("Who paid but isn't on the register?", headlineAnswers(many));
+    const ans = answerLocally(
+      "Who paid but isn't on the register?",
+      headlineAnswers(many),
+    );
     expect(ans).toContain("120");
     const nameCount = (ans.match(/Giver \d+/g) ?? []).length;
     expect(nameCount).toBeLessThanOrEqual(5);
-    expect(ans).toMatch(/partners table/i);
+    expect(ans).toMatch(/messages/i);
     // largest gifts are the examples shown
     expect(ans).toContain("Giver 119");
   });

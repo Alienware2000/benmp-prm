@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { AiAssistant } from "./ai-assistant";
 import { WorkspaceNav } from "./workspace-nav";
 
 export default function PocLayout({ children }: { children: React.ReactNode }) {
@@ -37,6 +38,9 @@ export default function PocLayout({ children }: { children: React.ReactNode }) {
 
       <Suspense fallback={null}>
         <WorkspaceNav mobile />
+      </Suspense>
+      <Suspense fallback={null}>
+        <AiAssistant />
       </Suspense>
     </div>
   );

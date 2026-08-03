@@ -5,7 +5,6 @@ import {
   Megaphone,
   MessageCircleMore,
   PhoneCall,
-  Sparkles,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -18,7 +17,6 @@ import {
   reportingPeriod,
 } from "@/lib/poc/reporting-period";
 import { normalizePhone } from "@/lib/phone";
-import { AskHero } from "./ask-hero";
 import { PocShell } from "./nav";
 import {
   PartnersTable,
@@ -263,7 +261,7 @@ export default async function PocPage({
         </div>
       </section>
 
-      <section className="mt-7 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+      <section className="mt-7">
         <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
           <div className="flex items-center gap-2">
             <span className="grid h-9 w-9 place-items-center rounded-md bg-accent/25 text-accent-foreground">
@@ -276,44 +274,29 @@ export default async function PocPage({
               </p>
             </div>
           </div>
-          <div className="mt-3 divide-y divide-border">
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
             <Link
               href={withPeriod("/poc/messages", from, to, { task: "thank" })}
-              className="flex items-center justify-between gap-3 py-3 text-sm hover:text-brand"
+              className="flex min-h-12 items-center justify-between gap-3 rounded-md bg-background px-3 py-2.5 text-sm hover:text-brand"
             >
               <span>Review new giver acknowledgements</span>
               <b className="tabular-nums">{answers.unregisteredCount}</b>
             </Link>
             <Link
               href={withPeriod("/poc/messages", from, to, { task: "remind" })}
-              className="flex items-center justify-between gap-3 py-3 text-sm hover:text-brand"
+              className="flex min-h-12 items-center justify-between gap-3 rounded-md bg-background px-3 py-2.5 text-sm hover:text-brand"
             >
               <span>Review partners with no gift</span>
               <b className="tabular-nums">{answers.unpaidCount}</b>
             </Link>
             <Link
               href={withPeriod("/poc/giving", from, to)}
-              className="flex items-center justify-between gap-3 py-3 text-sm hover:text-brand"
+              className="flex min-h-12 items-center justify-between gap-3 rounded-md bg-background px-3 py-2.5 text-sm hover:text-brand"
             >
               <span>Check unattributed bank rows</span>
               <b className="tabular-nums">{answers.statementRowCount}</b>
             </Link>
           </div>
-        </div>
-
-        <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-md bg-violet-50 text-violet-700">
-              <Sparkles className="h-[18px] w-[18px]" aria-hidden />
-            </span>
-            <div>
-              <h2 className="text-sm font-bold">Ask about giving</h2>
-              <p className="text-[11px] text-muted-foreground">
-                Answers stay grounded in the selected period
-              </p>
-            </div>
-          </div>
-          <AskHero from={from} to={to} compact />
         </div>
       </section>
 

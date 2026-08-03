@@ -21,7 +21,9 @@ export type GeminiClientOptions = {
 };
 
 /** Build a Gemini-backed PocModelClient, or null when no API key is available. */
-export function createGeminiClient(opts: GeminiClientOptions = {}): PocModelClient | null {
+export function createGeminiClient(
+  opts: GeminiClientOptions = {},
+): PocModelClient | null {
   const apiKey = opts.apiKey ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) return null;
 
@@ -33,7 +35,6 @@ export function createGeminiClient(opts: GeminiClientOptions = {}): PocModelClie
       const { text } = await generateText({
         model: provider(modelId),
         prompt,
-        temperature: 0, // deterministic phrasing of grounded figures
       });
       return text.trim();
     },

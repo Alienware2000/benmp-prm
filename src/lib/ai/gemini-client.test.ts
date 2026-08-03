@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock the AI SDK so tests never hit the network.
-type GenArgs = { prompt: string; model: { modelId: string }; temperature: number };
+type GenArgs = { prompt: string; model: { modelId: string } };
 const generateText = vi.fn<(opts: GenArgs) => Promise<{ text: string }>>(
   async () => ({ text: "  225.50 cedis collected.  " }),
 );
@@ -36,13 +36,16 @@ describe("createGeminiClient", () => {
   });
 
   it("generates text via the SDK, trims it, and passes the prompt + model", async () => {
-    const client = createGeminiClient({ apiKey: "AQ.testkey", modelId: "gemini-2.5-flash" })!;
+    const client = createGeminiClient({
+      apiKey: "AQ.testkey",
+      modelId: "gemini-2.5-flash",
+    })!;
     const out = await client.generate("How much did we collect?");
     expect(out).toBe("225.50 cedis collected."); // trimmed
     expect(generateText).toHaveBeenCalledTimes(1);
     const arg = generateText.mock.calls[0][0];
     expect(arg.prompt).toBe("How much did we collect?");
     expect(arg.model.modelId).toBe("gemini-2.5-flash");
-    expect(arg.temperature).toBe(0);
+    expect(arg).not.toHaveProperty("temperature");
   });
 });

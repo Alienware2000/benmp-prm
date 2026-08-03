@@ -10,12 +10,8 @@ export type AiToolRisk = "read" | "draft" | "mutation";
 
 export const defaultModel = process.env.BENMP_DEFAULT_MODEL ?? "gateway:auto";
 
-/**
- * POC model: Gemini 2.5 on the fresh GCP Vertex account (Decision 0008 — Claude on
- * Vertex isn't available immediately on a new project, and the POC shouldn't wait).
- * Resolved from env so it can be overridden without a code change.
- */
-export const POC_MODEL = "gemini-3.5-flash";
+/** Stable low-latency default. The provider/model remains environment-configurable. */
+export const POC_MODEL = "gemini-3.6-flash";
 
 export function pocModelId(): string {
   return process.env.BENMP_POC_MODEL ?? POC_MODEL;

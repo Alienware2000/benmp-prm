@@ -124,13 +124,6 @@ export async function PartnerWorkspace({
             return resolveBranchKey(normalizeBranchKey(partner.branch)) === branch;
           });
 
-          const filteredPartners = monthlyRows.filter((partner) => {
-            if (qLower && !partner.name.toLowerCase().includes(qLower)) {
-              return false;
-            }
-            if (!branch) return true;
-            return resolveBranchKey(normalizeBranchKey(partner.branch)) === branch;
-          });
           return {
             partners: filteredPartners,
             total: filteredPartners.length,

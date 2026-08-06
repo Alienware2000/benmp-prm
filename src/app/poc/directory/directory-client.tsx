@@ -414,6 +414,15 @@ export function DirectoryClient({
                   <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-muted-foreground">
                     {p.messageable ? (
                       formatPhone(p.phone)
+                    ) : p.phone ? (
+                      <span>
+                        {formatPhone(p.phone)}
+                        {messaging && (
+                          <span className="ml-2 text-muted-foreground/60">
+                            not in partner records - can&apos;t message
+                          </span>
+                        )}
+                      </span>
                     ) : (
                       <span className="text-muted-foreground/60">
                         {messaging ? "no phone - can't message" : "no phone"}

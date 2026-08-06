@@ -199,12 +199,14 @@ export function buildMonthlyCallList(
       `${key}:${reason}`,
     );
 
+    let taken = 0;
     for (const candidate of segment) {
       if (shortlist.length >= size) return shortlist;
       if (picked.has(candidate.phone)) continue;
       shortlist.push(candidate);
       picked.add(candidate.phone);
-      if (shortlist.length >= quota * (idx + 1)) break;
+      taken += 1;
+      if (taken >= quota) break;
     }
   }
 

@@ -2,7 +2,8 @@ import { PhoneCall } from "lucide-react";
 import Link from "next/link";
 import {
   buildCallCandidates,
-  filterCallCandidates,
+  buildMonthlyCallList,
+  monthKey,
   type CallReason,
 } from "@/lib/poc/calls";
 import { loadGivingLedgerCached } from "@/lib/poc/cached-data";
@@ -16,10 +17,13 @@ type SearchParams = Promise<{
   filtered?: string;
   consistent?: string;
   top?: string;
+  ordinary?: string;
   from?: string;
   to?: string;
   page?: string;
 }>;
+
+const FIELD_LABEL = "flex min-h-9 items-center gap-2 text-sm font-medium";
 
 function ghs(currency: string, minor: number): string {
   return `${currency} ${(minor / 100).toLocaleString("en-US", {
@@ -42,6 +46,7 @@ function availableDates(entries: GivingEntry[]): {
 const REASON_LABEL: Record<CallReason, string> = {
   consistent: "Repeat giver",
   top: "Top giver",
+  ordinary: "Ordinary giver",
 };
 
 export default async function CallsPage({
@@ -50,18 +55,25 @@ export default async function CallsPage({
   searchParams: SearchParams;
 }) {
   const sp = await searchParams;
-  const wasSubmitted = sp.filtered === "1";
-  const consistent = wasSubmitted ? sp.consistent === "1" : true;
-  const top = wasSubmitted ? sp.top === "1" : true;
   const from = (sp.from ?? "").slice(0, 10);
   const to = (sp.to ?? "").slice(0, 10);
   const requestedPage = Math.max(1, Number(sp.page) || 1);
+
+  // A GET checkbox that's unchecked is simply absent from the query string, so a plain
+  // navigation (no query string at all) is indistinguishable from "all unchecked" unless
+  // the form marks itself as submitted. `filtered` is that marker.
+  const wasSubmitted = sp.filtered === "1";
+  const consistent = wasSubmitted ? sp.consistent === "1" : true;
+  const top = wasSubmitted ? sp.top === "1" : true;
+  const ordinary = wasSubmitted ? sp.ordinary === "1" : true;
 
   const completeLedger = await loadGivingLedgerCached();
   const available = availableDates(completeLedger);
   const ledger = filterGiving(completeLedger, { from, to });
   const candidates = buildCallCandidates(ledger);
-  const rows = filterCallCandidates(candidates, { consistent, top });
+  const rows = buildMonthlyCallList(candidates, { consistent, top, ordinary });
+  const listMonth = monthKey();
+
   const pageSize = 15;
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const page = Math.min(requestedPage, totalPages);
@@ -72,6 +84,7 @@ export default async function CallsPage({
     const params = new URLSearchParams({ filtered: "1" });
     if (consistent) params.set("consistent", "1");
     if (top) params.set("top", "1");
+    if (ordinary) params.set("ordinary", "1");
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     if (target > 1) params.set("page", String(target));
@@ -81,7 +94,7 @@ export default async function CallsPage({
   return (
     <PocShell
       title="Calls"
-      subtitle="A focused list of repeat and top givers who may benefit from a personal call."
+      subtitle="Monthly randomized 20-partner call shortlist across top, repeat, and ordinary givers."
       toolbar={
         <PeriodFilter
           availableStart={available.start}
@@ -101,7 +114,7 @@ export default async function CallsPage({
         <p className="text-xs font-semibold text-muted-foreground sm:mr-2">
           Show people who are
         </p>
-        <label className="flex min-h-9 items-center gap-2 text-sm font-medium">
+        <label className={FIELD_LABEL}>
           <input
             type="checkbox"
             name="consistent"
@@ -109,9 +122,9 @@ export default async function CallsPage({
             defaultChecked={consistent}
             className="h-4 w-4 accent-[var(--brand)]"
           />
-          Repeat givers
+          Repeat givers (2+ gifts)
         </label>
-        <label className="flex min-h-9 items-center gap-2 text-sm font-medium">
+        <label className={FIELD_LABEL}>
           <input
             type="checkbox"
             name="top"
@@ -120,6 +133,16 @@ export default async function CallsPage({
             className="h-4 w-4 accent-[var(--brand)]"
           />
           Top givers
+        </label>
+        <label className={FIELD_LABEL}>
+          <input
+            type="checkbox"
+            name="ordinary"
+            value="1"
+            defaultChecked={ordinary}
+            className="h-4 w-4 accent-[var(--success)]"
+          />
+          Ordinary givers
         </label>
         <button
           type="submit"
@@ -135,7 +158,7 @@ export default async function CallsPage({
           <p className="mt-1 text-xs text-muted-foreground">
             {rows.length === 0
               ? "No people"
-              : `Showing ${firstRecord}-${lastRecord} of ${rows.length.toLocaleString("en-US")}`}
+              : `Showing ${firstRecord}-${lastRecord} of ${rows.length.toLocaleString("en-US")} · ${listMonth} shortlist`}
           </p>
         </div>
       </div>

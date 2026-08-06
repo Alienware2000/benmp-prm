@@ -493,6 +493,30 @@ export const listBranchGroupsCached = memoWithTtl(
   60_000,
 );
 
+/** Look up specific partners by phone — used by precomputed recipient lists such as monthly calls. */
+export async function loadPartnersByPhones(
+  phones: string[],
+  fetcher: Fetcher = supabaseRestFetcher(),
+): Promise<DirectoryPartner[]> {
+  const clean = [...new Set(phones.map((p) => normalizePhone(p)).filter((p): p is string => p !== null))];
+  if (clean.length === 0) return [];
+
+  const list = clean.map((p) => `"${p.replace(/"/g, '\\"')}"`).join(",");
+  const rows = await fetcher<DbPartner>(
+    `partners?select=${SELECT}&whatsapp_number=in.(${encodeURIComponent(list)})&limit=${clean.length}`,
+  );
+  const payments = await fetcher<{
+    payer_phone_e164: string | null;
+    amount_minor: number | string;
+  }>(
+    "payments?select=payer_phone_e164,amount_minor&status=eq.Successful&limit=5000",
+  );
+
+  return mapPartners(rows, givingByPhone(payments)).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+}
+
 /** Look up specific partners by id — the send path re-reads them rather than trusting the client. */
 export async function loadPartnersByIds(
   ids: string[],

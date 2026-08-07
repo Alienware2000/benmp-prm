@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: only light;
   --background: #f4f6f7;
   --foreground: #172126;
   --surface: #ffffff;
@@ -48,6 +49,8 @@ body {
 }
 
 html {
+  color-scheme: only light;
+  background: var(--background);
   scroll-padding-top: 5rem;
 }
 
@@ -61,6 +64,13 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  color-scheme: only light;
 }
 
 ::selection {

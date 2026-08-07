@@ -42,7 +42,7 @@ if (!device) {
   );
 }
 
-if (device.status !== "operative") {
+if (String(device.status ?? "").trim().toLowerCase() !== "operative") {
   fail(`configured device is ${device.status ?? "not operative"}`);
 }
 

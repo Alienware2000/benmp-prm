@@ -23,6 +23,40 @@ describe("messagingRuntimeConfiguration", () => {
     ).resolves.toEqual({ provider: "wali", ready: true });
   });
 
+  it("treats status comparison case-insensitively", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify([{ id: "device-123", status: "Operative" }]),
+          { status: 200 },
+        ),
+      );
+
+    await expect(
+      messagingRuntimeConfiguration(environment, fetcher),
+    ).resolves.toEqual({ provider: "wali", ready: true });
+  });
+
+  it("explains when WALI_DEVICE_ID is no longer connected", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify([{ id: "other-device", status: "operative" }]),
+          { status: 200 },
+        ),
+      );
+
+    await expect(
+      messagingRuntimeConfiguration(environment, fetcher),
+    ).resolves.toMatchObject({
+      provider: "wali",
+      ready: false,
+      note: expect.stringContaining("WALI_DEVICE_ID"),
+    });
+  });
+
   it("fails closed when the Wali account has no connected device", async () => {
     const fetcher = vi
       .fn()

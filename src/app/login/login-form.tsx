@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleAlert, Eye, EyeOff, LoaderCircle, LogIn } from "lucide-react";
 import { FormEvent, KeyboardEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -32,7 +33,9 @@ export function LoginForm() {
         router.replace(next);
         router.refresh();
       } else {
-        setError("That password isn't right — check with the office and try again.");
+        setError(
+          "That password is not correct. Check with the BENMP office and try again.",
+        );
       }
     } catch {
       setError("Could not reach the server. Try again.");
@@ -42,10 +45,13 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3">
+    <form onSubmit={onSubmit} className="space-y-4">
       <div>
-        <label htmlFor="password" className="mb-1.5 block text-[13px] font-semibold text-foreground">
-          Team password
+        <label
+          htmlFor="password"
+          className="mb-2 block text-[13px] font-semibold text-foreground"
+        >
+          Office password
         </label>
         <div className="relative flex items-center">
           <input
@@ -60,26 +66,42 @@ export function LoginForm() {
             }}
             onKeyDown={onKey}
             onKeyUp={onKey}
-            placeholder="Enter the shared password"
-            className="h-[46px] w-full rounded-[10px] border border-border bg-background pl-3 pr-[74px] text-sm text-foreground outline-none transition focus:border-success focus:bg-surface focus:ring-[3px] focus:ring-success/25 placeholder:text-muted-foreground/60"
+            placeholder="Enter password"
+            className="h-12 w-full rounded-md border border-border bg-background px-3.5 pr-12 text-sm text-foreground outline-none transition focus:border-brand focus:bg-surface focus:ring-[3px] focus:ring-brand/15 placeholder:text-muted-foreground/60"
           />
           <button
             type="button"
             onClick={() => setShow((s) => !s)}
             aria-pressed={show}
             aria-label={show ? "Hide password" : "Show password"}
-            className="absolute right-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-muted-foreground/40 hover:text-foreground"
+            title={show ? "Hide password" : "Show password"}
+            className="absolute right-1.5 grid h-9 w-9 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand/40"
           >
-            {show ? "Hide" : "Show"}
+            {show ? (
+              <EyeOff className="h-[18px] w-[18px]" aria-hidden />
+            ) : (
+              <Eye className="h-[18px] w-[18px]" aria-hidden />
+            )}
           </button>
         </div>
-        <p className={"mt-2 min-h-[16px] text-xs " + (caps ? "font-semibold text-danger" : "text-muted-foreground/80")}>
-          {caps ? "Caps Lock is on." : "Ask the office if you don't have it."}
+        <p
+          className={
+            "mt-2 min-h-[18px] text-xs " +
+            (caps ? "font-semibold text-danger" : "text-muted-foreground")
+          }
+        >
+          {caps
+            ? "Caps Lock is on."
+            : "Use the password provided by the BENMP office."}
         </p>
       </div>
 
       {error && (
-        <p className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/5 px-3 py-2 text-[13px] text-danger">
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-danger/25 bg-danger/5 px-3 py-2.5 text-[13px] leading-5 text-danger"
+        >
+          <CircleAlert className="mt-0.5 h-4 w-4 flex-none" aria-hidden />
           {error}
         </p>
       )}
@@ -87,9 +109,22 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={busy || password.length === 0}
-        className="h-[46px] w-full rounded-[10px] bg-success text-sm font-semibold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-success/40 disabled:opacity-45"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-brand px-4 text-sm font-semibold text-white transition hover:bg-brand-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand/40 disabled:cursor-not-allowed disabled:opacity-45"
       >
-        {busy ? "Signing in…" : "Sign in"}
+        {busy ? (
+          <>
+            <LoaderCircle
+              className="h-[18px] w-[18px] animate-spin"
+              aria-hidden
+            />
+            Signing in...
+          </>
+        ) : (
+          <>
+            <LogIn className="h-[18px] w-[18px]" aria-hidden />
+            Sign in
+          </>
+        )}
       </button>
     </form>
   );

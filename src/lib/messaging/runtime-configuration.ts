@@ -13,6 +13,8 @@ type WaliDevice = {
 const WALI_DEVICES_URL = "https://api.wali.chat/v1/devices";
 const WALI_RECONNECT_NOTE =
   "The BENMP WhatsApp sender is not connected in WaliChat. Reconnect the BENMP number in WaliChat, then refresh this page.";
+const WALI_DEVICE_ID_NOTE =
+  "The configured WALI_DEVICE_ID is not connected in this WaliChat account. Reconnect the BENMP number and update WALI_DEVICE_ID in deployment settings, then refresh this page.";
 
 let cache:
   | {
@@ -33,6 +35,10 @@ function devicesFromResponse(data: unknown): WaliDevice[] | null {
     return (data as { devices: WaliDevice[] }).devices;
   }
   return null;
+}
+
+function isOperative(status: string | undefined): boolean {
+  return status?.trim().toLowerCase() === "operative";
 }
 
 export async function messagingRuntimeConfiguration(
@@ -73,10 +79,17 @@ export async function messagingRuntimeConfiguration(
       const device = devices.find(
         (candidate) => (candidate.id ?? candidate._id) === deviceId,
       );
-      value =
-        device?.status === "operative"
-          ? { provider: "wali", ready: true }
-          : { provider: "wali", ready: false, note: WALI_RECONNECT_NOTE };
+      if (!device) {
+        value = { provider: "wali", ready: false, note: WALI_DEVICE_ID_NOTE };
+      } else if (isOperative(device.status)) {
+        value = { provider: "wali", ready: true };
+      } else {
+        value = {
+          provider: "wali",
+          ready: false,
+          note: `${WALI_RECONNECT_NOTE} Current device status: ${device.status ?? "unknown"}.`,
+        };
+      }
     }
   } catch {
     value = {

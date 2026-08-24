@@ -662,3 +662,75 @@ Two populations share the table: `source = 'qodesh_registration'` (927, branch `
 - **3,864 rows were rejected, not silently dropped**: 3,267 missing phone, 44 missing name, 553 unrecognized phone shape (placeholders like "N/A", reference codes, malformed/truncated numbers). All logged with source sheet + reason. 653 further exact name+phone duplicates within a sheet were deduped.
 - **Italy's Amount/Payment Type columns** (a giving/pledge list, not directory-only like the rest) are preserved as free-text `notes` — there is no reconciliation path for non-Ghana, non-CSV-import money yet (Decision 0007), so this is intentionally _not_ structured giving data.
 - **Decision 0008's GDPR deferral no longer holds.** It was conditioned on "no Europe partners in play" — this import adds Italy, France, Germany, Austria, Belgium, Hungary, Netherlands, Portugal, Spain, Sweden, Switzerland, and the UK. GDPR scoping is unaddressed and should be picked up before this data is used beyond internal directory lookup.
+
+## Hub platform tables (2026-08-24, Decision 0018)
+
+New tables for the Ghana hub-admin platform. These are additive; the existing POC tables are untouched until the archive-and-clear cutover (Decision 0018 item 7). Seed source: `scripts/data/ghana-hubs-churches.json` (31 hubs, 807 churches, cleaned from the office workbook).
+
+### `hubs`
+
+| Column        | Type        | Notes                                              |
+| ------------- | ----------- | -------------------------------------------------- |
+| `id`          | uuid pk     |                                                    |
+| `hub_number`  | int unique  | The UID the office uses. 1–31.                     |
+| `leader_name` | text        | Display label only — never an identifier.          |
+| `country`     | text        | `'Ghana'` for now; the split-by-country seam.      |
+| `created_at`  | timestamptz |                                                    |
+
+### `hub_churches`
+
+| Column     | Type    | Notes                                                          |
+| ---------- | ------- | -------------------------------------------------------------- |
+| `id`       | uuid pk |                                                                |
+| `hub_id`   | uuid fk | → `hubs`                                                       |
+| `name`     | text    | Title Case display form.                                       |
+| `name_key` | text    | Normalized (upper, single-spaced) for matching. **Unique per hub** (`unique(hub_id, name_key)`); the same name may exist in other hubs. |
+
+### `hub_accounts`
+
+| Column                 | Type         | Notes                                                     |
+| ---------------------- | ------------ | --------------------------------------------------------- |
+| `id`                   | uuid pk      |                                                           |
+| `hub_id`               | uuid fk, unique | One account per hub.                                   |
+| `username`             | text unique  | The hub number as text.                                   |
+| `password_hash`        | text         | scrypt (node:crypto, no external dep). Initial password = hub number. |
+| `must_change_password` | boolean      | Default `true`; login forces the change before anything else. |
+| `last_login_at`        | timestamptz  |                                                           |
+
+### `hub_ingest_batches`
+
+| Column           | Type        | Notes                                                    |
+| ---------------- | ----------- | -------------------------------------------------------- |
+| `id`             | uuid pk     |                                                          |
+| `hub_id`         | uuid fk     |                                                          |
+| `file_name`      | text        |                                                          |
+| `sheet_name`     | text        |                                                          |
+| `column_map`     | jsonb       | Which columns were picked for name/phone/church.         |
+| `row_count`      | int         | Rows in the uploaded sheet.                              |
+| `accepted_count` | int         | Rows that became partners.                               |
+| `status`         | text        | `draft` \| `submitted`.                                  |
+| `created_at` / `submitted_at` | timestamptz |                                              |
+
+### `hub_ingest_rows`
+
+The raw audit trail: every uploaded row as it arrived, plus what became of it.
+
+| Column      | Type    | Notes                                                          |
+| ----------- | ------- | -------------------------------------------------------------- |
+| `id`        | uuid pk |                                                                |
+| `batch_id`  | uuid fk | → `hub_ingest_batches`                                         |
+| `row_index` | int     | Position in the sheet.                                         |
+| `raw`       | jsonb   | Original cell values, untouched.                               |
+| `name`      | text    | Final (possibly corrected-in-preview) value.                   |
+| `phone_e164`| text    | Normalized phone.                                              |
+| `church_id` | uuid fk nullable | → `hub_churches`, after dropdown correction.          |
+| `status`    | text    | `accepted` \| `removed`.                                       |
+| `issues`    | jsonb   | Validation flags raised before correction, kept for audit.     |
+
+### `partners` linkage
+
+Hub-ingested people land in the standing `partners` table (`source = 'hub_ingest_<batch id>'`) with two new nullable columns: `hub_id` and `church_id`. `whatsapp_number` carries the E.164 phone as elsewhere; `church` (text) is set to the canonical church name for compatibility with existing branch-grouping reads.
+
+### Archive at cutover
+
+At the Decision 0018 cutover, current `partners`, `payments`, and `sent_messages` rows are copied to `archive.partners` / `archive.payments` / `archive.sent_messages` (same shape, plus `archived_at`) and exported to CSV files handed to the office, then deleted from the live tables. The `archive` schema is not exposed through any app surface.

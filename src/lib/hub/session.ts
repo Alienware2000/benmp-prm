@@ -9,9 +9,10 @@
  * never inherits staff access, and vice versa.
  *
  * Secret: HUB_SESSION_SECRET, falling back to POC_PASSWORD so a deployed
- * environment is signed even before the dedicated secret is configured. An
- * empty secret (bare local dev) still signs — consistent with the POC gate
- * being open when unconfigured.
+ * environment is signed even before the dedicated secret is configured. With
+ * neither set (bare local dev — deployed envs always have POC_PASSWORD) a
+ * fixed dev placeholder is used, because WebCrypto refuses a zero-length HMAC
+ * key; consistent with the POC gate being open when unconfigured.
  */
 
 export const HUB_SESSION_COOKIE = "hub_session";
@@ -29,7 +30,11 @@ export type HubSession = {
 };
 
 export function hubSessionSecret(): string {
-  return process.env.HUB_SESSION_SECRET ?? process.env.POC_PASSWORD ?? "";
+  return (
+    process.env.HUB_SESSION_SECRET ||
+    process.env.POC_PASSWORD ||
+    "dev-only-unconfigured-secret"
+  );
 }
 
 function b64url(bytes: Uint8Array): string {

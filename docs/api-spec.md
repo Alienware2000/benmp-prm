@@ -226,6 +226,14 @@ Requires a valid hub session. Body `{ currentPassword, newPassword }`. Current p
 
 Clears `hub_session`.
 
+### Ingestion wizard routes (HP-3)
+
+All require a valid hub session; the proxy additionally blocks them while a password change is pending. Validation rules live in `src/lib/hub/ingest.ts` (pure, unit-tested) and run identically in the preview UI and on the server.
+
+- `POST /api/hub/ingest/parse` — multipart upload of one `.xlsx`/`.xlsm`/`.csv` (≤ 8 MB, ≤ 5000 rows/sheet, ≤ 60 columns). Returns `{ fileName, sheets: [{ name, rows: string[][] }] }` — plain text grids for sheet/column picking. Excel cell types (numbers, dates, rich text, formula results) are flattened to display text; an integer phone cell keeps its digits. No writes.
+- `POST /api/hub/ingest/check` — `{ phones: string[] }` (E.164) → `{ existing: { [phone]: { hubNumber | null } } }`, so the preview can flag "already in the system for Hub N" before save. Re-checked at submit regardless.
+- `POST /api/hub/ingest/submit` — `{ fileName, sheetName, columnMap, rows: [{ rowIndex, raw, name, phone, church, removed }] }`. Client state is untrusted: every non-removed row is re-validated (name ≥ 2 words; phone normalizes to E.164 with Ghana default; church on the hub's list, case/whitespace-insensitive; no duplicate phone in the file or in `partners`). Any flagged row → 400 with per-row issues; nothing is written. Clean → writes batch (draft) → all rows incl. removed (audit) → partners (bulk, `source = 'hub_ingest_<batch>'`, hub/church links) → batch submitted. A retry after partial failure is stopped by the duplicate-phone rule, not by duplicating partners.
+
 ### Middleware gate
 
 `src/proxy.ts` + `src/lib/hub/gate.ts` (pure, tested): `/hub/*` and `/api/hub/*` require a valid hub session; a hub session outside `/hub` is redirected into it (never reaches `/poc`); `mustChange` sessions are forced to `/hub/password`; staff cookies grant no hub access and vice versa.

@@ -23,10 +23,11 @@ export function HubSignOut() {
       type="button"
       onClick={signOut}
       disabled={busy}
-      className="flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-45"
+      aria-label="Sign out"
+      className="flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-45 sm:px-3"
     >
       <LogOut className="h-3.5 w-3.5" aria-hidden />
-      Sign out
+      <span className="hidden sm:inline">Sign out</span>
     </button>
   );
 }

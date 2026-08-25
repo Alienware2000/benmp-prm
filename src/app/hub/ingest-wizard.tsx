@@ -11,6 +11,8 @@
  * time and re-checked on save.
  */
 import {
+  ArrowDown,
+  Check,
   CircleAlert,
   CircleCheck,
   FileSpreadsheet,
@@ -49,6 +51,49 @@ type Step = "upload" | "map" | "preview" | "done";
 const inputBase =
   "h-9 w-full rounded border bg-background px-2.5 text-[13px] text-foreground outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15";
 
+const STEPS: { key: Step; label: string }[] = [
+  { key: "upload", label: "Upload" },
+  { key: "map", label: "Columns" },
+  { key: "preview", label: "Check & fix" },
+  { key: "done", label: "Saved" },
+];
+
+/** Where-am-I strip across the top of the wizard. */
+function StepIndicator({ current }: { current: Step }) {
+  const idx = STEPS.findIndex((s) => s.key === current);
+  return (
+    <ol className="mb-6 flex flex-wrap items-center gap-x-1.5 gap-y-2">
+      {STEPS.map((s, i) => (
+        <li key={s.key} className="flex items-center gap-1.5">
+          <span
+            className={
+              "grid h-6 w-6 flex-none place-items-center rounded-full text-[11px] font-bold " +
+              (i < idx
+                ? "bg-success/15 text-success"
+                : i === idx
+                  ? "bg-brand text-white"
+                  : "bg-muted text-muted-foreground")
+            }
+          >
+            {i < idx ? <Check className="h-3.5 w-3.5" aria-hidden /> : i + 1}
+          </span>
+          <span
+            className={
+              "text-xs font-semibold " +
+              (i === idx ? "text-foreground" : "text-muted-foreground")
+            }
+          >
+            {s.label}
+          </span>
+          {i < STEPS.length - 1 && (
+            <span className="mx-1 h-px w-4 bg-border sm:w-7" aria-hidden />
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -65,6 +110,7 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
     { name: "", phone: "", church: "" },
   );
 
+  const [dragging, setDragging] = useState(false);
   const [rows, setRows] = useState<EditRow[]>([]);
   const [existingPhones, setExistingPhones] = useState<
     Record<string, ExistingPhoneInfo>
@@ -244,8 +290,26 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
     <div className="rounded-lg border border-border bg-surface">
       <div className="h-1 rounded-t-lg bg-accent" />
       <div className="p-5 sm:p-6">
+        <StepIndicator current={step} />
         {step === "upload" && (
-          <div className="text-center">
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              onFile(e.dataTransfer.files?.[0]);
+            }}
+            className={
+              "rounded-lg border-2 border-dashed px-4 py-10 text-center transition " +
+              (dragging
+                ? "border-brand bg-brand/5"
+                : "border-border bg-background/40")
+            }
+          >
             <span className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-brand/10 text-brand">
               <FileUp className="h-6 w-6" aria-hidden />
             </span>
@@ -255,7 +319,8 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
             <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
               An Excel file (.xlsx) or CSV with names, WhatsApp numbers, and the
               church each partner belongs to. You will check and correct
-              everything before it is saved.
+              everything before anything is saved — nothing goes in behind your
+              back.
             </p>
             <div className="mt-5">
               <input
@@ -278,6 +343,9 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                 )}
                 {busy ? "Reading file..." : "Choose file"}
               </button>
+              <p className="mt-2 text-xs text-muted-foreground">
+                or drag the file anywhere into this box
+              </p>
             </div>
           </div>
         )}
@@ -362,14 +430,52 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
 
             <div className="overflow-x-auto rounded border border-border">
               <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr>
+                    {Array.from({ length: columnCount }, (_, c) => {
+                      const tag =
+                        c === cols.name
+                          ? "Name"
+                          : c === cols.phone
+                            ? "Phone"
+                            : c === cols.church
+                              ? "Church"
+                              : null;
+                      return (
+                        <th key={c} className="border-b border-border px-3 py-1.5">
+                          {tag ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                              <Check className="h-3 w-3" aria-hidden />
+                              {tag}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60">
+                              —
+                            </span>
+                          )}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
                 <tbody>
                   {sheet.rows.slice(0, 6).map((r, i) => (
                     <tr key={i} className={i === 0 && hasHeader ? "bg-muted/60 font-semibold" : "odd:bg-background"}>
-                      {Array.from({ length: columnCount }, (_, c) => (
-                        <td key={c} className="whitespace-nowrap border-b border-border px-3 py-1.5 text-foreground">
-                          {(r[c] ?? "").slice(0, 40)}
-                        </td>
-                      ))}
+                      {Array.from({ length: columnCount }, (_, c) => {
+                        const picked =
+                          c === cols.name || c === cols.phone || c === cols.church;
+                        return (
+                          <td
+                            key={c}
+                            className={
+                              "whitespace-nowrap border-b border-border px-3 py-1.5 " +
+                              (picked ? "bg-brand/5 text-foreground" : "text-muted-foreground")
+                            }
+                          >
+                            {(r[c] ?? "").slice(0, 40)}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>
@@ -411,15 +517,31 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                   )}
                 </p>
               </div>
-              <button type="button" onClick={reset} className="text-sm font-semibold text-muted-foreground hover:text-foreground">
-                Start over
-              </button>
+              <div className="flex items-center gap-2">
+                {flaggedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      document
+                        .querySelector('[data-flagged="true"]')
+                        ?.scrollIntoView({ behavior: "smooth", block: "center" })
+                    }
+                    className="inline-flex h-9 items-center gap-1.5 rounded-md border border-danger/30 bg-danger/5 px-3 text-xs font-semibold text-danger transition hover:bg-danger/10"
+                  >
+                    <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+                    Go to first problem
+                  </button>
+                )}
+                <button type="button" onClick={reset} className="text-sm font-semibold text-muted-foreground hover:text-foreground">
+                  Start over
+                </button>
+              </div>
             </div>
 
-            <div className="overflow-x-auto rounded border border-border">
+            <div className="max-h-[65vh] overflow-auto rounded border border-border">
               <table className="w-full min-w-[640px] text-left text-[13px]">
-                <thead>
-                  <tr className="bg-muted/60 text-xs font-semibold text-muted-foreground">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-muted text-xs font-semibold text-muted-foreground">
                     <th className="px-2 py-2">Row</th>
                     <th className="px-2 py-2">Name</th>
                     <th className="px-2 py-2">WhatsApp number</th>
@@ -478,7 +600,8 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
               From “{fileName}”
               {result.removed > 0
                 ? ` — ${result.removed} row${result.removed === 1 ? " was" : "s were"} left out and kept on record.`
-                : "."}
+                : "."}{" "}
+              They now count toward your hub&apos;s totals below.
             </p>
             <button
               type="button"
@@ -550,9 +673,19 @@ function PreviewRow({
     (c) => c.nameKey === normalizeChurchKey(row.church),
   );
 
+  const flagged = issues.length > 0;
   return (
-    <tr className="odd:bg-background align-top">
-      <td className="px-2 py-1.5 tabular-nums text-muted-foreground">{row.rowIndex}</td>
+    <tr className="odd:bg-background align-top" data-flagged={flagged || undefined}>
+      <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-muted-foreground">
+        <span className="inline-flex items-center gap-1">
+          {flagged ? (
+            <TriangleAlert className="h-3.5 w-3.5 text-danger" aria-hidden />
+          ) : (
+            <CircleCheck className="h-3.5 w-3.5 text-success" aria-hidden />
+          )}
+          {row.rowIndex}
+        </span>
+      </td>
       <td className="px-2 py-1.5">
         <FlaggedCell message={issueFor("name")}>
           <input

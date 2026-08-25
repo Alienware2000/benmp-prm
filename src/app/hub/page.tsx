@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { Church, Users } from "lucide-react";
+import { ChevronDown, Church, Users } from "lucide-react";
 import {
   HUB_SESSION_COOKIE,
   hubSessionSecret,
@@ -88,6 +88,35 @@ export default async function HubHomePage() {
         </div>
       </div>
 
+      <details className="group rounded-lg border border-border bg-surface">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 [&::-webkit-details-marker]:hidden">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Your hub&apos;s approved church list
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Church names in your uploads must match one of these — open the
+              list to check your spreadsheet before uploading.
+            </p>
+          </div>
+          <ChevronDown
+            className="h-4 w-4 flex-none text-muted-foreground transition-transform group-open:rotate-180"
+            aria-hidden
+          />
+        </summary>
+        <div className="border-t border-border px-5 py-4">
+          <ul className="flex flex-wrap gap-1.5">
+            {churches.map((c) => (
+              <li
+                key={c.id}
+                className="rounded-full border border-border bg-background px-2.5 py-1 text-xs text-foreground"
+              >
+                {c.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </details>
     </div>
   );
 }

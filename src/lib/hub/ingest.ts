@@ -175,7 +175,18 @@ export function validateCandidates(
       issues.push({ field: "phone", message: "Phone number is missing." });
     } else {
       phoneE164 = normalizePhone(cand.phone);
-      if (!phoneE164) {
+      // Ghana mobile numbers all start 02x/05x (NSN 2… or 5…, 9 digits). A
+      // right-length number with an impossible start ("0123456789") or a
+      // fixed line ("030…") is not a WhatsApp number. Other countries are
+      // accepted as-is — we can't know every foreign plan.
+      if (phoneE164?.startsWith("+233") && !/^[25]\d{8}$/.test(phoneE164.slice(4))) {
+        phoneE164 = null;
+        issues.push({
+          field: "phone",
+          message:
+            "Not a Ghana mobile number — it should start with 02 or 05, like 0244123456.",
+        });
+      } else if (!phoneE164) {
         issues.push({
           field: "phone",
           message:

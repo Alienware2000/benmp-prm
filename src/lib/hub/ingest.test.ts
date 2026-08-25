@@ -114,6 +114,24 @@ describe("validateCandidates", () => {
     }
   });
 
+  it("flags right-length numbers that are not Ghana mobiles (02x/05x only)", () => {
+    const rows = validateCandidates(
+      [
+        cand({ phone: "0123456789" }), // impossible start
+        cand({ phone: "0302123456" }), // Accra fixed line, not mobile
+        cand({ phone: "+233 3021 23456" }), // same via international form
+        cand({ phone: "0596123456" }), // valid 05x mobile
+      ],
+      ctx(),
+    );
+    expect(rows[0].phoneE164).toBeNull();
+    expect(rows[0].issues[0].message).toMatch(/02 or 05/);
+    expect(rows[1].phoneE164).toBeNull();
+    expect(rows[2].phoneE164).toBeNull();
+    expect(rows[3].phoneE164).toBe("+233596123456");
+    expect(rows[3].issues).toEqual([]);
+  });
+
   it("matches churches case- and whitespace-insensitively, flags unknown ones", () => {
     const rows = validateCandidates(
       [cand({ church: "  AGONA   NKWANTA " }), cand({ church: "Qodesh" })],

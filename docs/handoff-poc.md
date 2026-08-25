@@ -50,7 +50,9 @@ The provider story moved twice since the first draft of this document, so read t
 
 The hub platform is deployed and seeded in production: 31 hubs, 807 churches, 31 hub accounts (verified counts in Supabase). Hub leaders sign in at `/login` (Hub leader tab) with their hub number; the starting password is the hub number and a change is forced on first sign-in. Smoke-tested on production: hub 7 login → forced password screen → signed out without setting a password, so every hub's starting credential remains the hub number. Ghana archive-and-clear cutover (HP-4) has NOT happened — the POC console and its data are untouched.
 
-HP-4 shipped 2026-08-25: hub-scoped partner view at `/hub/partners`; password reset via `npx tsx --env-file=.env.local scripts/reset-hub-password.ts <hubNumber>`; cutover tooling written but NOT executed (`scripts/export-ghana-archive.ts` then `scripts/sql/archive-ghana-cutover.sql` — run only after office sign-off). Still open: office confirmation of the church list · the cutover itself.
+HP-4 shipped 2026-08-25: hub-scoped partner view at `/hub/partners`; hub settings at `/hub/settings`; password reset via `npx tsx --env-file=.env.local scripts/reset-hub-password.ts <hubNumber>`.
+
+**THE CUTOVER WAS EXECUTED 2026-08-25 on David's instruction.** One verified transaction archived 26,092 partners, 928 registrations, 211 payments, and 27 sent_messages into the `archive` schema (RLS-enabled, not exposed via PostgREST) and cleared the live tables. The end-to-end flow was proven on production first (hub 7 upload → rows visible in the shared `partners` table the staff console reads), then everything was reset: live partners 0, all 31 hub accounts back to starting password = hub number with forced change. The old `/poc` console now shows empty data by design — the hub platform is the only door for Ghana partner data. CSVs of the archive can be exported anytime from the `archive.*` tables. Still open: office confirmation of the church list · credential rollout to the 31 leaders.
 
 ## Background — original plan: Ghana hub admin platform (Decision 0018)
 

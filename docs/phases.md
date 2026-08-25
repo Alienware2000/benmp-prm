@@ -479,3 +479,48 @@ VERIFY:
 - Provider specifics live behind adapters (`src/lib/data/`, `src/lib/messaging/<provider>/`) — UI and business logic import contracts only. Payment intake is CSV parsing in `src/lib/payments/csv/` + `match.ts` (no payment provider — Decision 0007).
 - Money is integer minor units + `numeric` `usd_equivalent` — never JS float arithmetic on amounts.
 - Keep CSV-import/intake logs structured (source, row reference, match outcome, status) so money movements are greppable.
+
+---
+
+# Hub Admin Platform (Decision 0018) — active build, 2026-08-24
+
+The Ghana hub-admin platform builds on the **live POC system** (not the mock MVP the phases above assume). It is the new front door for Ghana partner data: 31 hub logins and a church-validated ingestion wizard. Schema contract: "Hub platform tables" in [db-schema.md](db-schema.md). Same definition of done as above: a task is done when its named test is green; phase gate is `npm run typecheck && npm run lint && npm test && npm run build`.
+
+## HP phase summary
+
+| # | Phase | Depends on |
+|---|---|---|
+| HP-1 | Schema + seed (hubs, churches, accounts, ingest tables) | — |
+| HP-2 | Hub auth (hub-number login, forced password change, hub-scoped gate) | HP-1 |
+| HP-3 | Ingestion wizard (upload → sheet → column picker → editable validation preview → submit) | HP-2 |
+| HP-4 | Archive & cutover + hub partner view | HP-3, office sign-off |
+
+## HP-1 — Schema + seed
+
+Migration adds `hubs`, `hub_churches`, `hub_accounts`, `hub_ingest_batches`, `hub_ingest_rows`, and `partners.hub_id`/`partners.church_id`. A seed script loads `scripts/data/ghana-hubs-churches.json` and creates the 31 accounts (bcrypt hash of the hub number, `must_change_password = true`).
+
+**VERIFY**: seed is idempotent (second run changes nothing) · counts are exactly 31 hubs / 807 churches / 31 accounts · `unique(hub_id, name_key)` rejects a same-hub duplicate while the same name in two hubs is accepted · name normalization collapses case and doubled spaces.
+
+## HP-2 — Hub auth
+
+Hub login on the existing `/login` page (hub number + password) alongside the staff password. Server verifies against `hub_accounts`, sets a hub session cookie distinct from the staff cookie, and forces the password-change screen while `must_change_password` is true. Route gate: hub sessions reach only the hub area (`/hub/*`); staff routes behave exactly as before.
+
+**VERIFY**: hub number + initial password logs in and is hard-redirected to password change — no wizard access until changed · new password persists (bcrypt) and old one stops working · hub session cannot reach `/poc` or another hub's data · staff login path unchanged (existing tests stay green).
+
+## HP-3 — Ingestion wizard
+
+The hub admin's landing page is the upload box. Flow: upload `.xlsx`/`.csv` (parsed server-side) → pick the sheet → pick the name/phone/church columns (header text never rejects a file) → **editable preview grid**: every failing cell gets a red mark with the reason on hover; church cells offer a dropdown of the hub's approved list; rows can be edited or removed → submit is enabled only when every remaining row is clean → accepted rows become `partners` (`source = 'hub_ingest_<batch>'`), and the batch + raw rows are written for audit.
+
+Validation rules (pure functions, unit-tested first): name ≥ 2 space-separated words · phone normalizes to valid E.164 (`0XXXXXXXXX` → `+233…`; other country codes accepted; reuse `src/lib/phone.ts`) · church matches the hub's list case/whitespace-insensitively · duplicate phone flagged within the upload and against existing partners ("already exists in Hub N") — flagged, never silently skipped or overwritten.
+
+**VERIFY**: each validation rule has red/green cases (one-word name fails, `024…` 9-digit fails, `0244123456` → `+233244123456`, church "AGONA NKWANTA" matches "Agona Nkwanta", cross-hub duplicate phone flags with the hub named) · submit with any dirty row is refused server-side (client state untrusted) · a submitted batch is reproducible from `hub_ingest_rows.raw` · re-submitting the same batch does not duplicate partners.
+
+## HP-4 — Archive & cutover + hub partner view
+
+Hub admins get a read view of their own hub's ingested partners and church list. Cutover (run once, after office sign-off): export current `partners`/`payments`/`sent_messages` to CSV, copy to `archive.*` tables, then clear the live tables. Scripted, not a UI button.
+
+**VERIFY**: archive row counts equal live counts before clearing · CSV exports open and match row counts · after clearing, the hub platform works against the empty live tables · archive schema is unreachable from every app route.
+
+## As-built notes
+
+_(add deviations here, dated)_

@@ -46,6 +46,10 @@ The provider story moved twice since the first draft of this document, so read t
 - **Media gift acknowledgements**, with the provider attachment limit enforced.
 - **Staff sign-in refresh**, and light mode enforced on every device.
 
+## Next build: Ghana hub admin platform (Decision 0018)
+
+Agreed 2026-08-24 from Bishop Ebo's hub structure: 31 Ghana hubs, each with its own login (hub number; forced password change on first use) and a church-validated Excel/CSV ingestion wizard with an editable correction preview. Ghana data gets a fresh start — the current data is archived (CSV export + hidden archive tables) and cleared **only at cutover, after the platform is built and signed off**; the POC console runs untouched until then. Canonical hub/church seed: `scripts/data/ghana-hubs-churches.json`. Plan: the "Hub Admin Platform" phases (HP-1…HP-4) in [phases.md](phases.md); schema in [db-schema.md](db-schema.md).
+
 ## Picking this back up
 
 1. Read `docs/decisions.md` from 0010 onward — that is where the current shape of the system was set.

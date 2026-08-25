@@ -4,11 +4,15 @@ import { CircleAlert, Eye, EyeOff, LoaderCircle, LogIn } from "lucide-react";
 import { FormEvent, KeyboardEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+type Mode = "staff" | "hub";
+
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/poc";
 
+  const [mode, setMode] = useState<Mode>("staff");
+  const [hubNumber, setHubNumber] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [caps, setCaps] = useState(false);
@@ -24,14 +28,27 @@ export function LoginForm() {
     setBusy(true);
     setError(null);
     try {
+      const body =
+        mode === "hub" ? { hubNumber, password } : { password };
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
-        router.replace(next);
+        if (mode === "hub") {
+          const data = (await res.json().catch(() => ({}))) as {
+            mustChange?: boolean;
+          };
+          router.replace(data.mustChange ? "/hub/password" : "/hub");
+        } else {
+          router.replace(next);
+        }
         router.refresh();
+      } else if (mode === "hub") {
+        setError(
+          "That hub number and password combination is not correct. Check with the BENMP office and try again.",
+        );
       } else {
         setError(
           "That password is not correct. Check with the BENMP office and try again.",
@@ -46,12 +63,68 @@ export function LoginForm() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      <div
+        role="tablist"
+        aria-label="Sign-in type"
+        className="grid grid-cols-2 gap-1 rounded-md border border-border bg-background p-1"
+      >
+        {(
+          [
+            ["staff", "Office staff"],
+            ["hub", "Hub leader"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={mode === value}
+            onClick={() => {
+              setMode(value);
+              setError(null);
+            }}
+            className={
+              "h-9 rounded text-[13px] font-semibold transition " +
+              (mode === value
+                ? "bg-brand text-white shadow-sm"
+                : "text-muted-foreground hover:text-foreground")
+            }
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "hub" && (
+        <div>
+          <label
+            htmlFor="hub-number"
+            className="mb-2 block text-[13px] font-semibold text-foreground"
+          >
+            Hub number
+          </label>
+          <input
+            id="hub-number"
+            type="text"
+            inputMode="numeric"
+            autoComplete="username"
+            value={hubNumber}
+            onChange={(e) => {
+              setHubNumber(e.target.value);
+              setError(null);
+            }}
+            placeholder="e.g. 12"
+            className="h-12 w-full rounded-md border border-border bg-background px-3.5 text-sm text-foreground outline-none transition focus:border-brand focus:bg-surface focus:ring-[3px] focus:ring-brand/15 placeholder:text-muted-foreground/60"
+          />
+        </div>
+      )}
+
       <div>
         <label
           htmlFor="password"
           className="mb-2 block text-[13px] font-semibold text-foreground"
         >
-          Office password
+          {mode === "hub" ? "Hub password" : "Office password"}
         </label>
         <div className="relative flex items-center">
           <input
@@ -92,7 +165,9 @@ export function LoginForm() {
         >
           {caps
             ? "Caps Lock is on."
-            : "Use the password provided by the BENMP office."}
+            : mode === "hub"
+              ? "First time signing in? Your starting password is your hub number."
+              : "Use the password provided by the BENMP office."}
         </p>
       </div>
 
@@ -108,7 +183,11 @@ export function LoginForm() {
 
       <button
         type="submit"
-        disabled={busy || password.length === 0}
+        disabled={
+          busy ||
+          password.length === 0 ||
+          (mode === "hub" && hubNumber.trim().length === 0)
+        }
         className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-brand px-4 text-sm font-semibold text-white transition hover:bg-brand-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand/40 disabled:cursor-not-allowed disabled:opacity-45"
       >
         {busy ? (

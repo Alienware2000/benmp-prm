@@ -64,6 +64,7 @@ Error shape:
 | CSV payment import       | Supabase staff session and finance/admin role (no provider webhooks — Decision 0007). |
 | Messaging webhooks       | Provider signature or verify token, not staff session.                                |
 | AI chat                  | Supabase staff session.                                                               |
+| Hub-admin pages/API      | Signed hub session cookie (`hub_session`, HMAC, Decision 0018) — see Hub Auth below.  |
 
 ### Idempotency
 
@@ -207,6 +208,27 @@ Rules:
 - Sending checks consent.
 - Auto-send remains disabled until office explicitly approves it.
 - Provider responses update `communication_messages` or contribution acknowledgement state.
+
+## Hub Auth Routes (HP-2, as-built 2026-08-24, Decision 0018)
+
+Live routes on the POC deployment (not the planned Supabase-Auth staff model above). One login door at `/api/login`; the body decides which kind of session is issued.
+
+### `POST /api/login`
+
+- `{ "password" }` — staff: verifies against the shared `POC_PASSWORD`, sets `poc_session`.
+- `{ "hubNumber", "password" }` — hub leader: verifies against `hub_accounts` (scrypt), touches `last_login_at`, sets `hub_session` (HMAC-signed stateless cookie, 7 days, secret `HUB_SESSION_SECRET` → fallback `POC_PASSWORD`). Response: `{ ok, mustChange }`. Unknown hub and wrong password return one indistinguishable 401.
+
+### `POST /api/hub/password`
+
+Requires a valid hub session. Body `{ currentPassword, newPassword }`. Current password is re-verified against the database (a stolen cookie alone cannot rotate it). New password: ≥ 8 chars, not the hub number. On success re-issues `hub_session` with `mustChange: false`.
+
+### `POST /api/hub/logout`
+
+Clears `hub_session`.
+
+### Middleware gate
+
+`src/proxy.ts` + `src/lib/hub/gate.ts` (pure, tested): `/hub/*` and `/api/hub/*` require a valid hub session; a hub session outside `/hub` is redirected into it (never reaches `/poc`); `mustChange` sessions are forced to `/hub/password`; staff cookies grant no hub access and vice versa.
 
 ## 6. Payment Intake (CSV-only)
 

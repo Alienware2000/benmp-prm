@@ -46,7 +46,13 @@ The provider story moved twice since the first draft of this document, so read t
 - **Media gift acknowledgements**, with the provider attachment limit enforced.
 - **Staff sign-in refresh**, and light mode enforced on every device.
 
-## Next build: Ghana hub admin platform (Decision 0018)
+## Ghana hub admin platform — LIVE (Decision 0018, deployed 2026-08-25)
+
+The hub platform is deployed and seeded in production: 31 hubs, 807 churches, 31 hub accounts (verified counts in Supabase). Hub leaders sign in at `/login` (Hub leader tab) with their hub number; the starting password is the hub number and a change is forced on first sign-in. Smoke-tested on production: hub 7 login → forced password screen → signed out without setting a password, so every hub's starting credential remains the hub number. Ghana archive-and-clear cutover (HP-4) has NOT happened — the POC console and its data are untouched.
+
+Still open before rollout: an admin path to reset a hub's password (currently a manual SQL update) · office confirmation of the church list · HP-4 (hub partner view + archive & cutover).
+
+## Background — original plan: Ghana hub admin platform (Decision 0018)
 
 Agreed 2026-08-24 from Bishop Ebo's hub structure: 31 Ghana hubs, each with its own login (hub number; forced password change on first use) and a church-validated Excel/CSV ingestion wizard with an editable correction preview. Ghana data gets a fresh start — the current data is archived (CSV export + hidden archive tables) and cleared **only at cutover, after the platform is built and signed off**; the POC console runs untouched until then. Canonical hub/church seed: `scripts/data/ghana-hubs-churches.json`. Plan: the "Hub Admin Platform" phases (HP-1…HP-4) in [phases.md](phases.md); schema in [db-schema.md](db-schema.md).
 

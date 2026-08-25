@@ -523,4 +523,5 @@ Hub admins get a read view of their own hub's ingested partners and church list.
 
 ## As-built notes
 
-_(add deviations here, dated)_
+- **HP-1..HP-3 (2026-08-24/25)**: shipped as PRs #30-32; production Supabase seeded 2026-08-25 (31 hubs / 807 churches / 31 accounts, verified). scrypt via node:crypto instead of bcrypt (no new dependency). Ten church names carried invisible U+2060 chars from the workbook — stripped at source, `normalizeChurchKey` now strips zero-width chars. Ghana phone rule tightened: +233 numbers must be mobiles (NSN `^[25]\d{8}$`); other country codes accepted as-is.
+- **HP-4 (2026-08-25)**: hub partner view at `/hub/partners` (hub-scoped, searchable) with an Upload / Your partners nav. Password reset is a script, not UI: `scripts/reset-hub-password.ts <hubNumber>` (back to hub number + forced change). Cutover is two artifacts, **written but not executed**: `scripts/export-ghana-archive.ts` (CSVs of pre-hub partners, registrations, payments, sent_messages) then `scripts/sql/archive-ghana-cutover.sql` (single transaction; copies to an `archive` schema unreachable via PostgREST, aborts on any count mismatch, deletes only `partners.hub_id IS NULL` so hub uploads survive; deliberately not re-runnable). Run order and sign-off gate documented in both files' headers.

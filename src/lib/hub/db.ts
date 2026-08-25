@@ -225,6 +225,34 @@ export async function markBatchSubmitted(
   });
 }
 
+export type HubPartnerRow = {
+  id: string;
+  full_name: string;
+  whatsapp_number: string;
+  church: string | null;
+  created_at: string;
+};
+
+/**
+ * The partners this hub has uploaded, newest first. Paged under PostgREST's
+ * silent 1000-row cap; hubs run tens-to-hundreds of rows, but a big hub must
+ * not silently truncate.
+ */
+export async function getHubPartners(hubId: string): Promise<HubPartnerRow[]> {
+  const out: HubPartnerRow[] = [];
+  const page = 1000;
+  for (let offset = 0; ; offset += page) {
+    const rows = await rest<HubPartnerRow[]>(
+      `partners?hub_id=eq.${encodeURIComponent(hubId)}` +
+        `&select=id,full_name,whatsapp_number,church,created_at` +
+        `&order=created_at.desc,id.asc&limit=${page}&offset=${offset}`,
+    );
+    out.push(...rows);
+    if (rows.length < page) break;
+  }
+  return out;
+}
+
 export type HubSummary = {
   hubNumber: number;
   leaderName: string;

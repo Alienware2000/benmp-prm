@@ -4,6 +4,7 @@ import {
   hubSessionSecret,
   verifyHubSessionToken,
 } from "@/lib/hub/session";
+import { HubNav } from "./nav";
 import { HubSignOut } from "./sign-out";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +53,7 @@ export default async function HubLayout({
           </div>
         </div>
       </header>
+      {session && !session.mustChange && <HubNav />}
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8 sm:px-6">
         {children}
       </main>

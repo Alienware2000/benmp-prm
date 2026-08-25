@@ -222,6 +222,10 @@ Live routes on the POC deployment (not the planned Supabase-Auth staff model abo
 
 Requires a valid hub session. Body `{ currentPassword, newPassword }`. Current password is re-verified against the database (a stolen cookie alone cannot rotate it). New password: ≥ 8 chars, not the hub number. On success re-issues `hub_session` with `mustChange: false`.
 
+### `PATCH /api/hub/account`
+
+Requires a valid hub session. Body `{ leaderName }` (2-80 chars) — updates the hub's leader/contact display name. The hub number is the identity and is not editable.
+
 ### `POST /api/hub/logout`
 
 Clears `hub_session`.

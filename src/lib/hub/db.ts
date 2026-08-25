@@ -225,6 +225,32 @@ export async function markBatchSubmitted(
   });
 }
 
+export type HubAccountMeta = {
+  lastLoginAt: string | null;
+  createdAt: string;
+};
+
+export async function getHubAccountMeta(
+  accountId: string,
+): Promise<HubAccountMeta | null> {
+  const rows = await rest<{ last_login_at: string | null; created_at: string }[]>(
+    `hub_accounts?id=eq.${encodeURIComponent(accountId)}&select=last_login_at,created_at`,
+  );
+  const row = rows?.[0];
+  return row ? { lastLoginAt: row.last_login_at, createdAt: row.created_at } : null;
+}
+
+export async function updateHubLeaderName(
+  hubId: string,
+  leaderName: string,
+): Promise<void> {
+  await rest(`hubs?id=eq.${encodeURIComponent(hubId)}`, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ leader_name: leaderName }),
+  });
+}
+
 export type HubPartnerRow = {
   id: string;
   full_name: string;

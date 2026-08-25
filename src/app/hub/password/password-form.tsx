@@ -1,19 +1,25 @@
 "use client";
 
-import { CircleAlert, LoaderCircle, Save } from "lucide-react";
+import { CircleAlert, CircleCheck, LoaderCircle, Save } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const inputClass =
   "h-12 w-full rounded-md border border-border bg-background px-3.5 text-sm text-foreground outline-none transition focus:border-brand focus:bg-surface focus:ring-[3px] focus:ring-brand/15 placeholder:text-muted-foreground/60";
 
-export function PasswordForm() {
+/**
+ * Change-password form, used in two places: the forced first-sign-in flow
+ * (redirects to the hub home on success) and Settings (stays put and shows
+ * an inline confirmation instead).
+ */
+export function PasswordForm({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -23,6 +29,7 @@ export function PasswordForm() {
     }
     setBusy(true);
     setError(null);
+    setSaved(false);
     try {
       const res = await fetch("/api/hub/password", {
         method: "POST",
@@ -31,8 +38,15 @@ export function PasswordForm() {
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (res.ok) {
-        router.replace("/hub");
-        router.refresh();
+        if (embedded) {
+          setCurrent("");
+          setNext("");
+          setConfirm("");
+          setSaved(true);
+        } else {
+          router.replace("/hub");
+          router.refresh();
+        }
       } else {
         setError(data.error ?? "Could not change the password. Try again.");
       }
@@ -45,6 +59,15 @@ export function PasswordForm() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      {saved && (
+        <p
+          role="status"
+          className="flex items-start gap-2 rounded-md border border-success/25 bg-success/5 px-3 py-2.5 text-[13px] leading-5 text-success"
+        >
+          <CircleCheck className="mt-0.5 h-4 w-4 flex-none" aria-hidden />
+          Password changed. Use the new one next time you sign in.
+        </p>
+      )}
       <div>
         <label
           htmlFor="current"
@@ -55,7 +78,7 @@ export function PasswordForm() {
         <input
           id="current"
           type="password"
-          autoFocus
+          autoFocus={!embedded}
           autoComplete="current-password"
           value={current}
           onChange={(e) => {

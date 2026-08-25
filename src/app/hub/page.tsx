@@ -1,18 +1,18 @@
 import { cookies } from "next/headers";
-import { Church, FileUp, Users } from "lucide-react";
+import { ChevronDown, Church, Users } from "lucide-react";
 import {
   HUB_SESSION_COOKIE,
   hubSessionSecret,
   verifyHubSessionToken,
 } from "@/lib/hub/session";
-import { getHubSummary } from "@/lib/hub/db";
+import { getHubChurches, getHubSummary } from "@/lib/hub/db";
+import { IngestWizard } from "./ingest-wizard";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Hub home (HP-2). For now: who is signed in and the hub's numbers. The
- * upload wizard (HP-3) replaces the placeholder card as the page's centerpiece —
- * "upon log in the page should just have the upload box".
+ * Hub home: the upload wizard front and center ("upon log in the page should
+ * just have the upload box" — Decision 0018), with the hub's numbers beneath.
  */
 export default async function HubHomePage() {
   const store = await cookies();
@@ -20,7 +20,12 @@ export default async function HubHomePage() {
     store.get(HUB_SESSION_COOKIE)?.value,
     hubSessionSecret(),
   );
-  const summary = session ? await getHubSummary(session.hubId) : null;
+  const [summary, churches] = session
+    ? await Promise.all([
+        getHubSummary(session.hubId),
+        getHubChurches(session.hubId),
+      ])
+    : [null, []];
 
   if (!session || !summary) {
     // The proxy should make this unreachable; fail soft rather than crash.
@@ -41,6 +46,14 @@ export default async function HubHomePage() {
           Led by {summary.leaderName}
         </p>
       </div>
+
+      <IngestWizard
+        churches={churches.map((c) => ({
+          id: c.id,
+          name: c.name,
+          nameKey: c.name_key,
+        }))}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-lg border border-border bg-surface p-5">
@@ -75,19 +88,35 @@ export default async function HubHomePage() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-dashed border-border bg-surface p-8 text-center">
-        <span className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-muted text-muted-foreground">
-          <FileUp className="h-6 w-6" aria-hidden />
-        </span>
-        <h2 className="mt-3 text-sm font-semibold text-foreground">
-          Partner upload
-        </h2>
-        <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
-          The Excel upload for your hub&apos;s partner lists is being built and
-          will appear here. You will be able to upload a file, check every row,
-          and correct anything before it is saved.
-        </p>
-      </div>
+      <details className="group rounded-lg border border-border bg-surface">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 [&::-webkit-details-marker]:hidden">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Your hub&apos;s approved church list
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Church names in your uploads must match one of these — open the
+              list to check your spreadsheet before uploading.
+            </p>
+          </div>
+          <ChevronDown
+            className="h-4 w-4 flex-none text-muted-foreground transition-transform group-open:rotate-180"
+            aria-hidden
+          />
+        </summary>
+        <div className="border-t border-border px-5 py-4">
+          <ul className="flex flex-wrap gap-1.5">
+            {churches.map((c) => (
+              <li
+                key={c.id}
+                className="rounded-full border border-border bg-background px-2.5 py-1 text-xs text-foreground"
+              >
+                {c.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </details>
     </div>
   );
 }

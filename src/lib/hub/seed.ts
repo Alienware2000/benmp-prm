@@ -22,9 +22,18 @@ export type ParsedHubSeed = {
   churchCount: number;
 };
 
-/** Case/whitespace-insensitive identity for a church name. */
+/**
+ * Case/whitespace-insensitive identity for a church name. Also strips
+ * invisible characters (zero-width spaces/joiners, BOM) — the office workbook
+ * really contained a word-joiner in front of several names, which would make
+ * "Akrokerri" silently fail to match "⁠Akrokerri".
+ */
 export function normalizeChurchKey(raw: string): string {
-  return raw.trim().replace(/\s+/g, " ").toUpperCase();
+  return raw
+    .replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
 }
 
 /**

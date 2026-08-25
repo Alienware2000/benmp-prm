@@ -1,14 +1,14 @@
 {
   "source": "UD GHANA CHURCHES.xlsx (office meeting dump, 2026-08-24)",
-  "notes": "Canonical Ghana hub/church list. Church names are Title Case for display (known acronyms preserved); matching is case/whitespace-insensitive. One in-sheet duplicate (Ashalaja, hub 22) was dropped. Hub 6 sheet had no header row.",
+  "notes": "Canonical Ghana hub/church list. Church names are Title Case for display (known acronyms preserved); matching is case/whitespace-insensitive. One in-sheet duplicate (Ashalaja, hub 22) was dropped. Hub 6 sheet had no header row. Invisible unicode characters (word-joiners) found in several names were stripped 2026-08-25.",
   "hubs": [
     {
       "hubNumber": 1,
       "leader": "Samuel Baidoo",
       "churches": [
-        "ACC",
         "Aboadze",
         "Aboso",
+        "ACC",
         "Agona Banso",
         "Agona Nkwanta",
         "Akoto",
@@ -268,13 +268,13 @@
         "Ghana Water",
         "Hwidiem",
         "Joaso",
-        "KTI",
         "Kenyasi",
         "Knust Campus Bacenta",
         "Kokoben Bacenta",
         "Konongo Cathedral",
         "Konongo Odomase",
         "Kstu Campus Bacenta",
+        "KTI",
         "Kumawu",
         "Kwawkrom Hospital Bacenta",
         "Mamponteng",
@@ -363,11 +363,11 @@
         "Danfa",
         "Kwabenya",
         "La Nkwantanag",
-        "MKC East Legon",
         "Madina Estates",
+        "MKC East Legon",
         "New Adenta",
-        "Old Ashongman",
-        "⁠ogbojo"
+        "Ogbojo",
+        "Old Ashongman"
       ]
     },
     {
@@ -690,8 +690,8 @@
         "Apam",
         "Assin",
         "Buduburam",
-        "CP",
         "Cathedral (nyanyano)",
+        "CP",
         "Dago",
         "Dawurampong",
         "Dayaasaw",
@@ -970,29 +970,29 @@
       "leader": "Raymond Amarkyne",
       "churches": [
         "Adansi Fomena",
+        "Akrokerri",
         "Anwiankwanta",
         "Asante Bekwai",
+        "Assin Adubiase",
         "Assin Bereku",
         "Assin Fosu",
+        "Assin Juaso",
         "Assin Manso",
+        "Assin Nsuta",
         "Assin Nyankomasi",
+        "Assin Praso",
+        "Ayanfuri",
+        "Denkyira Asikuma",
         "Denkyira Kyekyewere",
         "Diaso",
         "Dunkwa Offin",
+        "Fante Nyankomasi",
         "Jacobu",
+        "Manso Atwere",
         "Nyameduase",
         "Obuasi",
         "Pomposo",
-        "Tewobaabi",
-        "⁠akrokerri",
-        "⁠assin Adubiase",
-        "⁠assin Juaso",
-        "⁠assin Nsuta",
-        "⁠assin Praso",
-        "⁠ayanfuri",
-        "⁠denkyira Asikuma",
-        "⁠fante Nyankomasi",
-        "⁠manso Atwere"
+        "Tewobaabi"
       ]
     }
   ]

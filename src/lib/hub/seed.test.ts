@@ -16,6 +16,11 @@ describe("normalizeChurchKey", () => {
     expect(normalizeChurchKey("  agona   nkwanta ")).toBe("AGONA NKWANTA");
     expect(normalizeChurchKey("Agona Nkwanta")).toBe("AGONA NKWANTA");
   });
+
+  it("strips invisible characters (real workbook had word-joiners)", () => {
+    expect(normalizeChurchKey("⁠akrokerri")).toBe("AKROKERRI");
+    expect(normalizeChurchKey("﻿Assin​ Juaso")).toBe("ASSIN JUASO");
+  });
 });
 
 describe("parseHubSeed", () => {

@@ -127,25 +127,23 @@ export async function findExistingPhones(
   for (let i = 0; i < unique.length; i += 100) {
     const chunk = unique.slice(i, i + 100);
     const list = chunk.map((p) => `"${p}"`).join(",");
-    const rows = await rest<
-      { phone: string; hubs: { hub_number: number } | null }[]
+    const momoRows = await rest<
+      { momo_phone_number: string; hubs: { hub_number: number } | null }[]
     >(
-      `partners?or=(momo_phone_number=in.(${encodeURIComponent(list)}),whatsapp_number=in.(${encodeURIComponent(list)}))` +
-        `&select=phone:momo_phone_number,hubs(hub_number)` +
-        `&momo_phone_number=not.is.null`,
+      `partners?momo_phone_number=in.(${encodeURIComponent(list)})` +
+        `&select=momo_phone_number,hubs(hub_number)`,
     );
-    const rows2 = await rest<
-      { phone: string; hubs: { hub_number: number } | null }[]
+    const waRows = await rest<
+      { whatsapp_number: string; hubs: { hub_number: number } | null }[]
     >(
-      `partners?or=(momo_phone_number=in.(${encodeURIComponent(list)}),whatsapp_number=in.(${encodeURIComponent(list)}))` +
-        `&select=phone:whatsapp_number,hubs(hub_number)` +
-        `&whatsapp_number=not.is.null`,
+      `partners?whatsapp_number=in.(${encodeURIComponent(list)})` +
+        `&select=whatsapp_number,hubs(hub_number)`,
     );
-    for (const r of rows) {
-      out.set(r.phone, { hubNumber: r.hubs?.hub_number ?? null });
+    for (const r of momoRows) {
+      if (r.momo_phone_number) out.set(r.momo_phone_number, { hubNumber: r.hubs?.hub_number ?? null });
     }
-    for (const r of rows2) {
-      out.set(r.phone, { hubNumber: r.hubs?.hub_number ?? null });
+    for (const r of waRows) {
+      if (r.whatsapp_number) out.set(r.whatsapp_number, { hubNumber: r.hubs?.hub_number ?? null });
     }
   }
   return out;

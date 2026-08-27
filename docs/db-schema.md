@@ -724,14 +724,15 @@ The raw audit trail: every uploaded row as it arrived, plus what became of it.
 | `row_index` | int     | Position in the sheet.                                         |
 | `raw`       | jsonb   | Original cell values, untouched.                               |
 | `name`      | text    | Final (possibly corrected-in-preview) value.                   |
-| `phone_e164`| text    | Normalized phone.                                              |
+| `phone_e164`| text    | MoMo phone in E.164 (was the only phone before 0006; historical rows contain the WhatsApp number). |
+| `whatsapp_phone_e164` | text nullable | WhatsApp phone in E.164 (added by 0006).       |
 | `church_id` | uuid fk nullable | → `hub_churches`, after dropdown correction.          |
 | `status`    | text    | `accepted` \| `removed`.                                       |
 | `issues`    | jsonb   | Validation flags raised before correction, kept for audit.     |
 
 ### `partners` linkage
 
-Hub-ingested people land in the standing `partners` table (`source = 'hub_ingest_<batch id>'`) with two new nullable columns: `hub_id` and `church_id`. `whatsapp_number` carries the E.164 phone as elsewhere; `church` (text) is set to the canonical church name for compatibility with existing branch-grouping reads.
+Hub-ingested people land in the standing `partners` table (`source = 'hub_ingest_<batch id>'`) with two new nullable columns: `hub_id` and `church_id`. `momo_phone_number` carries the Ghana MoMo E.164 phone; `whatsapp_number` carries the international WhatsApp E.164 phone; `church` (text) is set to the canonical church name for compatibility with existing branch-grouping reads.
 
 ### Archive at cutover
 

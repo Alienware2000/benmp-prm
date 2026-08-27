@@ -7,12 +7,24 @@
  * church list and the already-in-the-database phone lookups; this module only
  * decides. All messages are office language — they appear verbatim in the
  * red-flag hovers.
+ *
+ * Two phone numbers per row:
+ *   - momoPhone: Ghana MoMo/mobile, strictly validated (02x/05x, 9 NSN digits).
+ *   - whatsappPhone: international WhatsApp number, validated loosely as E.164.
+ *
+ * Duplicate names within one upload are rejected. The same phone number may
+ * be listed for more than one name.
  */
 import { normalizePhone } from "../phone";
 import { normalizeChurchKey } from "./seed";
 
 /** Which uploaded column holds what (0-based). */
-export type ColumnMap = { name: number; phone: number; church: number };
+export type ColumnMap = {
+  name: number;
+  momoPhone: number;
+  whatsappPhone: number;
+  church: number;
+};
 
 export type HubChurchOption = { id: string; name: string; nameKey: string };
 
@@ -22,16 +34,18 @@ export type CandidateRow = {
   /** The original uploaded cells, untouched — becomes hub_ingest_rows.raw. */
   raw: string[];
   name: string;
-  phone: string;
+  momoPhone: string;
+  whatsappPhone: string;
   church: string;
 };
 
-export type RowField = "name" | "phone" | "church";
+export type RowField = "name" | "momoPhone" | "whatsappPhone" | "church";
 
 export type RowIssue = { field: RowField; message: string };
 
 export type ValidatedRow = CandidateRow & {
-  phoneE164: string | null;
+  momoPhoneE164: string | null;
+  whatsappPhoneE164: string | null;
   churchId: string | null;
   /** Canonical display name from the hub list when matched. */
   churchName: string | null;
@@ -120,10 +134,11 @@ export function extractCandidates(
   for (let i = start; i < rows.length; i++) {
     const raw = rows[i] ?? [];
     const name = (raw[map.name] ?? "").trim();
-    const phone = (raw[map.phone] ?? "").trim();
+    const momoPhone = (raw[map.momoPhone] ?? "").trim();
+    const whatsappPhone = (raw[map.whatsappPhone] ?? "").trim();
     const church = (raw[map.church] ?? "").trim();
-    if (name === "" && phone === "" && church === "") continue;
-    out.push({ rowIndex: i + 1, raw, name, phone, church });
+    if (name === "" && momoPhone === "" && whatsappPhone === "" && church === "") continue;
+    out.push({ rowIndex: i + 1, raw, name, momoPhone, whatsappPhone, church });
   }
   return out;
 }
@@ -156,13 +171,22 @@ export type ValidationContext = {
 /**
  * Apply every Decision 0018 rule to the candidate rows. Deterministic and
  * total: every row comes back, clean or flagged, in input order.
+ *
+ * Rules:
+ *   - Name must have at least two real words; duplicate names within the upload are flagged.
+ *   - MoMo phone must be a valid Ghana mobile number (02x/05x, 9 NSN digits).
+ *   - WhatsApp phone must be a parseable E.164 number; international numbers accepted.
+ *   - The same MoMo or WhatsApp phone may appear for multiple names.
+ *   - Church must match the hub's church list.
  */
 export function validateCandidates(
   candidates: CandidateRow[],
   ctx: ValidationContext,
 ): ValidatedRow[] {
   const byKey = new Map(ctx.churches.map((c) => [c.nameKey, c]));
-  const firstRowForPhone = new Map<string, number>();
+
+  // Track which names have already appeared in this upload.
+  const firstRowForName = new Map<string, number>();
 
   return candidates.map((cand) => {
     const issues: RowIssue[] = [];
@@ -170,50 +194,62 @@ export function validateCandidates(
     const nameProblem = validateName(cand.name);
     if (nameProblem) issues.push({ field: "name", message: nameProblem });
 
-    let phoneE164: string | null = null;
-    if (cand.phone === "") {
-      issues.push({ field: "phone", message: "Phone number is missing." });
-    } else {
-      phoneE164 = normalizePhone(cand.phone);
-      // Ghana mobile numbers all start 02x/05x (NSN 2… or 5…, 9 digits). A
-      // right-length number with an impossible start ("0123456789") or a
-      // fixed line ("030…") is not a WhatsApp number. Other countries are
-      // accepted as-is — we can't know every foreign plan.
-      if (phoneE164?.startsWith("+233") && !/^[25]\d{8}$/.test(phoneE164.slice(4))) {
-        phoneE164 = null;
+    if (!nameProblem) {
+      const normalizedName = cand.name.trim().toLowerCase();
+      const firstNameRow = firstRowForName.get(normalizedName);
+      if (firstNameRow !== undefined) {
         issues.push({
-          field: "phone",
-          message:
-            "Not a Ghana mobile number — it should start with 02 or 05, like 0244123456.",
+          field: "name",
+          message: `Same name as row ${firstNameRow} of this file.`,
         });
-      } else if (!phoneE164) {
+      } else {
+        firstRowForName.set(normalizedName, cand.rowIndex);
+      }
+    }
+
+    let momoPhoneE164: string | null = null;
+    if (cand.momoPhone === "") {
+      issues.push({ field: "momoPhone", message: "MoMo phone number is missing." });
+    } else {
+      momoPhoneE164 = normalizePhone(cand.momoPhone, "GH");
+      if (!momoPhoneE164) {
         issues.push({
-          field: "phone",
+          field: "momoPhone",
           message:
-            "Not a valid WhatsApp number. Use 0244123456 or +233 24 412 3456.",
+            "Not a valid Ghana MoMo number. Use 0244123456 or +233 244 123 456.",
         });
       }
     }
 
-    if (phoneE164) {
-      const firstRow = firstRowForPhone.get(phoneE164);
-      if (firstRow !== undefined) {
+    let whatsappPhoneE164: string | null = null;
+    if (cand.whatsappPhone === "") {
+      issues.push({ field: "whatsappPhone", message: "WhatsApp number is missing." });
+    } else {
+      whatsappPhoneE164 = normalizePhone(cand.whatsappPhone);
+      if (!whatsappPhoneE164) {
         issues.push({
-          field: "phone",
-          message: `Same number as row ${firstRow} of this file.`,
+          field: "whatsappPhone",
+          message:
+            "Not a valid WhatsApp number. Use 0244123456 or +233 244 123 456.",
         });
-      } else {
-        firstRowForPhone.set(phoneE164, cand.rowIndex);
-        const existing = ctx.existingPhones.get(phoneE164);
-        if (existing) {
-          issues.push({
-            field: "phone",
-            message:
-              existing.hubNumber === null
-                ? "This number is already in the system."
-                : `This number is already in the system for Hub ${existing.hubNumber}.`,
-          });
-        }
+      }
+    }
+
+    // Existing-phone check covers both numbers; a duplicate in either blocks the row.
+    for (const [field, phone] of [
+      ["momoPhone", momoPhoneE164],
+      ["whatsappPhone", whatsappPhoneE164],
+    ] as const) {
+      if (!phone) continue;
+      const existing = ctx.existingPhones.get(phone);
+      if (existing) {
+        issues.push({
+          field,
+          message:
+            existing.hubNumber === null
+              ? "This number is already in the system."
+              : `This number is already in the system for Hub ${existing.hubNumber}.`,
+        });
       }
     }
 
@@ -235,7 +271,7 @@ export function validateCandidates(
       }
     }
 
-    return { ...cand, phoneE164, churchId, churchName, issues };
+    return { ...cand, momoPhoneE164, whatsappPhoneE164, churchId, churchName, issues };
   });
 }
 

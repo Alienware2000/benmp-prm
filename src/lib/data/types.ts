@@ -64,7 +64,7 @@ export interface GivingTrendPoint {
 export interface PartnerRecord {
   id: string;
   fullName: string;
-  mobileNumber: string;
+  momoPhoneNumber: string;
   whatsappNumber: string;
   email: string;
   country: string;

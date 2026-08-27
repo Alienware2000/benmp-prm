@@ -11,6 +11,8 @@ Current implemented draft:
 Required next migration from the delivery plan:
 
 - `supabase/migrations/0002_foundation_config.sql`
+- `supabase/migrations/0005_hub_platform.sql` (Ghana hub platform)
+- `supabase/migrations/0006_partner_momo_phone.sql` (rename `mobile_number` to `momo_phone_number`; add `hub_ingest_rows.whatsapp_phone_e164`)
 
 This project uses Supabase Postgres first, but the data model should remain ordinary Postgres. Business logic should stay behind `PrmRepository`, messaging adapters, and AI tools so Neon, Aurora Postgres, or Cloud SQL remain possible exits later. There is no payment adapter — money enters only through CSV import (Decision 0007).
 
@@ -143,7 +145,7 @@ Purpose: core partner profile and status record.
 
 Important fields:
 
-- Identity/contact: `full_name`, `mobile_number`, `whatsapp_number`, `email`
+- Identity/contact: `full_name`, `momo_phone_number`, `whatsapp_number`, `email`
 - Location/church: `country`, `city`, `church`, `denomination`
 - Relationship: `partner_since`, `partnership_level`, `preferred_giving_frequency`, `preferred_communication_method`
 - Care: `birthday`, `status`, `tags`, `notes`, `assigned_to`
@@ -722,14 +724,15 @@ The raw audit trail: every uploaded row as it arrived, plus what became of it.
 | `row_index` | int     | Position in the sheet.                                         |
 | `raw`       | jsonb   | Original cell values, untouched.                               |
 | `name`      | text    | Final (possibly corrected-in-preview) value.                   |
-| `phone_e164`| text    | Normalized phone.                                              |
+| `phone_e164`| text    | MoMo phone in E.164 (was the only phone before 0006; historical rows contain the WhatsApp number). |
+| `whatsapp_phone_e164` | text nullable | WhatsApp phone in E.164 (added by 0006).       |
 | `church_id` | uuid fk nullable | → `hub_churches`, after dropdown correction.          |
 | `status`    | text    | `accepted` \| `removed`.                                       |
 | `issues`    | jsonb   | Validation flags raised before correction, kept for audit.     |
 
 ### `partners` linkage
 
-Hub-ingested people land in the standing `partners` table (`source = 'hub_ingest_<batch id>'`) with two new nullable columns: `hub_id` and `church_id`. `whatsapp_number` carries the E.164 phone as elsewhere; `church` (text) is set to the canonical church name for compatibility with existing branch-grouping reads.
+Hub-ingested people land in the standing `partners` table (`source = 'hub_ingest_<batch id>'`) with two new nullable columns: `hub_id` and `church_id`. `momo_phone_number` carries the Ghana MoMo E.164 phone; `whatsapp_number` carries the international WhatsApp E.164 phone; `church` (text) is set to the canonical church name for compatibility with existing branch-grouping reads.
 
 ### Archive at cutover
 

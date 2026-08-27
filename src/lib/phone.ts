@@ -63,13 +63,35 @@ const GHANA_NSN_LEN = 9; // national significant number length (after the countr
 /**
  * Return the E.164 form (e.g. "+233244123456") or null if the input can't be
  * confidently normalized. Never throws.
+ *
+ * defaultCountry = "GH": Ghana mobile numbers only (9 NSN digits).
+ * defaultCountry = null: international numbers accepted; recognizes explicit
+ *   "+" input or a bare digit string of 8-15 digits (best-effort E.164).
  */
 export function normalizePhone(
   raw: string | null | undefined,
-  defaultCountry: "GH" = "GH",
+  defaultCountry: "GH" | null = "GH",
 ): string | null {
-  if (defaultCountry !== "GH") return null;
-  return normalizePhoneForCallingCode(raw, GHANA_CC, [GHANA_NSN_LEN]);
+  if (defaultCountry === "GH") {
+    return normalizePhoneForCallingCode(raw, GHANA_CC, [GHANA_NSN_LEN]);
+  }
+
+  // International / any-country mode.
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("+")) {
+    const digits = trimmed.slice(1).replace(/\D/g, "");
+    return digits.length >= 8 && digits.length <= 15 ? `+${digits}` : null;
+  }
+
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length >= 8 && digits.length <= 15) {
+    return `+${digits}`;
+  }
+
+  return null;
 }
 
 /** True when two raw phone strings normalize to the same E.164 number. */

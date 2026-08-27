@@ -289,7 +289,7 @@ export function TodayWorkspace({
     const nextPartner: PartnerRecord = {
       id,
       fullName,
-      mobileNumber: String(formData.get("mobileNumber") ?? "").trim(),
+      momoPhoneNumber: String(formData.get("momoPhoneNumber") ?? "").trim(),
       whatsappNumber: String(formData.get("whatsappNumber") ?? "").trim(),
       email: String(formData.get("email") ?? "").trim(),
       country,
@@ -986,7 +986,7 @@ function PartnerForm({
         <TextField name="country" label="Country" required />
         <TextField name="city" label="City" />
         <TextField name="church" label="Church" />
-        <TextField name="mobileNumber" label="Mobile" />
+        <TextField name="momoPhoneNumber" label="MoMo Phone" />
         <TextField name="whatsappNumber" label="WhatsApp" />
         <TextField name="email" label="Email" type="email" />
         <SelectField

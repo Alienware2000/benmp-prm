@@ -31,6 +31,14 @@ describe("normalizePhone (Ghana-first)", () => {
     expect(normalizePhone(null)).toBeNull();
     expect(normalizePhone(undefined)).toBeNull();
     expect(normalizePhone("12345")).toBeNull();
+    expect(normalizePhone("02441234")).toBeNull();
+    expect(normalizePhone("024412345")).toBeNull();
+  });
+
+  it("accepts international numbers when defaultCountry is null", () => {
+    expect(normalizePhone("+1 214 555 0144", null)).toBe("+12145550144");
+    expect(normalizePhone("12145550144", null)).toBe("+12145550144");
+    expect(normalizePhone("12345", null)).toBeNull();
   });
 });
 

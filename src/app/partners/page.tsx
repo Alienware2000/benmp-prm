@@ -41,7 +41,7 @@ export default async function PartnersPage({
         partner.city,
         partner.church,
         partner.email,
-        partner.mobileNumber,
+        partner.momoPhoneNumber,
         partner.whatsappNumber,
         partner.owner,
       ]
@@ -138,7 +138,7 @@ export default async function PartnersPage({
                 <div className="space-y-1">
                   <p>{partner.preferredCommunication}</p>
                   <p className="text-xs text-muted-foreground">
-                    {partner.whatsappNumber || partner.mobileNumber}
+                    {partner.whatsappNumber || partner.momoPhoneNumber}
                   </p>
                 </div>
               ),

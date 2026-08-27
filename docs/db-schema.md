@@ -11,6 +11,8 @@ Current implemented draft:
 Required next migration from the delivery plan:
 
 - `supabase/migrations/0002_foundation_config.sql`
+- `supabase/migrations/0005_hub_platform.sql` (Ghana hub platform)
+- `supabase/migrations/0006_partner_momo_phone.sql` (rename `mobile_number` to `momo_phone_number`; add `hub_ingest_rows.whatsapp_phone_e164`)
 
 This project uses Supabase Postgres first, but the data model should remain ordinary Postgres. Business logic should stay behind `PrmRepository`, messaging adapters, and AI tools so Neon, Aurora Postgres, or Cloud SQL remain possible exits later. There is no payment adapter — money enters only through CSV import (Decision 0007).
 
@@ -143,7 +145,7 @@ Purpose: core partner profile and status record.
 
 Important fields:
 
-- Identity/contact: `full_name`, `mobile_number`, `whatsapp_number`, `email`
+- Identity/contact: `full_name`, `momo_phone_number`, `whatsapp_number`, `email`
 - Location/church: `country`, `city`, `church`, `denomination`
 - Relationship: `partner_since`, `partnership_level`, `preferred_giving_frequency`, `preferred_communication_method`
 - Care: `birthday`, `status`, `tags`, `notes`, `assigned_to`

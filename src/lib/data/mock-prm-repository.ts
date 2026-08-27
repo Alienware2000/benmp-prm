@@ -95,7 +95,7 @@ const partners: PartnerRecord[] = [
   {
     id: "partner_ama_serwaa",
     fullName: "Ama Serwaa",
-    mobileNumber: "+233 24 555 0181",
+    momoPhoneNumber: "+233 24 555 0181",
     whatsappNumber: "+233 24 555 0181",
     email: "ama.serwaa@example.org",
     country: "Ghana",
@@ -117,7 +117,7 @@ const partners: PartnerRecord[] = [
   {
     id: "partner_daniel_okafor",
     fullName: "Daniel Okafor",
-    mobileNumber: "+234 80 5555 0812",
+    momoPhoneNumber: "+234 80 5555 0812",
     whatsappNumber: "+234 80 5555 0812",
     email: "daniel.okafor@example.org",
     country: "Nigeria",
@@ -139,7 +139,7 @@ const partners: PartnerRecord[] = [
   {
     id: "partner_marie_nguessan",
     fullName: "Marie N'Guessan",
-    mobileNumber: "+225 07 55 55 0188",
+    momoPhoneNumber: "+225 07 55 55 0188",
     whatsappNumber: "+225 07 55 55 0188",
     email: "marie.nguessan@example.org",
     country: "Cote d'Ivoire",
@@ -161,7 +161,7 @@ const partners: PartnerRecord[] = [
   {
     id: "partner_samuel_tetteh",
     fullName: "Samuel Tetteh",
-    mobileNumber: "+1 214 555 0144",
+    momoPhoneNumber: "+1 214 555 0144",
     whatsappNumber: "+1 214 555 0144",
     email: "samuel.tetteh@example.org",
     country: "United States",
@@ -183,7 +183,7 @@ const partners: PartnerRecord[] = [
   {
     id: "partner_angela_boateng",
     fullName: "Angela Boateng",
-    mobileNumber: "+44 7700 900181",
+    momoPhoneNumber: "+44 7700 900181",
     whatsappNumber: "+44 7700 900181",
     email: "angela.boateng@example.org",
     country: "United Kingdom",

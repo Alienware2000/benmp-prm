@@ -12,7 +12,7 @@ export function PartnersTable({ partners }: { partners: HubPartnerRow[] }) {
     const q = query.trim().toLowerCase();
     if (!q) return partners;
     return partners.filter((p) =>
-      [p.full_name, p.whatsapp_number, p.church ?? ""]
+      [p.full_name, p.momo_phone_number, p.whatsapp_number, p.church ?? ""]
         .join(" ")
         .toLowerCase()
         .includes(q),
@@ -44,6 +44,7 @@ export function PartnersTable({ partners }: { partners: HubPartnerRow[] }) {
             <thead className="sticky top-0 z-10">
               <tr className="bg-muted text-xs font-semibold text-muted-foreground">
                 <th className="px-3 py-2">Name</th>
+                <th className="px-3 py-2">MoMo number</th>
                 <th className="px-3 py-2">WhatsApp number</th>
                 <th className="px-3 py-2">Church</th>
                 <th className="px-3 py-2">Added</th>
@@ -54,6 +55,9 @@ export function PartnersTable({ partners }: { partners: HubPartnerRow[] }) {
                 <tr key={p.id} className="odd:bg-background">
                   <td className="px-3 py-2 font-medium text-foreground">
                     {p.full_name}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 tabular-nums text-foreground">
+                    {p.momo_phone_number}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 tabular-nums text-foreground">
                     {p.whatsapp_number}

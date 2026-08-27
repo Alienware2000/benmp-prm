@@ -27,7 +27,8 @@ type SubmitRow = {
   rowIndex: number;
   raw: string[];
   name: string;
-  phone: string;
+  momoPhone: string;
+  whatsappPhone: string;
   church: string;
   removed: boolean;
 };
@@ -78,7 +79,8 @@ export async function POST(req: NextRequest) {
     rowIndex: Number(r.rowIndex) || 0,
     raw: Array.isArray(r.raw) ? r.raw.map((c) => String(c ?? "")) : [],
     name: String(r.name ?? "").trim(),
-    phone: String(r.phone ?? "").trim(),
+    momoPhone: String(r.momoPhone ?? "").trim(),
+    whatsappPhone: String(r.whatsappPhone ?? "").trim(),
     church: String(r.church ?? "").trim(),
     removed: r.removed === true,
   }));
@@ -100,13 +102,17 @@ export async function POST(req: NextRequest) {
     rowIndex: r.rowIndex,
     raw: r.raw,
     name: r.name,
-    phone: r.phone,
+    momoPhone: r.momoPhone,
+    whatsappPhone: r.whatsappPhone,
     church: r.church,
   }));
   // The lookup key is E.164, produced by the same normalization the validator
   // itself applies; unparseable phones are flagged by validation, not looked up.
   const phonesToCheck = candidates
-    .map((c) => normalizePhone(c.phone))
+    .flatMap((c) => [
+      normalizePhone(c.momoPhone, "GH"),
+      normalizePhone(c.whatsappPhone),
+    ])
     .filter((p): p is string => p !== null);
   const existingPhones = await findExistingPhones(phonesToCheck);
   const validated = validateCandidates(candidates, { churches, existingPhones });
@@ -143,7 +149,8 @@ export async function POST(req: NextRequest) {
       row_index: r.rowIndex,
       raw: r.raw,
       name: r.removed ? r.name || null : (v?.name ?? null),
-      phone_e164: r.removed ? null : (v?.phoneE164 ?? null),
+      phone_e164: r.removed ? null : (v?.momoPhoneE164 ?? null),
+      whatsapp_phone_e164: r.removed ? null : (v?.whatsappPhoneE164 ?? null),
       church_id: r.removed ? null : (v?.churchId ?? null),
       status: r.removed ? "removed" : "accepted",
       issues: [] as RowIssue[],
@@ -154,7 +161,8 @@ export async function POST(req: NextRequest) {
   await insertPartners(
     validated.map((v) => ({
       full_name: v.name,
-      whatsapp_number: v.phoneE164!,
+      momo_phone_number: v.momoPhoneE164!,
+      whatsapp_number: v.whatsappPhoneE164!,
       country: "Ghana",
       church: v.churchName!,
       status: "new",

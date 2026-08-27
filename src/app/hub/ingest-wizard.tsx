@@ -3,7 +3,7 @@
 /**
  * The hub ingestion wizard (HP-3, Decision 0018 items 4-5).
  *
- * Upload -> pick sheet -> point at the name / WhatsApp / church columns ->
+ * Upload -> pick sheet -> point at the name / MoMo / WhatsApp / church columns ->
  * editable preview where every failing cell is flagged with the reason ->
  * save. Validation here is the same pure module the server re-runs at submit
  * (src/lib/hub/ingest.ts), so a clean preview is a clean submission; the only
@@ -41,7 +41,8 @@ type EditRow = {
   rowIndex: number;
   raw: string[];
   name: string;
-  phone: string;
+  momoPhone: string;
+  whatsappPhone: string;
   church: string;
   removed: boolean;
 };
@@ -106,9 +107,12 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
   const [sheets, setSheets] = useState<ParsedSheet[]>([]);
   const [sheetIndex, setSheetIndex] = useState(0);
   const [hasHeader, setHasHeader] = useState(true);
-  const [cols, setCols] = useState<{ name: number | ""; phone: number | ""; church: number | "" }>(
-    { name: "", phone: "", church: "" },
-  );
+  const [cols, setCols] = useState<{
+    name: number | "";
+    momoPhone: number | "";
+    whatsappPhone: number | "";
+    church: number | "";
+  }>({ name: "", momoPhone: "", whatsappPhone: "", church: "" });
 
   const [dragging, setDragging] = useState(false);
   const [rows, setRows] = useState<EditRow[]>([]);
@@ -190,8 +194,21 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
   }
 
   async function toPreview() {
-    if (!sheet || cols.name === "" || cols.phone === "" || cols.church === "") return;
-    const map: ColumnMap = { name: cols.name, phone: cols.phone, church: cols.church };
+    if (
+      !sheet ||
+      cols.name === "" ||
+      cols.momoPhone === "" ||
+      cols.whatsappPhone === "" ||
+      cols.church === ""
+    ) {
+      return;
+    }
+    const map: ColumnMap = {
+      name: cols.name,
+      momoPhone: cols.momoPhone,
+      whatsappPhone: cols.whatsappPhone,
+      church: cols.church,
+    };
     const candidates = extractCandidates(sheet.rows, map, hasHeader);
     if (candidates.length === 0) {
       setError("No rows found in those columns. Check the sheet and column choices.");
@@ -204,7 +221,7 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
     setError(null);
     try {
       const phones = edit
-        .map((r) => normalizePhone(r.phone))
+        .flatMap((r) => [normalizePhone(r.momoPhone, "GH"), normalizePhone(r.whatsappPhone)])
         .filter((p): p is string => p !== null);
       const res = await fetch("/api/hub/ingest/check", {
         method: "POST",
@@ -317,10 +334,10 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
               Upload your hub&apos;s partner list
             </h2>
             <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
-              An Excel file (.xlsx) or CSV with names, WhatsApp numbers, and the
-              church each partner belongs to. You will check and correct
-              everything before anything is saved — nothing goes in behind your
-              back.
+              An Excel file (.xlsx) or CSV with names, MoMo numbers, WhatsApp
+              numbers, and the church each partner belongs to. You will check
+              and correct everything before anything is saved — nothing goes
+              in behind your back.
             </p>
             <div className="mt-5">
               <input
@@ -357,7 +374,7 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                 Where is everything in “{fileName}”?
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Pick the sheet, then point at the three columns. Column titles
+                Pick the sheet, then point at the four columns. Column titles
                 in the file don&apos;t matter — your choice here does.
               </p>
             </div>
@@ -395,11 +412,12 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
               The first row is column titles, not a person
             </label>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {(
                 [
                   ["name", "Names column"],
-                  ["phone", "WhatsApp numbers column"],
+                  ["momoPhone", "MoMo numbers column"],
+                  ["whatsappPhone", "WhatsApp numbers column"],
                   ["church", "Church column"],
                 ] as const
               ).map(([key, label]) => (
@@ -436,11 +454,13 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                       const tag =
                         c === cols.name
                           ? "Name"
-                          : c === cols.phone
-                            ? "Phone"
-                            : c === cols.church
-                              ? "Church"
-                              : null;
+                          : c === cols.momoPhone
+                            ? "MoMo"
+                            : c === cols.whatsappPhone
+                              ? "WhatsApp"
+                              : c === cols.church
+                                ? "Church"
+                                : null;
                       return (
                         <th key={c} className="border-b border-border px-3 py-1.5">
                           {tag ? (
@@ -463,7 +483,10 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                     <tr key={i} className={i === 0 && hasHeader ? "bg-muted/60 font-semibold" : "odd:bg-background"}>
                       {Array.from({ length: columnCount }, (_, c) => {
                         const picked =
-                          c === cols.name || c === cols.phone || c === cols.church;
+                          c === cols.name ||
+                          c === cols.momoPhone ||
+                          c === cols.whatsappPhone ||
+                          c === cols.church;
                         return (
                           <td
                             key={c}
@@ -488,7 +511,13 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
               </button>
               <button
                 type="button"
-                disabled={busy || cols.name === "" || cols.phone === "" || cols.church === ""}
+                disabled={
+                  busy ||
+                  cols.name === "" ||
+                  cols.momoPhone === "" ||
+                  cols.whatsappPhone === "" ||
+                  cols.church === ""
+                }
                 onClick={toPreview}
                 className="inline-flex h-11 items-center gap-2 rounded-md bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-45"
               >
@@ -544,6 +573,7 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                   <tr className="bg-muted text-xs font-semibold text-muted-foreground">
                     <th className="px-2 py-2">Row</th>
                     <th className="px-2 py-2">Name</th>
+                    <th className="px-2 py-2">MoMo number</th>
                     <th className="px-2 py-2">WhatsApp number</th>
                     <th className="px-2 py-2">Church</th>
                     <th className="px-2 py-2" />
@@ -652,7 +682,8 @@ function PreviewRow({
       <tr className="bg-muted/40 text-muted-foreground">
         <td className="px-2 py-1.5 tabular-nums">{row.rowIndex}</td>
         <td className="px-2 py-1.5 line-through">{row.name || "—"}</td>
-        <td className="px-2 py-1.5 line-through">{row.phone || "—"}</td>
+        <td className="px-2 py-1.5 line-through">{row.momoPhone || "—"}</td>
+        <td className="px-2 py-1.5 line-through">{row.whatsappPhone || "—"}</td>
         <td className="px-2 py-1.5 line-through">{row.church || "—"}</td>
         <td className="px-2 py-1.5 text-right">
           <button
@@ -696,12 +727,22 @@ function PreviewRow({
         </FlaggedCell>
       </td>
       <td className="px-2 py-1.5">
-        <FlaggedCell message={issueFor("phone")}>
+        <FlaggedCell message={issueFor("momoPhone")}>
           <input
-            value={row.phone}
+            value={row.momoPhone}
             inputMode="tel"
-            onChange={(e) => onEdit(row.rowIndex, { phone: e.target.value })}
-            className={inputBase + (issueFor("phone") ? " border-danger/60" : " border-border")}
+            onChange={(e) => onEdit(row.rowIndex, { momoPhone: e.target.value })}
+            className={inputBase + (issueFor("momoPhone") ? " border-danger/60" : " border-border")}
+          />
+        </FlaggedCell>
+      </td>
+      <td className="px-2 py-1.5">
+        <FlaggedCell message={issueFor("whatsappPhone")}>
+          <input
+            value={row.whatsappPhone}
+            inputMode="tel"
+            onChange={(e) => onEdit(row.rowIndex, { whatsappPhone: e.target.value })}
+            className={inputBase + (issueFor("whatsappPhone") ? " border-danger/60" : " border-border")}
           />
         </FlaggedCell>
       </td>
@@ -763,18 +804,27 @@ function FlaggedCell({
 /** Guess the column mapping from header words; the admin can always override. */
 function guessColumns(sheet: ParsedSheet | undefined): {
   name: number | "";
-  phone: number | "";
+  momoPhone: number | "";
+  whatsappPhone: number | "";
   church: number | "";
 } {
   const header = sheet?.rows[0] ?? [];
   let name: number | "" = "";
-  let phone: number | "" = "";
+  let momoPhone: number | "" = "";
+  let whatsappPhone: number | "" = "";
   let church: number | "" = "";
   header.forEach((cell, i) => {
     const h = cell.toLowerCase();
     if (name === "" && /name/.test(h) && !/church|branch/.test(h)) name = i;
-    if (phone === "" && /(phone|tel|whatsapp|number|contact|momo)/.test(h)) phone = i;
+    if (momoPhone === "" && /(momo|mobile money|mobile)/.test(h) && !/whatsapp/.test(h)) {
+      momoPhone = i;
+    }
+    if (whatsappPhone === "" && /(whatsapp|wa)/.test(h)) whatsappPhone = i;
+    // Only fall back to a generic phone column for MoMo if nothing more specific matched.
+    if (momoPhone === "" && /(phone|tel|number|contact)/.test(h) && !/whatsapp/.test(h)) {
+      momoPhone = i;
+    }
     if (church === "" && /(church|branch|assembly)/.test(h)) church = i;
   });
-  return { name, phone, church };
+  return { name, momoPhone, whatsappPhone, church };
 }

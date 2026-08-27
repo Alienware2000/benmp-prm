@@ -128,13 +128,24 @@ export async function findExistingPhones(
     const chunk = unique.slice(i, i + 100);
     const list = chunk.map((p) => `"${p}"`).join(",");
     const rows = await rest<
-      { whatsapp_number: string; hubs: { hub_number: number } | null }[]
+      { phone: string; hubs: { hub_number: number } | null }[]
     >(
-      `partners?whatsapp_number=in.(${encodeURIComponent(list)})` +
-        `&select=whatsapp_number,hubs(hub_number)`,
+      `partners?or=(momo_phone_number=in.(${encodeURIComponent(list)}),whatsapp_number=in.(${encodeURIComponent(list)}))` +
+        `&select=phone:momo_phone_number,hubs(hub_number)` +
+        `&momo_phone_number=not.is.null`,
+    );
+    const rows2 = await rest<
+      { phone: string; hubs: { hub_number: number } | null }[]
+    >(
+      `partners?or=(momo_phone_number=in.(${encodeURIComponent(list)}),whatsapp_number=in.(${encodeURIComponent(list)}))` +
+        `&select=phone:whatsapp_number,hubs(hub_number)` +
+        `&whatsapp_number=not.is.null`,
     );
     for (const r of rows) {
-      out.set(r.whatsapp_number, { hubNumber: r.hubs?.hub_number ?? null });
+      out.set(r.phone, { hubNumber: r.hubs?.hub_number ?? null });
+    }
+    for (const r of rows2) {
+      out.set(r.phone, { hubNumber: r.hubs?.hub_number ?? null });
     }
   }
   return out;
@@ -172,6 +183,7 @@ export type IngestRowInsert = {
   raw: unknown;
   name: string | null;
   phone_e164: string | null;
+  whatsapp_phone_e164: string | null;
   church_id: string | null;
   status: "accepted" | "removed";
   issues: unknown;
@@ -189,6 +201,7 @@ export async function insertIngestRows(rows: IngestRowInsert[]): Promise<void> {
 
 export type PartnerInsert = {
   full_name: string;
+  momo_phone_number: string;
   whatsapp_number: string;
   country: string;
   church: string;
@@ -254,6 +267,7 @@ export async function updateHubLeaderName(
 export type HubPartnerRow = {
   id: string;
   full_name: string;
+  momo_phone_number: string;
   whatsapp_number: string;
   church: string | null;
   created_at: string;
@@ -270,7 +284,7 @@ export async function getHubPartners(hubId: string): Promise<HubPartnerRow[]> {
   for (let offset = 0; ; offset += page) {
     const rows = await rest<HubPartnerRow[]>(
       `partners?hub_id=eq.${encodeURIComponent(hubId)}` +
-        `&select=id,full_name,whatsapp_number,church,created_at` +
+        `&select=id,full_name,momo_phone_number,whatsapp_number,church,created_at` +
         `&order=created_at.desc,id.asc&limit=${page}&offset=${offset}`,
     );
     out.push(...rows);

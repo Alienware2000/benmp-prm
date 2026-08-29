@@ -14,7 +14,8 @@
  * Run: npx tsx --env-file=.env.local scripts/load-hub-seed.ts
  */
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { normalizeChurchKey, parseHubSeed } from "../src/lib/hub/seed";
 import { hashPassword, initialHubPassword } from "../src/lib/hub/password";
 
@@ -45,7 +46,7 @@ async function main() {
   }
 
   const doc = JSON.parse(
-    readFileSync(join(__dirname, "data/ghana-hubs-churches.json"), "utf8"),
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), "data/ghana-hubs-churches.json"), "utf8"),
   );
   const seed = parseHubSeed(doc);
   console.log(`seed parsed: ${seed.hubs.length} hubs, ${seed.churchCount} churches`);

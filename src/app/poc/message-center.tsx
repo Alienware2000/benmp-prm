@@ -20,6 +20,7 @@ import {
 } from "@/lib/message-templates";
 import type { MessagingProvider } from "@/lib/messaging/types";
 import type { AudienceCounts, AudienceKey } from "@/lib/poc/audiences";
+import type { LegacyBatch } from "@/lib/poc/legacy-batches";
 import {
   MessageAttachmentField,
   type MessageMediaAsset,
@@ -168,6 +169,7 @@ async function post({
   mediaAssetId,
   periodFrom,
   periodTo,
+  batch,
 }: {
   audience: AudienceKey;
   confirm: boolean;
@@ -177,6 +179,7 @@ async function post({
   mediaAssetId: string;
   periodFrom: string;
   periodTo: string;
+  batch: number | null;
 }) {
   const minAmountMinor = amountToMinor(minAmount);
   const maxAmountMinor = amountToMinor(maxAmount);
@@ -192,6 +195,7 @@ async function post({
       ...(mediaAssetId ? { mediaAssetId } : {}),
       ...(periodFrom ? { from: periodFrom } : {}),
       ...(periodTo ? { to: periodTo } : {}),
+      ...(batch !== null ? { batch } : {}),
     }),
   });
   return response.json() as Promise<{
@@ -261,6 +265,7 @@ export function MessageCenter({
   periodLabel,
   periodFrom,
   periodTo,
+  legacyBatches,
 }: {
   initialAudience: AudienceKey;
   counts: AudienceCounts;
@@ -271,8 +276,12 @@ export function MessageCenter({
   periodLabel: string;
   periodFrom: string;
   periodTo: string;
+  legacyBatches: LegacyBatch[];
 }) {
   const [audience, setAudience] = useState<AudienceKey>(initialAudience);
+  // Which fixed chunk of the legacy Ghana list to send. Only meaningful for that
+  // audience; every other one sends in a single pass.
+  const [batch, setBatch] = useState<number | null>(null);
   const [message, setMessage] = useState(initialMessage);
   const [preset, setPreset] = useState("");
   const [minAmount, setMinAmount] = useState("");
@@ -296,6 +305,20 @@ export function MessageCenter({
     setAudience(next);
     setMinAmount("");
     setMaxAmount("");
+    // Default to the first batch with anyone left in it, so the obvious next step is
+    // preselected rather than staff having to work out where they left off.
+    setBatch(
+      next === "legacy-ghana"
+        ? (legacyBatches.find((b) => b.remaining > 0)?.number ??
+            legacyBatches[0]?.number ??
+            null)
+        : null,
+    );
+    resetReview();
+  }
+
+  function chooseBatch(next: number) {
+    setBatch(next);
     resetReview();
   }
 
@@ -322,6 +345,7 @@ export function MessageCenter({
         mediaAssetId: mediaId,
         periodFrom,
         periodTo,
+        batch,
       });
       if (result.ok && result.data?.summary) {
         setSummary(result.data.summary);
@@ -349,6 +373,7 @@ export function MessageCenter({
         mediaAssetId: mediaId,
         periodFrom,
         periodTo,
+        batch,
       });
       if (result.ok && result.data?.report) {
         setReport(result.data.report);
@@ -451,6 +476,61 @@ export function MessageCenter({
             ))}
           </div>
         </details>
+
+        {audience === "legacy-ghana" && legacyBatches.length > 0 && (
+          <div className="mt-2 rounded-md border border-border bg-background p-3">
+            <p className="text-xs font-semibold">
+              Choose a batch
+              <span className="ml-2 font-normal text-muted-foreground">
+                this list is too large to send at once, so it goes out in{" "}
+                {legacyBatches.length} parts
+              </span>
+            </p>
+            <div
+              role="radiogroup"
+              aria-label="Legacy Ghana broadcast batches"
+              className="mt-2 grid gap-2 sm:grid-cols-3"
+            >
+              {legacyBatches.map((option) => {
+                const done = option.remaining === 0;
+                return (
+                  <button
+                    key={option.number}
+                    type="button"
+                    role="radio"
+                    aria-checked={batch === option.number}
+                    onClick={() => chooseBatch(option.number)}
+                    className={`rounded-md border p-2 text-left text-xs ${
+                      batch === option.number
+                        ? "border-foreground bg-muted"
+                        : "border-border"
+                    } ${done ? "opacity-60" : ""}`}
+                  >
+                    <span className="block font-semibold">
+                      Batch {option.number}
+                    </span>
+                    <span className="block text-muted-foreground">
+                      {done
+                        ? "all sent"
+                        : `${option.remaining.toLocaleString("en-US")} to send`}
+                    </span>
+                    {option.alreadySent > 0 && !done && (
+                      <span className="block text-muted-foreground">
+                        {option.alreadySent.toLocaleString("en-US")} already
+                        sent
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Batches are fixed — batch 3 is always the same people. Anyone
+              already messaged is skipped, so re-sending a batch cannot reach
+              them twice.
+            </p>
+          </div>
+        )}
 
         {amountRefinement && (
           <details className="mt-2 rounded-md border border-border bg-background">

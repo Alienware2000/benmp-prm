@@ -373,6 +373,8 @@ Body `{ confirm?: boolean, kind?: "thank_you" | "reminder" | "all", audience?: A
 
 `audience` is one of `everyone`, `paid`, `unpaid`, `top`, `consistent`, `new`, `legacy-ghana`. All but `legacy-ghana` resolve from `partners` + reconciliation. **`legacy-ghana`** resolves from `legacy_ghana_contacts` (the archived pre-hub Ghana list, db-schema.md) — it never touches `partners`, ignores the min/max amount filter (those contacts have no giving history), and requires a staff-written message. Opt-outs, dedupe, explicit confirmation and audit logging are the same for it as for every other audience.
 
+`legacy-ghana` additionally **requires** `batch` (1-based, within the plan) on both preview and confirm — the ~11.3k audience is split into fixed 2,000-person batches. Batch boundaries are stable (contacts ordered by id), and members already carrying `last_sent_at` are skipped rather than removed, so a completed batch never reslides into the next one. After a confirmed send, only recipients whose outcome was `sent` get stamped; skips and failures stay eligible for a retry of the same batch.
+
 A confirmed send is still capped at `MAX_IMMEDIATE_RECIPIENTS` (2,000). Larger audiences preview fine and are rejected at confirm time — `legacy-ghana` (~11.6k) therefore needs batching before it can be sent in full.
 
 ### `POST /api/poc/directory/send`

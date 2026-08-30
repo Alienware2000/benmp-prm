@@ -34,7 +34,15 @@
  * --size N   override the 2,000 chunk size
  */
 import { buildDirectMessages } from "../src/lib/poc/direct-message";
-import { loadLegacyGhanaContacts } from "../src/lib/poc/legacy-contacts";
+import {
+  loadLegacyGhanaContacts,
+  markLegacyContactsSent,
+} from "../src/lib/poc/legacy-contacts";
+import {
+  isValidBatchNumber,
+  legacyBatchRecipients,
+  planLegacyBatches,
+} from "../src/lib/poc/legacy-batches";
 import { loadOptOuts } from "../src/lib/poc/db";
 import { getMessagingAdapter } from "../src/lib/messaging";
 import { sendPlanned, parseAllowlist } from "../src/lib/send";
@@ -43,40 +51,11 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const DEFAULT_CHUNK = 2_000;
 
-const H = {
-  apikey: KEY,
-  Authorization: `Bearer ${KEY}`,
-  "Content-Type": "application/json",
-};
-
 function arg(name: string): string | null {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : null;
 }
 const has = (name: string) => process.argv.includes(`--${name}`);
-
-/** Mark one contact as messaged. Written per recipient so an interrupted run resumes. */
-async function markSent(id: string): Promise<void> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/legacy_ghana_contacts?id=eq.${id}`,
-    {
-      method: "PATCH",
-      headers: H,
-      body: JSON.stringify({ last_sent_at: new Date().toISOString() }),
-    },
-  );
-  if (!res.ok) {
-    // Never fatal: the message is already delivered, and losing the marker only risks
-    // a duplicate on a later run. Loud, so it can be reconciled by hand.
-    console.error(
-      JSON.stringify({
-        evt: "legacy_broadcast_mark_failed",
-        id,
-        status: res.status,
-      }),
-    );
-  }
-}
 
 async function main() {
   if (!SUPABASE_URL || !KEY) {
@@ -95,56 +74,50 @@ async function main() {
     loadOptOuts(),
   ]);
 
-  // Already messaged in an earlier batch — never chunked again.
-  const sentRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/legacy_ghana_contacts?select=id&last_sent_at=not.is.null&limit=50000`,
-    { headers: H },
-  );
-  const alreadySent = new Set(
-    ((await sentRes.json()) as { id: string }[]).map((r) => r.id),
-  );
-
-  const unusablePhone = contacts.filter((c) => !c.messageable).length;
-  const eligible = contacts
-    .filter((c) => c.messageable && !alreadySent.has(c.id))
-    .sort((a, b) => a.id.localeCompare(b.id)); // stable chunk boundaries
-
-  const chunks: (typeof eligible)[] = [];
-  for (let i = 0; i < eligible.length; i += chunkSize) {
-    chunks.push(eligible.slice(i, i + chunkSize));
-  }
+  // Batching is shared with the composer's batch selector (src/lib/poc/legacy-batches)
+  // so a batch number means the same thing in both places. Contacts already messaged
+  // keep their slot rather than being filtered out first — dropping them would reslide
+  // every later boundary, and "batch 3" would name different people run to run.
+  const plan = planLegacyBatches(contacts, chunkSize);
 
   console.log(
     [
-      `contacts in table:      ${contacts.length}`,
-      `unusable phone:         ${unusablePhone}`,
-      `already sent:           ${alreadySent.size}`,
+      `contacts in table:      ${plan.totalContacts}`,
+      `unusable phone:         ${plan.unusablePhone}`,
+      `already sent:           ${contacts.filter((c) => c.lastSentAt).length}`,
       `opted out (of total):   ${contacts.filter((c) => c.phone && optedOut.has(c.phone)).length}`,
-      `remaining to send:      ${eligible.length}`,
-      `chunk size:             ${chunkSize}`,
-      `batches:                ${chunks.length}`,
+      `remaining to send:      ${plan.batches.reduce((n, b) => n + b.remaining, 0)}`,
+      `chunk size:             ${plan.batchSize}`,
+      `batches:                ${plan.batches.length}`,
       "",
     ].join("\n"),
   );
-  chunks.forEach((c, i) => {
-    console.log(`  batch ${i + 1}: ${c.length} recipients`);
-  });
+  for (const b of plan.batches) {
+    const done = b.remaining === 0 ? " (all sent)" : "";
+    console.log(
+      `  batch ${b.number}: ${b.remaining} to send of ${b.size}${done}`,
+    );
+  }
 
   if (has("plan")) return;
 
   const batch = Number(arg("batch"));
-  if (!Number.isSafeInteger(batch) || batch < 1 || batch > chunks.length) {
-    throw new Error(`--batch must be between 1 and ${chunks.length}`);
+  if (!isValidBatchNumber(batch, plan)) {
+    throw new Error(`--batch must be between 1 and ${plan.batches.length}`);
   }
   const message = arg("message");
   if (!message || !message.trim()) throw new Error("--message is required");
 
-  const recipients = chunks[batch - 1];
+  const recipients = legacyBatchRecipients(contacts, batch, chunkSize);
+  if (recipients.length === 0) {
+    console.log(`\nbatch ${batch} has nobody left to send to.`);
+    return;
+  }
   const planned = buildDirectMessages(recipients, message);
   const confirm = has("confirm");
 
   console.log(
-    `\nbatch ${batch}/${chunks.length}: ${recipients.length} recipients — ${
+    `\nbatch ${batch}/${plan.batches.length}: ${recipients.length} recipients — ${
       confirm ? "SENDING" : "dry run (add --confirm to send)"
     }`,
   );
@@ -163,10 +136,9 @@ async function main() {
   });
 
   // Mark only what actually went out — a skip or a failure stays eligible for a retry.
-  const byRef = new Map(report.outcomes.map((o) => [o.partnerRef, o]));
-  for (const r of recipients) {
-    if (byRef.get(r.id)?.status === "sent") await markSent(r.id);
-  }
+  await markLegacyContactsSent(
+    report.outcomes.filter((o) => o.status === "sent").map((o) => o.partnerRef),
+  );
 
   console.log(
     JSON.stringify(

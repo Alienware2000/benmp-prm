@@ -9,6 +9,7 @@ export const AUDIENCE_KEYS = [
   "top",
   "consistent",
   "new",
+  "legacy-ghana",
 ] as const;
 
 export type AudienceKey = (typeof AUDIENCE_KEYS)[number];
@@ -24,6 +25,7 @@ export function isAudienceKey(value: unknown): value is AudienceKey {
 export function audienceCounts(
   result: ReconciliationResult,
   allPartnerRecords: number,
+  legacyGhanaRecords = 0,
 ): AudienceCounts {
   const groups = giverInsightGroups(result, {
     limit: Number.MAX_SAFE_INTEGER,
@@ -35,6 +37,7 @@ export function audienceCounts(
     top: groups.top.length,
     consistent: groups.consistent.length,
     new: result.paidUnregistered.length,
+    "legacy-ghana": legacyGhanaRecords,
   };
 }
 

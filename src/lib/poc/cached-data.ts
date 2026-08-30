@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { messagingRuntimeConfiguration } from "../messaging/runtime-configuration";
 import { loadReconciliation } from "./db";
 import { countDirectoryPartners } from "./directory";
+import { countLegacyGhanaContacts } from "./legacy-contacts";
 import { loadGivingLedger } from "./giving";
 
 /**
@@ -25,6 +26,12 @@ export const countDirectoryPartnersCached = unstable_cache(
   () => countDirectoryPartners(),
   ["poc-partner-count-v1"],
   { revalidate: 300, tags: ["poc-partners"] },
+);
+
+export const countLegacyGhanaContactsCached = unstable_cache(
+  () => countLegacyGhanaContacts(),
+  ["poc-legacy-ghana-count-v1"],
+  { revalidate: 300, tags: ["poc-legacy-ghana"] },
 );
 
 export const messagingRuntimeConfigurationCached = unstable_cache(

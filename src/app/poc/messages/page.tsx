@@ -3,6 +3,7 @@ import { headlineAnswers } from "@/lib/poc/answers";
 import { audienceCounts } from "@/lib/poc/audiences";
 import {
   countDirectoryPartnersCached,
+  countLegacyGhanaContactsCached,
   loadReconciliationCached,
   messagingRuntimeConfigurationCached,
 } from "@/lib/poc/cached-data";
@@ -152,17 +153,23 @@ export default async function MessagesPage({
     );
   }
 
-  const [completeReconciliation, allPartnerCount] = await Promise.all([
-    loadReconciliationCached(),
-    countDirectoryPartnersCached(),
-  ]);
+  const [completeReconciliation, allPartnerCount, legacyGhanaCount] =
+    await Promise.all([
+      loadReconciliationCached(),
+      countDirectoryPartnersCached(),
+      countLegacyGhanaContactsCached(),
+    ]);
   const availablePeriod = reportingPeriod(completeReconciliation);
   const reconciliation = filterReconciliationByPeriod(completeReconciliation, {
     from,
     to,
   });
   const answers = headlineAnswers(reconciliation);
-  const counts = audienceCounts(reconciliation, allPartnerCount);
+  const counts = audienceCounts(
+    reconciliation,
+    allPartnerCount,
+    legacyGhanaCount,
+  );
   const period = reportingPeriod(reconciliation);
   const task =
     sp.task === "thank" ||

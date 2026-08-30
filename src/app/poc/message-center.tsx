@@ -4,6 +4,7 @@ import {
   CircleDollarSign,
   CalendarRange,
   Crown,
+  Archive,
   Gift,
   HeartHandshake,
   SlidersHorizontal,
@@ -99,6 +100,13 @@ const SPECIFIC_AUDIENCES: AudienceOption[] = [
     label: "Gift not linked to a profile",
     description: "A gift exists, but no registered partner record matches it",
     Icon: Gift,
+  },
+  {
+    key: "legacy-ghana",
+    label: "Old Ghana list (archived)",
+    description:
+      "Pre-cutover Ghana contacts, kept apart from partner records — broadcast only",
+    Icon: Archive,
   },
 ];
 

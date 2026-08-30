@@ -24,6 +24,7 @@ import {
   validateTemplate,
 } from "@/lib/poc/direct-message";
 import { loadAllDirectoryPartnersCached } from "@/lib/poc/directory";
+import { loadLegacyGhanaContactsCached } from "@/lib/poc/legacy-contacts";
 import { summarizePlan, filterByKind, type PlanKind } from "@/lib/poc/dispatch";
 import { loadMediaAsset, validateMediaForProvider } from "@/lib/poc/media";
 import { sendPlanned, parseAllowlist } from "@/lib/send";
@@ -139,18 +140,27 @@ export async function POST(req: Request) {
 
   const asOf = new Date().toISOString().slice(0, 10);
   const adapter = getMessagingAdapter();
-  const [completeResult, optedOut, acceptedThankYous, standingPartners, media] =
-    await Promise.all([
-      loadReconciliationCached(),
-      loadOptOuts(),
-      audience === "paid" || (audience === null && kind !== "reminder")
-        ? loadAcceptedSentMessageKeys("thank_you")
-        : Promise.resolve(new Set<string>()),
-      audience === "everyone"
-        ? loadAllDirectoryPartnersCached()
-        : Promise.resolve([]),
-      mediaAssetId ? loadMediaAsset(mediaAssetId) : Promise.resolve(null),
-    ]);
+  const [
+    completeResult,
+    optedOut,
+    acceptedThankYous,
+    standingPartners,
+    legacyContacts,
+    media,
+  ] = await Promise.all([
+    loadReconciliationCached(),
+    loadOptOuts(),
+    audience === "paid" || (audience === null && kind !== "reminder")
+      ? loadAcceptedSentMessageKeys("thank_you")
+      : Promise.resolve(new Set<string>()),
+    audience === "everyone"
+      ? loadAllDirectoryPartnersCached()
+      : Promise.resolve([]),
+    audience === "legacy-ghana"
+      ? loadLegacyGhanaContactsCached()
+      : Promise.resolve([]),
+    mediaAssetId ? loadMediaAsset(mediaAssetId) : Promise.resolve(null),
+  ]);
   const result = filterReconciliationByPeriod(completeResult, { from, to });
 
   if (mediaAssetId && !media) {
@@ -179,7 +189,15 @@ export async function POST(req: Request) {
   };
   let planned: PlannedMessage[];
 
-  if (audience === "everyone") {
+  if (audience === "legacy-ghana") {
+    // The archived pre-hub list. No giving history, so the amount range does not
+    // apply; dedupe still runs so one number is messaged once.
+    planned = buildDirectMessages(
+      dedupeAudiencePartners(legacyContacts),
+      message,
+      media ?? undefined,
+    );
+  } else if (audience === "everyone") {
     const partners = filterAudienceByAmount(
       dedupeAudiencePartners(standingPartners),
       amountRange,

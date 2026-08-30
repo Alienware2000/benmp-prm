@@ -192,14 +192,26 @@ export async function recordSentMessages(
   }
 }
 
-/** E.164 phones that must never be messaged — the consent gate before any send. */
+/**
+ * E.164 phones that must never be messaged — the consent gate before any send.
+ *
+ * Paged rather than capped: a single `limit=` would silently drop opt-outs past the
+ * cap and message people who asked not to be. PostgREST truncates at 1,000 rows, so
+ * the loop is what makes the gate complete.
+ */
 export async function loadOptOuts(
   fetcher: Fetcher = supabaseRestFetcher(),
 ): Promise<Set<string>> {
-  const rows = await fetcher<DbOptOut>("opt_outs?select=phone_e164&limit=5000");
-  return new Set(
-    rows.map((r) => r.phone_e164).filter((p): p is string => Boolean(p)),
-  );
+  const PAGE = 1000;
+  const phones = new Set<string>();
+  for (let offset = 0; ; offset += PAGE) {
+    const rows = await fetcher<DbOptOut>(
+      `opt_outs?select=phone_e164&order=phone_e164.asc&limit=${PAGE}&offset=${offset}`,
+    );
+    for (const row of rows) if (row.phone_e164) phones.add(row.phone_e164);
+    if (rows.length < PAGE) break;
+  }
+  return phones;
 }
 
 export type SentMessageLookup = {

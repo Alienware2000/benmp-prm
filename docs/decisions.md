@@ -358,3 +358,22 @@ _2026-08-24_
 **Why**: the hub structure is how the office actually works — 31 leaders each holding their own list — and pushing validation to the point of entry (with correction in an editable preview rather than a rejection letter) is the only way 31 non-technical admins produce clean data. Numbers as UIDs avoid the leader-name ambiguity the office itself flags as distracting.
 
 **Said no to**: strict header templates (rejected files punish admins for cosmetic differences) · global uniqueness of church names (real churches share names across hubs) · alias tables in v1 · hub number as a permanent password (forced change on first login instead) · silent skipping or overwriting of bad/duplicate rows · outright deletion of the old data (archive + clear, recoverable in minutes) · clearing before the replacement is ready.
+
+## 0019 — The old Ghana list comes back as a broadcast audience, not as partners
+
+_2026-08-30_
+
+**Decided**: the office wants one WhatsApp broadcast to the pre-cutover Ghana contacts. Those contacts return to the product as a **separate table with a single reader**, never as partner records.
+
+1. `public.legacy_ghana_contacts` (migration 0007) is populated once from `archive.partners_pre_hub` — Ghana rows with a non-empty `whatsapp_number`, deduped to one row per number. ~13.1k archived Ghana rows collapse to ~11.6k reachable numbers.
+2. Its only reader is a new `legacy-ghana` audience in the message composer, labelled "Old Ghana list (archived)". Directory search, giving, reconciliation, branch grouping, partner counts and every hub surface are untouched — they read `partners`, which since the cutover holds only hub-ingested people.
+3. **Nothing merges the two.** No join, no backfill into `partners`, no `hub_id`. The hub platform remains the only door for live partner data (Decision 0018 item 7).
+4. Consent is shared rather than duplicated: the send path checks `public.opt_outs` by phone, so a STOP from this broadcast also protects that number if it later arrives through a hub upload. `loadOptOuts` was changed from a `limit=5000` read to a paged one — a cap would have silently dropped opt-outs and messaged people who had asked not to be.
+5. `last_sent_at` on each row exists so a batched or retried run cannot double-send.
+6. Sending is **not** unblocked by this change. The BENMP WhatsApp number is disconnected (Decision 0017 fails closed) and the 2,000-recipient synchronous cap still applies, so ~11.6k needs batching. Preview works today; dispatch waits for the number to be reconnected.
+
+**Why**: the office's need is one campaign to an old list, not a restored partner database. Keeping the contacts in their own table makes the separation structural rather than a matter of care — there is no query that can accidentally blend them, and no partner count that silently grows by 11.6k. Reusing the existing audience plumbing means opt-outs, preview, explicit confirmation and audit logging apply to this broadcast exactly as they do to every other one.
+
+**Supersedes**: Decision 0015 item 3's blanket exclusion of the old directory from bulk sends, for this audience only. Reminders and acknowledgements still never infer recipients from it.
+
+**Said no to**: restoring the archive into `partners` (would mix with hub uploads and inflate every partner-facing count) · a separate Supabase project (fragments the opt-out list, so a STOP in one place would not protect the number in the other) · exposing the `archive` schema through PostgREST · raising the 2,000 cap to force one oversized synchronous send · giving the legacy audience amount filters or `{amount}` drafts it has no data for.

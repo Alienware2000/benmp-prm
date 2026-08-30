@@ -2,7 +2,11 @@ import { unstable_cache } from "next/cache";
 import { messagingRuntimeConfiguration } from "../messaging/runtime-configuration";
 import { loadReconciliation } from "./db";
 import { countDirectoryPartners } from "./directory";
-import { countLegacyGhanaContacts } from "./legacy-contacts";
+import {
+  countLegacyGhanaContacts,
+  loadLegacyGhanaContacts,
+} from "./legacy-contacts";
+import { planLegacyBatches } from "./legacy-batches";
 import { loadGivingLedger } from "./giving";
 
 /**
@@ -32,6 +36,16 @@ export const countLegacyGhanaContactsCached = unstable_cache(
   () => countLegacyGhanaContacts(),
   ["poc-legacy-ghana-count-v1"],
   { revalidate: 300, tags: ["poc-legacy-ghana"] },
+);
+
+/**
+ * The batch table for the legacy Ghana broadcast. Short cache: it changes only when a
+ * batch is sent, and a stale count would misreport progress to staff.
+ */
+export const legacyBatchPlanCached = unstable_cache(
+  async () => planLegacyBatches(await loadLegacyGhanaContacts()),
+  ["poc-legacy-ghana-batches-v1"],
+  { revalidate: 30, tags: ["poc-legacy-ghana"] },
 );
 
 export const messagingRuntimeConfigurationCached = unstable_cache(

@@ -16,7 +16,7 @@
  * Server-only — the fetcher uses the service_role key.
  */
 
-import type { DirectoryPartner } from "./directory";
+import type { LegacyContact } from "./legacy-batches";
 import {
   fetchAllRows,
   mapPartners,
@@ -25,7 +25,8 @@ import {
 } from "./directory";
 import { memoWithTtl, supabaseRestFetcher, type Fetcher } from "./db";
 
-const SELECT = "id,full_name,whatsapp_number,church,country,status";
+const SELECT =
+  "id,full_name,whatsapp_number,church,country,status,last_sent_at";
 
 /** No giving history for legacy contacts — every total resolves to zero. */
 const NO_GIVING = new Map<string, number>();
@@ -36,13 +37,73 @@ const NO_GIVING = new Map<string, number>();
  */
 export async function loadLegacyGhanaContacts(
   fetcher: Fetcher = supabaseRestFetcher(),
-): Promise<DirectoryPartner[]> {
-  const rows = await fetchAllRows<DbPartner>(
+): Promise<LegacyContact[]> {
+  const rows = await fetchAllRows<DbPartner & { last_sent_at: string | null }>(
     fetcher,
     `legacy_ghana_contacts?select=${SELECT}`,
     "id.asc",
   );
-  return mapPartners(rows, NO_GIVING);
+  // mapPartners gives the DirectoryPartner shape the composer expects; last_sent_at is
+  // carried alongside so batching can tell who has already been messaged.
+  const mapped = mapPartners(rows, NO_GIVING);
+  return mapped.map((partner, i) => ({
+    ...partner,
+    lastSentAt: rows[i].last_sent_at,
+  }));
+}
+
+/**
+ * Stamp `last_sent_at` on the contacts a send actually delivered to. Called after
+ * dispatch with only the ids whose outcome was "sent", so a skip or a provider failure
+ * stays eligible for a retry.
+ *
+ * Never throws: the messages are already delivered by this point, and losing a marker
+ * only risks a duplicate on a later batch. It logs loudly instead so the office can
+ * reconcile by hand.
+ */
+export async function markLegacyContactsSent(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return;
+  const now = new Date().toISOString();
+  // Chunked so the id filter cannot outgrow the URL length limit.
+  for (let i = 0; i < ids.length; i += 200) {
+    const batch = ids.slice(i, i + 200);
+    const filter = `id=in.(${batch.join(",")})`;
+    try {
+      const res = await fetch(
+        `${url}/rest/v1/legacy_ghana_contacts?${filter}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: key,
+            Authorization: `Bearer ${key}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ last_sent_at: now }),
+        },
+      );
+      if (!res.ok) {
+        console.error(
+          JSON.stringify({
+            evt: "legacy_mark_sent_failed",
+            count: batch.length,
+            status: res.status,
+          }),
+        );
+      }
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          evt: "legacy_mark_sent_failed",
+          count: batch.length,
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    }
+  }
 }
 
 /** Keep repeated preview requests from re-reading the whole table. */

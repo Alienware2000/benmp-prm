@@ -24,7 +24,15 @@ import {
   validateTemplate,
 } from "@/lib/poc/direct-message";
 import { loadAllDirectoryPartnersCached } from "@/lib/poc/directory";
-import { loadLegacyGhanaContactsCached } from "@/lib/poc/legacy-contacts";
+import {
+  loadLegacyGhanaContactsCached,
+  markLegacyContactsSent,
+} from "@/lib/poc/legacy-contacts";
+import {
+  isValidBatchNumber,
+  legacyBatchRecipients,
+  planLegacyBatches,
+} from "@/lib/poc/legacy-batches";
 import { summarizePlan, filterByKind, type PlanKind } from "@/lib/poc/dispatch";
 import { loadMediaAsset, validateMediaForProvider } from "@/lib/poc/media";
 import { sendPlanned, parseAllowlist } from "@/lib/send";
@@ -78,6 +86,7 @@ export async function POST(req: Request) {
     minAmountMinor?: unknown;
     maxAmountMinor?: unknown;
     audience?: unknown;
+    batch?: unknown;
     mediaAssetId?: unknown;
     from?: unknown;
     to?: unknown;
@@ -188,12 +197,29 @@ export async function POST(req: Request) {
     ...(maxAmountMinor !== null ? { maxAmountMinor } : {}),
   };
   let planned: PlannedMessage[];
+  /** Set when the legacy audience is in play, so the send can stamp last_sent_at. */
+  let legacyBatch: number | null = null;
 
   if (audience === "legacy-ghana") {
-    // The archived pre-hub list. No giving history, so the amount range does not
-    // apply; dedupe still runs so one number is messaged once.
+    // The archived pre-hub list, sent in fixed batches — ~11.3k cannot go out in one
+    // synchronous request. No giving history, so the amount range does not apply.
+    const plan = planLegacyBatches(legacyContacts);
+    const batch = Number(body.batch);
+    if (!isValidBatchNumber(batch, plan)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            message: `Choose a batch between 1 and ${plan.batches.length}.`,
+          },
+        },
+        { status: 400 },
+      );
+    }
+    legacyBatch = batch;
+    // dedupe still runs so a number repeated across the archive is messaged once.
     planned = buildDirectMessages(
-      dedupeAudiencePartners(legacyContacts),
+      dedupeAudiencePartners(legacyBatchRecipients(legacyContacts, batch)),
       message,
       media ?? undefined,
     );
@@ -304,6 +330,15 @@ export async function POST(req: Request) {
   const audited = await recordSentMessages(
     toSentMessageRows(messages, report.outcomes),
   );
+  if (legacyBatch !== null) {
+    // Mark only what actually went out, so a skip or a provider failure stays eligible
+    // for a retry of the same batch.
+    await markLegacyContactsSent(
+      report.outcomes
+        .filter((outcome) => outcome.status === "sent")
+        .map((outcome) => outcome.partnerRef),
+    );
+  }
   return NextResponse.json({
     ok: true,
     data: { mode: "sent", report, audited },

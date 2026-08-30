@@ -4,6 +4,7 @@ import { audienceCounts } from "@/lib/poc/audiences";
 import {
   countDirectoryPartnersCached,
   countLegacyGhanaContactsCached,
+  legacyBatchPlanCached,
   loadReconciliationCached,
   messagingRuntimeConfigurationCached,
 } from "@/lib/poc/cached-data";
@@ -153,12 +154,17 @@ export default async function MessagesPage({
     );
   }
 
-  const [completeReconciliation, allPartnerCount, legacyGhanaCount] =
-    await Promise.all([
-      loadReconciliationCached(),
-      countDirectoryPartnersCached(),
-      countLegacyGhanaContactsCached(),
-    ]);
+  const [
+    completeReconciliation,
+    allPartnerCount,
+    legacyGhanaCount,
+    legacyBatchPlan,
+  ] = await Promise.all([
+    loadReconciliationCached(),
+    countDirectoryPartnersCached(),
+    countLegacyGhanaContactsCached(),
+    legacyBatchPlanCached(),
+  ]);
   const availablePeriod = reportingPeriod(completeReconciliation);
   const reconciliation = filterReconciliationByPeriod(completeReconciliation, {
     from,
@@ -223,6 +229,7 @@ export default async function MessagesPage({
           periodLabel={period.label}
           periodFrom={from}
           periodTo={to}
+          legacyBatches={legacyBatchPlan.batches}
         />
       </PocShell>
     );

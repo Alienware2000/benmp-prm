@@ -319,7 +319,11 @@ The weekly review should produce action owners, not just reports.
 
 ## Legacy Ghana broadcast (Decision 0019)
 
-One-off campaign to the archived pre-hub Ghana contacts. Dispatch is a script, not a UI button — the composer's `legacy-ghana` audience previews the full list but refuses a confirmed send above 2,000 (`MAX_IMMEDIATE_RECIPIENTS`).
+One-off campaign to the archived pre-hub Ghana contacts, sent in 6 fixed batches.
+
+**From the app (what staff use)**: `/poc` -> Messages -> a task -> **More specific groups** -> **Old Ghana list (archived)**. A batch selector appears showing all 6 batches and their progress, preselecting the first with anyone left. Preview and send act on the chosen batch only.
+
+**From the terminal** (unattended runs; same batching, same batch numbers):
 
 ```bash
 # 1. See the chunk table. Read-only: no provider call, no writes.

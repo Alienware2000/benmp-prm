@@ -316,3 +316,29 @@ Weekly office review:
 - Upcoming crusades needing partner updates.
 
 The weekly review should produce action owners, not just reports.
+
+## Legacy Ghana broadcast (Decision 0019)
+
+One-off campaign to the archived pre-hub Ghana contacts. Dispatch is a script, not a UI button — the composer's `legacy-ghana` audience previews the full list but refuses a confirmed send above 2,000 (`MAX_IMMEDIATE_RECIPIENTS`).
+
+```bash
+# 1. See the chunk table. Read-only: no provider call, no writes.
+npx tsx --env-file=.env.local scripts/send-legacy-ghana-broadcast.ts --plan
+
+# 2. Dry-run a batch — prints the recipient count and a rendered sample.
+npx tsx --env-file=.env.local scripts/send-legacy-ghana-broadcast.ts \
+  --batch 1 --message "Hello {name}, ..."
+
+# 3. Send it. Repeat per batch, ideally spread across days.
+npx tsx --env-file=.env.local scripts/send-legacy-ghana-broadcast.ts \
+  --batch 1 --message "Hello {name}, ..." --confirm
+```
+
+As of 2026-08-30: 11,633 rows, 287 unusable phones, **11,346 sendable → 6 batches** (5×2,000 + 1,346).
+
+**Before the first live batch**
+- The BENMP WhatsApp sender must be connected — Decision 0017 fails closed, and `BENMP_MESSAGING_PROVIDER` must not be `mock`.
+- Set `BENMP_SEND_ALLOWLIST` to your own number and run one batch with `--confirm` first. Everyone else is skipped, so it proves the provider path end to end without touching partners.
+- Ramp: these numbers have not been contacted since the 2026-08-25 cutover, and a cold 11k blast is the pattern WhatsApp flags. Spreading the 6 batches over several days protects the sender's quality rating — which the hub platform shares.
+
+**Safety properties** — `last_sent_at` excludes anyone already messaged, so a re-run or a crash mid-batch cannot double-send; opt-outs are re-read at send time; chunk boundaries are stable across runs. Every attempt emits a structured `poc_send` log line carrying its batch number.

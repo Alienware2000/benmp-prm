@@ -376,4 +376,6 @@ _2026-08-30_
 
 **Supersedes**: Decision 0015 item 3's blanket exclusion of the old directory from bulk sends, for this audience only. Reminders and acknowledgements still never infer recipients from it.
 
+7. **Sending is batched by a script, not the web request.** `scripts/send-legacy-ghana-broadcast.ts` chunks the eligible contacts into 2,000s (6 batches: 5×2,000 + 1,346), dry-runs by default, and requires `--confirm` per batch. Chunks are stable (sorted by id) and `last_sent_at` is written per recipient as each send succeeds, so an interrupted batch resumes without double-sending. 287 of the 11,633 rows carry unusable phones (Excel debris — a leading `;`, `'`, or a bare `.`) and are dropped before chunking, leaving **11,346** sendable.
+
 **Said no to**: restoring the archive into `partners` (would mix with hub uploads and inflate every partner-facing count) · a separate Supabase project (fragments the opt-out list, so a STOP in one place would not protect the number in the other) · exposing the `archive` schema through PostgREST · raising the 2,000 cap to force one oversized synchronous send · giving the legacy audience amount filters or `{amount}` drafts it has no data for.

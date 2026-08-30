@@ -737,3 +737,22 @@ Hub-ingested people land in the standing `partners` table (`source = 'hub_ingest
 ### Archive at cutover
 
 At the Decision 0018 cutover, current `partners`, `payments`, and `sent_messages` rows are copied to `archive.partners` / `archive.payments` / `archive.sent_messages` (same shape, plus `archived_at`) and exported to CSV files handed to the office, then deleted from the live tables. The `archive` schema is not exposed through any app surface.
+
+As built, the archived partner table is `archive.partners_pre_hub` (only rows with `hub_id is null`, so hub uploads survived the cutover); the other three are `archive.registrations`, `archive.payments`, `archive.sent_messages`. The schema is not in PostgREST's exposed list, so it is reachable only from the SQL editor or a direct Postgres connection.
+
+### `legacy_ghana_contacts` (migration 0007)
+
+The archived pre-hub Ghana numbers, copied out of `archive.partners_pre_hub` so the office can send them one WhatsApp broadcast. Deliberately **not** restored into `partners` — the hub platform stays the only door for live partner data (Decision 0018).
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid | PK |
+| `full_name` | text | May be a placeholder; `displayName()` renders it as "Unknown" |
+| `whatsapp_number` | text not null, **unique** | The dedupe key — the archive holds duplicate numbers |
+| `church`, `country`, `status` | text | Carried over as-is, for context in the preview |
+| `last_sent_at` | timestamptz | Set once a broadcast batch has gone out, so a re-run cannot double-send |
+| `source_partner_id` | uuid | The `archive.partners_pre_hub` row it came from |
+
+Populated once by migration 0007 (`insert … on conflict do nothing`, so a re-run is a no-op). RLS on, no anon policies; read server-side with the service role.
+
+**Separation**: nothing joins this table to `partners`. Directory search, giving, reconciliation, branch grouping, partner counts and every hub surface read `partners` and never this. Its only reader is the `legacy-ghana` message audience. Consent is shared, not duplicated — the send path checks `public.opt_outs` by phone, so a STOP from this broadcast also protects the number if it later arrives through a hub upload.

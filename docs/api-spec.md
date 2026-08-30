@@ -369,7 +369,11 @@ AI answer over the reconciled period. Body `{ question: string }`.
 ### `POST /api/poc/send`
 
 Preview or send the **planned** queues (thank-yous, reminders) derived from reconciliation.
-Body `{ confirm?: boolean, kind?: "thank_you" | "reminder" | "all" }`. `confirm` falsy → preview only.
+Body `{ confirm?: boolean, kind?: "thank_you" | "reminder" | "all", audience?: AudienceKey, … }`. `confirm` falsy → preview only.
+
+`audience` is one of `everyone`, `paid`, `unpaid`, `top`, `consistent`, `new`, `legacy-ghana`. All but `legacy-ghana` resolve from `partners` + reconciliation. **`legacy-ghana`** resolves from `legacy_ghana_contacts` (the archived pre-hub Ghana list, db-schema.md) — it never touches `partners`, ignores the min/max amount filter (those contacts have no giving history), and requires a staff-written message. Opt-outs, dedupe, explicit confirmation and audit logging are the same for it as for every other audience.
+
+A confirmed send is still capped at `MAX_IMMEDIATE_RECIPIENTS` (2,000). Larger audiences preview fine and are rejected at confirm time — `legacy-ghana` (~11.6k) therefore needs batching before it can be sent in full.
 
 ### `POST /api/poc/directory/send`
 

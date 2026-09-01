@@ -12,6 +12,9 @@
  *
  * Run:
  *   npx tsx --env-file=.env.local scripts/send-one.ts +233XXXXXXXXX "Test from BENMP"
+ *   npx tsx --env-file=.env.local scripts/send-one.ts --sms +233XXXXXXXXX "Test"
+ *
+ * --sms picks the SMS channel (FlashSMS); the default is WhatsApp.
  *
  * Set BENMP_MESSAGING_PROVIDER (and that provider's keys) in the env file first.
  * With `mock` it prints what would be sent without calling anyone.
@@ -20,7 +23,11 @@ import { getMessagingAdapter } from "../src/lib/messaging";
 import { messagingConfiguration } from "../src/lib/messaging/configuration";
 import { normalizePhone } from "../src/lib/phone";
 
-const [rawTo, ...rest] = process.argv.slice(2);
+const argv = process.argv.slice(2);
+const channel = argv.includes("--sms")
+  ? ("sms" as const)
+  : ("whatsapp" as const);
+const [rawTo, ...rest] = argv.filter((a) => !a.startsWith("--"));
 const body = rest.join(" ") || "BENMP PRM test message — the system can send.";
 
 async function main() {
@@ -40,6 +47,7 @@ async function main() {
   console.log(`provider:   ${adapter.provider}`);
   console.log(`ready:      ${config.ready}`);
   if (config.note) console.log(`note:       ${config.note}`);
+  console.log(`channel:    ${channel}`);
   console.log(`to:         ${to}`);
   console.log(`body:       ${body}\n`);
 
@@ -50,7 +58,7 @@ async function main() {
   }
 
   const result = await adapter.send({
-    channel: "whatsapp",
+    channel,
     to,
     body,
     category: "utility",

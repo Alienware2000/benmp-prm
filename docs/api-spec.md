@@ -375,6 +375,8 @@ Body `{ confirm?: boolean, kind?: "thank_you" | "reminder" | "all", audience?: A
 
 `legacy-ghana` additionally **requires** `batch` (1-based, within the plan) on both preview and confirm — the ~11.3k audience is split into fixed 2,000-person batches. Batch boundaries are stable (contacts ordered by id), and members already carrying `last_sent_at` are skipped rather than removed, so a completed batch never reslides into the next one. After a confirmed send, only recipients whose outcome was `sent` get stamped; skips and failures stay eligible for a retry of the same batch.
 
+`channel` selects `whatsapp` (default) or `sms`. SMS applies to every audience path — including the planned thank-you/reminder queues built by `planMessages()` — and strips any attachment, since SMS cannot carry media. On an SMS preview the summary gains `smsCost` (`characters`, `parts`, `creditsPerRecipient`, `creditsTotal`, `unicode`, `charactersUntilNextPart`), priced off the **longest** rendered body so one long `{name}` cannot silently push the run into another part. On an SMS **confirm**, the route calls FlashSMS `/sms/estimate` and returns `400` if the credits needed exceed the account balance — a run that dies halfway on `INSUFFICIENT_CREDITS` leaves the office unable to tell who was reached.
+
 A confirmed send is still capped at `MAX_IMMEDIATE_RECIPIENTS` (2,000). Larger audiences preview fine and are rejected at confirm time — `legacy-ghana` (~11.6k) therefore needs batching before it can be sent in full.
 
 ### `POST /api/poc/directory/send`

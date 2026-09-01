@@ -7,6 +7,8 @@ import {
   Archive,
   Gift,
   HeartHandshake,
+  MessageSquare,
+  Smartphone,
   SlidersHorizontal,
   Sparkles,
   Users,
@@ -21,6 +23,7 @@ import {
 import type { MessagingProvider } from "@/lib/messaging/types";
 import type { AudienceCounts, AudienceKey } from "@/lib/poc/audiences";
 import type { LegacyBatch } from "@/lib/poc/legacy-batches";
+import { smsCost } from "@/lib/poc/sms-cost";
 import {
   MessageAttachmentField,
   type MessageMediaAsset,
@@ -37,6 +40,15 @@ type Summary = {
   direct: number;
   sendLimit?: number;
   overSendLimit?: boolean;
+  channel?: "whatsapp" | "sms";
+  smsCost?: {
+    characters: number;
+    parts: number;
+    creditsPerRecipient: number;
+    creditsTotal: number;
+    unicode: boolean;
+    charactersUntilNextPart: number;
+  };
   sample: Array<{
     kind: string;
     name: string;
@@ -111,6 +123,26 @@ const SPECIFIC_AUDIENCES: AudienceOption[] = [
   },
 ];
 
+const CHANNELS: Array<{
+  key: "whatsapp" | "sms";
+  label: string;
+  description: string;
+  Icon: typeof Users;
+}> = [
+  {
+    key: "whatsapp",
+    label: "WhatsApp",
+    description: "Free-form, with attachments. Needs a recent conversation.",
+    Icon: MessageSquare,
+  },
+  {
+    key: "sms",
+    label: "SMS",
+    description: "Reaches any number, no 24-hour window. Costs credits.",
+    Icon: Smartphone,
+  },
+];
+
 const SKIP_LABELS: Record<string, string> = {
   "not in allowlist": "held by safety allowlist",
   "opted out": "opted out",
@@ -170,6 +202,7 @@ async function post({
   periodFrom,
   periodTo,
   batch,
+  channel,
 }: {
   audience: AudienceKey;
   confirm: boolean;
@@ -180,6 +213,7 @@ async function post({
   periodFrom: string;
   periodTo: string;
   batch: number | null;
+  channel: "whatsapp" | "sms";
 }) {
   const minAmountMinor = amountToMinor(minAmount);
   const maxAmountMinor = amountToMinor(maxAmount);
@@ -196,6 +230,7 @@ async function post({
       ...(periodFrom ? { from: periodFrom } : {}),
       ...(periodTo ? { to: periodTo } : {}),
       ...(batch !== null ? { batch } : {}),
+      channel,
     }),
   });
   return response.json() as Promise<{
@@ -282,6 +317,9 @@ export function MessageCenter({
   // Which fixed chunk of the legacy Ghana list to send. Only meaningful for that
   // audience; every other one sends in a single pass.
   const [batch, setBatch] = useState<number | null>(null);
+  // WhatsApp or SMS. SMS is never the default: it is billed per 160-character part
+  // per recipient, so choosing it has to be a deliberate act.
+  const [channel, setChannel] = useState<"whatsapp" | "sms">("whatsapp");
   const [message, setMessage] = useState(initialMessage);
   const [preset, setPreset] = useState("");
   const [minAmount, setMinAmount] = useState("");
@@ -293,6 +331,11 @@ export function MessageCenter({
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+
+  // Local estimate for feedback while typing. The server re-prices with the
+  // provider's own /sms/estimate before any send, so this can never be the only
+  // thing standing between staff and a charge.
+  const liveCost = smsCost(message, summary?.sendable ?? 0);
 
   function resetReview() {
     setSummary(null);
@@ -314,6 +357,17 @@ export function MessageCenter({
             null)
         : null,
     );
+    resetReview();
+  }
+
+  function chooseChannel(next: "whatsapp" | "sms") {
+    setChannel(next);
+    // SMS carries no media; drop a staged attachment rather than let the server
+    // silently strip it after staff thought it was going out.
+    if (next === "sms") {
+      setMediaId("");
+      setAttached(null);
+    }
     resetReview();
   }
 
@@ -346,6 +400,7 @@ export function MessageCenter({
         periodFrom,
         periodTo,
         batch,
+        channel,
       });
       if (result.ok && result.data?.summary) {
         setSummary(result.data.summary);
@@ -374,6 +429,7 @@ export function MessageCenter({
         periodFrom,
         periodTo,
         batch,
+        channel,
       });
       if (result.ok && result.data?.report) {
         setReport(result.data.report);
@@ -634,6 +690,47 @@ export function MessageCenter({
           </span>
         </div>
 
+        <div className="mt-3 rounded-md border border-border bg-background p-3">
+          <p className="text-xs font-semibold">Send by</p>
+          <div
+            role="radiogroup"
+            aria-label="Message channel"
+            className="mt-2 grid gap-2 sm:grid-cols-2"
+          >
+            {CHANNELS.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                role="radio"
+                aria-checked={channel === option.key}
+                onClick={() => chooseChannel(option.key)}
+                className={`flex items-start gap-2 rounded-md border p-2 text-left text-xs ${
+                  channel === option.key
+                    ? "border-foreground bg-muted"
+                    : "border-border"
+                }`}
+              >
+                <option.Icon
+                  className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+                <span>
+                  <span className="block font-semibold">{option.label}</span>
+                  <span className="block text-muted-foreground">
+                    {option.description}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+          {channel === "sms" && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              SMS is charged per 160-character part, per person — and it cannot
+              carry an attachment.
+            </p>
+          )}
+        </div>
+
         <label className="mt-3 grid gap-1.5 text-xs font-semibold">
           Message
           <textarea
@@ -653,20 +750,36 @@ export function MessageCenter({
             </span>
             <span className="tabular-nums">{message.length}/1000</span>
           </span>
+          {channel === "sms" && message.length > 0 && (
+            <span className="font-normal text-muted-foreground">
+              {liveCost.parts} SMS part{liveCost.parts === 1 ? "" : "s"} ·{" "}
+              {liveCost.creditsPerRecipient} credit
+              {liveCost.creditsPerRecipient === 1 ? "" : "s"} per person ·{" "}
+              <b className="tabular-nums">{liveCost.charactersUntilNextPart}</b>{" "}
+              character
+              {liveCost.charactersUntilNextPart === 1 ? "" : "s"} left before
+              this costs {liveCost.parts + 1}
+              {liveCost.unicode
+                ? " · an emoji or special character has cut the limit to 70 per part"
+                : ""}
+            </span>
+          )}
         </label>
 
-        <div className="mt-3">
-          <MessageAttachmentField
-            id="bulk-message-attachment"
-            value={mediaId}
-            onChange={(next) => {
-              setMediaId(next);
-              resetReview();
-            }}
-            onAssetChange={setAttached}
-            onError={setError}
-          />
-        </div>
+        {channel === "whatsapp" && (
+          <div className="mt-3">
+            <MessageAttachmentField
+              id="bulk-message-attachment"
+              value={mediaId}
+              onChange={(next) => {
+                setMediaId(next);
+                resetReview();
+              }}
+              onAssetChange={setAttached}
+              onError={setError}
+            />
+          </div>
+        )}
 
         <button
           type="button"
@@ -742,6 +855,31 @@ export function MessageCenter({
                 Attachment:{" "}
                 <b className="text-foreground">{attached.filename}</b>
               </p>
+            )}
+
+            {summary.channel === "sms" && summary.smsCost && (
+              <FeedbackNotice
+                tone={summary.smsCost.parts > 2 ? "warning" : "info"}
+                title={`This send costs ${summary.smsCost.creditsTotal.toLocaleString("en-US")} SMS credits`}
+                supportingText="Charged per 160-character part, per person. Nothing has been sent yet."
+              >
+                {summary.smsCost.parts} part
+                {summary.smsCost.parts === 1 ? "" : "s"} per message ×{" "}
+                {summary.sendable.toLocaleString("en-US")} people. Shortening
+                the message below{" "}
+                {summary.smsCost.parts === 1
+                  ? "160"
+                  : ((summary.smsCost.parts - 1) * 153).toString()}{" "}
+                characters would drop it to{" "}
+                {(
+                  (summary.smsCost.parts - 1) *
+                  summary.sendable
+                ).toLocaleString("en-US")}
+                .
+                {summary.smsCost.unicode
+                  ? " An emoji or special character is in the message, which cuts each part from 160 characters to 70."
+                  : ""}
+              </FeedbackNotice>
             )}
 
             {summary.overSendLimit && (

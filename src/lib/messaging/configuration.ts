@@ -15,6 +15,8 @@ const REQUIRED: Partial<Record<MessagingProvider, string[]>> = {
   infobip: ["INFOBIP_API_KEY", "INFOBIP_BASE_URL", "INFOBIP_WHATSAPP_SENDER"],
   vonage: ["VONAGE_API_KEY", "VONAGE_API_SECRET", "VONAGE_WHATSAPP_SENDER"],
   whatchimp: ["WHATCHIMP_API_TOKEN", "WHATCHIMP_PHONE_NUMBER_ID"],
+  // senderId is optional — FlashSMS falls back to the account's first approved ID.
+  flashsms: ["FLASHSMS_API_KEY"],
 };
 
 export function messagingConfiguration(
@@ -27,6 +29,7 @@ export function messagingConfiguration(
     configured === "infobip" ||
     configured === "vonage" ||
     configured === "whatchimp" ||
+    configured === "flashsms" ||
     configured === "wali"
       ? configured
       : "mock";

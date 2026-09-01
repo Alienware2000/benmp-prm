@@ -381,3 +381,29 @@ _2026-08-30_
 8. **The CLI script remains** for unattended runs. `scripts/send-legacy-ghana-broadcast.ts` chunks the eligible contacts into 2,000s (6 batches: 5×2,000 + 1,346), dry-runs by default, and requires `--confirm` per batch. Chunks are stable (sorted by id) and `last_sent_at` is written per recipient as each send succeeds, so an interrupted batch resumes without double-sending. 287 of the 11,633 rows carry unusable phones (Excel debris — a leading `;`, `'`, or a bare `.`) and are dropped before chunking, leaving **11,346** sendable.
 
 **Said no to**: restoring the archive into `partners` (would mix with hub uploads and inflate every partner-facing count) · a separate Supabase project (fragments the opt-out list, so a STOP in one place would not protect the number in the other) · exposing the `archive` schema through PostgREST · raising the 2,000 cap to force one oversized synchronous send · giving the legacy audience amount filters or `{amount}` drafts it has no data for.
+
+## 0020 — The legacy Ghana broadcast goes out over SMS, not WhatsApp
+
+_2026-09-01_
+
+**Decided**: the archived Ghana list is contacted by **SMS through FlashSMS Africa**, not WhatsApp. A `flashsms` adapter joins the existing provider set.
+
+1. **WhatsApp cannot carry this campaign.** WhatChimp runs on the official Meta Cloud API, which enforces the 24-hour session window: free-form text is rejected for anyone who has not messaged us recently. Verified live — every send to a cold number returns *"Sending message outside 24 hour window is not allowed."* All 11.6k archived contacts are cold, so WhatsApp would require a Meta-approved template for every one.
+2. **WaliChat is not the answer either.** It drives a real WhatsApp Web session, which is why it bypassed the window and delivered 503 messages on 2026-08-30 — and also why 1,496 then failed on a 500-message queue cap and the number ended up disconnected.
+3. **Cost is a first-class constraint.** SMS is billed per 160-character part (verified against `/sms/estimate`: 160 chars = 1 part, 161 = 2, 306 = 2, 307 = 3). The original 881-character notice costs **6 credits per recipient** — 68,076 for the full list. The reframed 278-character version costs **2**, i.e. 21,686 for the 10,843 still to send. Every send path therefore calls `/sms/estimate` first; a long message must never become a five-figure charge by accident.
+4. **Bulk is one request.** FlashSMS v2 accepts an array of phones and answers `202 Accepted`, queueing the campaign rather than blocking. `sendBulk()` uses this; the 2,000-recipient batching exists for the per-message WhatsApp path and is not needed for SMS.
+5. **Idempotency is required, not optional.** v2 wants a fresh UUID per logical send and replays the original response for 24 hours, which makes a retry after a network error safe rather than double-charged.
+
+**Why**: the office needs this campaign to go out, and WhatsApp's own policy blocks it without template approval that has not happened. SMS reaches every number today, at a cost the account can already cover.
+
+**Said no to**: submitting a Meta template just to unblock one campaign (still worth doing for future WhatsApp sends, but not on this timeline) · sending the full 881-character message over SMS at 6 credits each · looping FlashSMS per recipient when one request carries the whole list · dropping the credit estimate as "an extra call".
+
+## 0021 — "Queued" is a successful send
+
+_2026-09-01_
+
+**Decided**: `wasDispatched(status)` in `src/lib/send.ts` is the single answer to "did this message go out?", and it counts both `sent` and `queued`.
+
+**Why**: every WhatsApp and SMS provider wired here returns `queued` — the message is accepted and delivered asynchronously. Code comparing against `"sent"` alone concludes nothing was delivered. On 2026-08-30 that is exactly what happened: 503 messages were dispatched, all came back `queued`, none were stamped with `last_sent_at`, and all 503 were left exposed to a duplicate send on the next batch. `scripts/backfill-legacy-sent.ts` repaired those rows from the `sent_messages` audit trail (503 backfilled, batch boundaries verified intact afterwards).
+
+**Said no to**: stamping on any non-failed status (a skip is not a delivery) · marking optimistically before dispatch · a per-provider status map when one shared predicate covers every adapter.

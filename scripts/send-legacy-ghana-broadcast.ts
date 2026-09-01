@@ -45,7 +45,7 @@ import {
 } from "../src/lib/poc/legacy-batches";
 import { loadOptOuts } from "../src/lib/poc/db";
 import { getMessagingAdapter } from "../src/lib/messaging";
-import { sendPlanned, parseAllowlist } from "../src/lib/send";
+import { sendPlanned, parseAllowlist, wasDispatched } from "../src/lib/send";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -137,7 +137,7 @@ async function main() {
 
   // Mark only what actually went out — a skip or a failure stays eligible for a retry.
   await markLegacyContactsSent(
-    report.outcomes.filter((o) => o.status === "sent").map((o) => o.partnerRef),
+    report.outcomes.filter((o) => wasDispatched(o.status)).map((o) => o.partnerRef),
   );
 
   console.log(

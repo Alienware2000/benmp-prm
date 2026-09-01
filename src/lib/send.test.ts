@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { sendPlanned, parseAllowlist } from "./send";
+import { sendPlanned, parseAllowlist, wasDispatched } from "./send";
 import type { PlannedMessage } from "./messages";
 import type {
   MessagingAdapter,
@@ -79,7 +79,10 @@ describe("sendPlanned", () => {
 
   it("a null allowlist means no restriction", async () => {
     const adapter = okAdapter();
-    const report = await sendPlanned([messages[0], messages[1]], { adapter, allowlist: null });
+    const report = await sendPlanned([messages[0], messages[1]], {
+      adapter,
+      allowlist: null,
+    });
     expect(report.queued).toBe(2);
   });
 
@@ -122,10 +125,27 @@ describe("parseAllowlist (BENMP_SEND_ALLOWLIST)", () => {
 
   it("parses comma/space-separated numbers and normalizes to E.164", () => {
     const set = parseAllowlist("+14753659443, 0244123456 +233209999999");
-    expect(set).toEqual(new Set(["+14753659443", "+233244123456", "+233209999999"]));
+    expect(set).toEqual(
+      new Set(["+14753659443", "+233244123456", "+233209999999"]),
+    );
   });
 
   it("drops junk entries and returns null when nothing usable remains", () => {
     expect(parseAllowlist("not-a-phone, xyz")).toBeNull();
+  });
+});
+
+describe("wasDispatched", () => {
+  // Regression: the first legacy Ghana broadcast dispatched 503 messages, every one
+  // came back "queued", and a caller checking only for "sent" marked none of them —
+  // leaving all 503 exposed to a duplicate send on the next batch.
+  it("counts queued as dispatched, because every provider here answers queued", () => {
+    expect(wasDispatched("queued")).toBe(true);
+    expect(wasDispatched("sent")).toBe(true);
+  });
+
+  it("does not count skipped or failed", () => {
+    expect(wasDispatched("skipped")).toBe(false);
+    expect(wasDispatched("failed")).toBe(false);
   });
 });

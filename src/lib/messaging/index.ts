@@ -5,6 +5,7 @@ import { TwilioMessagingAdapter } from "./twilio-adapter";
 import { VonageMessagingAdapter } from "./vonage-adapter";
 import { WaliMessagingAdapter } from "./wali-adapter";
 import { WhatChimpMessagingAdapter } from "./whatchimp-adapter";
+import { FlashSmsMessagingAdapter } from "./flashsms-adapter";
 import type { MessagingAdapter, MessagingProvider } from "./types";
 
 function getMessagingProvider(): MessagingProvider {
@@ -16,6 +17,7 @@ function getMessagingProvider(): MessagingProvider {
     provider === "infobip" ||
     provider === "vonage" ||
     provider === "whatchimp" ||
+    provider === "flashsms" ||
     provider === "wali"
   ) {
     return provider;
@@ -45,6 +47,10 @@ export function getMessagingAdapter(): MessagingAdapter {
 
   if (provider === "whatchimp") {
     return new WhatChimpMessagingAdapter();
+  }
+
+  if (provider === "flashsms") {
+    return new FlashSmsMessagingAdapter();
   }
 
   if (provider === "wali") {

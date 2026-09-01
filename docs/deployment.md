@@ -88,7 +88,7 @@ Current keys from `.env.example`:
 | -------------------------------- | -------------- | -------------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_APP_URL`            | All            | Public app base URL.                                                             |
 | `BENMP_DATA_PROVIDER`            | All            | `mock`, `supabase`, or future `postgres`. Default mock.                          |
-| `BENMP_MESSAGING_PROVIDER`       | All            | `mock`, `wali`, `twilio`, `meta-cloud-api`, `infobip`, `vonage`, or `whatchimp`. |
+| `BENMP_MESSAGING_PROVIDER`       | All            | `mock`, `wali`, `twilio`, `meta-cloud-api`, `infobip`, `vonage`, `whatchimp`, or `flashsms`. |
 | `NEXT_PUBLIC_SUPABASE_URL`       | Supabase envs  | Public Supabase URL.                                                             |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Supabase envs  | Public anon key; RLS backstops data.                                             |
 | `SUPABASE_SERVICE_ROLE_KEY`      | Server only    | Never expose to client bundles. Bypasses RLS — trusted server code only.         |

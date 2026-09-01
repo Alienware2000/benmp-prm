@@ -17,6 +17,7 @@ function contact(n: number, over: Partial<LegacyContact> = {}): LegacyContact {
     givenMinor: 0,
     messageable: true,
     lastSentAt: null,
+    smsSentAt: null,
     ...over,
   };
 }
@@ -128,5 +129,44 @@ describe("isValidBatchNumber", () => {
     expect(isValidBatchNumber(1.5, plan)).toBe(false);
     expect(isValidBatchNumber("1", plan)).toBe(false);
     expect(isValidBatchNumber(null, plan)).toBe(false);
+  });
+});
+
+describe("channel-aware send markers", () => {
+  // The 2026-08-30 WhatsApp run marked 503 contacts. The SMS campaign is a separate
+  // campaign on a separate channel and must still reach them — those sends came back
+  // only "queued" before the Wali device disconnected, so delivery is not even certain.
+  const contacts = many(10).map((c, i) =>
+    i < 4 ? { ...c, lastSentAt: "2026-08-30T00:00:00Z" } : c,
+  );
+
+  it("excludes WhatsApp-sent contacts from a WhatsApp batch", () => {
+    expect(legacyBatchRecipients(contacts, 1, 5, "whatsapp")).toHaveLength(1);
+  });
+
+  it("still sends SMS to contacts already messaged on WhatsApp", () => {
+    expect(legacyBatchRecipients(contacts, 1, 5, "sms")).toHaveLength(5);
+  });
+
+  it("excludes SMS-sent contacts from a later SMS batch", () => {
+    const afterSms = contacts.map((c, i) =>
+      i < 2 ? { ...c, smsSentAt: "2026-09-01T00:00:00Z" } : c,
+    );
+    expect(legacyBatchRecipients(afterSms, 1, 5, "sms")).toHaveLength(3);
+    // ...and the WhatsApp view is unaffected by the SMS run.
+    expect(legacyBatchRecipients(afterSms, 1, 5, "whatsapp")).toHaveLength(1);
+  });
+
+  it("reports per-channel progress in the plan", () => {
+    expect(planLegacyBatches(contacts, 5, "sms").batches[0]).toMatchObject({
+      alreadySent: 0,
+      remaining: 5,
+    });
+    expect(planLegacyBatches(contacts, 5, "whatsapp").batches[0]).toMatchObject(
+      {
+        alreadySent: 4,
+        remaining: 1,
+      },
+    );
   });
 });

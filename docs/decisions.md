@@ -426,3 +426,15 @@ _2026-09-01_
 **Why**: the WaliChat incident showed how a send can go wrong silently and expensively. Here the failure mode is money: the original 881-character notice would have cost 65,058 credits against the reframed version's 21,686 — the same audience, 43,000 credits apart, and nothing in the old UI would have shown that before the send.
 
 **Said no to**: making SMS the automatic fallback when WhatsApp is unavailable · pricing from the template rather than the longest rendered message · trusting the client's cost estimate at send time · letting the adapter drop attachments silently.
+
+## 0023 — Send markers are per channel, not per contact
+
+_2026-09-01_
+
+**Decided**: `legacy_ghana_contacts` carries one "already messaged" marker **per channel** — `last_sent_at` for WhatsApp, `sms_sent_at` for SMS (migration 0008) — and every batching path takes the channel into account.
+
+**Why**: a single marker conflated "messaged at all" with "messaged in this campaign". The 2026-08-30 WhatsApp run stamped 503 contacts, which would have silently excluded them from the SMS campaign — batch 1 showing 1,497 of 2,000 rather than a full 2,000. They are owed the SMS: it is a different campaign on a different channel, and those WhatsApp sends came back only `queued` before the Wali device disconnected, so even their delivery is uncertain. Nothing is cleared — the WhatsApp history stays exactly as recorded.
+
+Effect on the campaign: **11,346 recipients rather than 10,843**, at 2 credits each: **22,692** against a balance of 23,690 (998 spare, down from 2,004).
+
+**Said no to**: clearing `last_sent_at` to force a resend (destroys the record of what WhatsApp actually did) · a single boolean "contacted" flag (the same conflation, one campaign later) · a per-campaign join table (more machinery than two channels warrant today — revisit if a third channel or a repeat campaign appears).

@@ -210,7 +210,7 @@ export async function POST(req: Request) {
   if (audience === "legacy-ghana") {
     // The archived pre-hub list, sent in fixed batches — ~11.3k cannot go out in one
     // synchronous request. No giving history, so the amount range does not apply.
-    const plan = planLegacyBatches(legacyContacts);
+    const plan = planLegacyBatches(legacyContacts, undefined, channel);
     const batch = Number(body.batch);
     if (!isValidBatchNumber(batch, plan)) {
       return NextResponse.json(
@@ -226,7 +226,9 @@ export async function POST(req: Request) {
     legacyBatch = batch;
     // dedupe still runs so a number repeated across the archive is messaged once.
     planned = buildDirectMessages(
-      dedupeAudiencePartners(legacyBatchRecipients(legacyContacts, batch)),
+      dedupeAudiencePartners(
+        legacyBatchRecipients(legacyContacts, batch, undefined, channel),
+      ),
       message,
       media ?? undefined,
       channel,
@@ -415,6 +417,7 @@ export async function POST(req: Request) {
       report.outcomes
         .filter((outcome) => wasDispatched(outcome.status))
         .map((outcome) => outcome.partnerRef),
+      channel === "sms" ? "sms_sent_at" : "last_sent_at",
     );
   }
   return NextResponse.json({

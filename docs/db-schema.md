@@ -750,7 +750,8 @@ The archived pre-hub Ghana numbers, copied out of `archive.partners_pre_hub` so 
 | `full_name` | text | May be a placeholder; `displayName()` renders it as "Unknown" |
 | `whatsapp_number` | text not null, **unique** | The dedupe key — the archive holds duplicate numbers |
 | `church`, `country`, `status` | text | Carried over as-is, for context in the preview |
-| `last_sent_at` | timestamptz | Set once a broadcast batch has gone out, so a re-run cannot double-send |
+| `last_sent_at` | timestamptz | **WhatsApp** run of 2026-08-30 (503 recipients). Not consulted by the SMS campaign |
+| `sms_sent_at` | timestamptz | **SMS** campaign (migration 0008). Set per recipient as each send is accepted, so an interrupted run resumes without double-sending |
 | `source_partner_id` | uuid | The `archive.partners_pre_hub` row it came from |
 
 Populated once by migration 0007 (`insert … on conflict do nothing`, so a re-run is a no-op). RLS on, no anon policies; read server-side with the service role.

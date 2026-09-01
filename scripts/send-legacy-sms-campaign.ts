@@ -67,7 +67,11 @@ async function main() {
   const allowlist = parseAllowlist(process.env.BENMP_SEND_ALLOWLIST);
 
   let recipients = contacts
-    .filter((c) => c.messageable && c.lastSentAt === null)
+    // smsSentAt, NOT lastSentAt: the 2026-08-30 WhatsApp run must not exclude anyone
+    // from this campaign. Different channel, different campaign — and those 503 came
+    // back only "queued" before the Wali device disconnected, so even their delivery
+    // is uncertain.
+    .filter((c) => c.messageable && c.smsSentAt === null)
     .sort((a, b) => a.id.localeCompare(b.id));
   const limit = Number(arg("limit") ?? 0);
   if (Number.isSafeInteger(limit) && limit > 0) {
@@ -89,7 +93,8 @@ async function main() {
   console.log(
     [
       `contacts in table:     ${contacts.length}`,
-      `already sent:          ${contacts.filter((c) => c.lastSentAt).length}`,
+      `already sent by SMS:   ${contacts.filter((c) => c.smsSentAt).length}`,
+      `(messaged on WhatsApp:  ${contacts.filter((c) => c.lastSentAt).length}, not excluded)`,
       `unusable phone:        ${contacts.filter((c) => !c.messageable).length}`,
       `opted out:             ${recipients.filter((c) => c.phone && optedOut.has(c.phone)).length}`,
       `to send this run:      ${recipients.length}`,
@@ -146,7 +151,7 @@ async function main() {
 
   const flush = async () => {
     if (pendingMarks.length) {
-      await markLegacyContactsSent(pendingMarks.splice(0));
+      await markLegacyContactsSent(pendingMarks.splice(0), "sms_sent_at");
     }
     if (auditRows.length) {
       await recordSentMessages(auditRows.splice(0));

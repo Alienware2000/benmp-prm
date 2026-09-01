@@ -18,12 +18,37 @@
  *     twice under two different names.
  */
 
+import type { MessagingChannel } from "../messaging/types";
 import type { DirectoryPartner } from "./directory";
 
-/** One recipient, plus whether this list has already messaged them. */
-export type LegacyContact = DirectoryPartner & { lastSentAt: string | null };
+/**
+ * One recipient, plus per-channel send history.
+ *
+ * The markers are separate on purpose. `lastSentAt` records the 2026-08-30 WhatsApp
+ * run; `smsSentAt` records the FlashSMS campaign. A WhatsApp send must not exclude
+ * anyone from the SMS campaign — different channel, different campaign, and those 503
+ * came back only "queued" before the Wali device disconnected, so their delivery is
+ * not even certain.
+ */
+export type LegacyContact = DirectoryPartner & {
+  lastSentAt: string | null;
+  smsSentAt: string | null;
+};
 
 export const LEGACY_BATCH_SIZE = 2_000;
+
+/**
+ * Which marker counts as "already messaged", per channel.
+ *
+ * Sending by WhatsApp checks the WhatsApp history; sending by SMS checks the SMS
+ * history. A recipient reached on one channel is still owed the other campaign.
+ */
+export function sentMarkerFor(
+  contact: LegacyContact,
+  channel: MessagingChannel,
+): string | null {
+  return channel === "sms" ? contact.smsSentAt : contact.lastSentAt;
+}
 
 export type LegacyBatch = {
   /** 1-based, as staff see it. */
@@ -69,10 +94,13 @@ function chunk(contacts: LegacyContact[], size: number): LegacyContact[][] {
 export function planLegacyBatches(
   contacts: LegacyContact[],
   batchSize: number = LEGACY_BATCH_SIZE,
+  channel: MessagingChannel = "whatsapp",
 ): LegacyBatchPlan {
   const usable = eligible(contacts);
   const batches = chunk(usable, batchSize).map((rows, i) => {
-    const alreadySent = rows.filter((r) => r.lastSentAt !== null).length;
+    const alreadySent = rows.filter(
+      (r) => sentMarkerFor(r, channel) !== null,
+    ).length;
     return {
       number: i + 1,
       size: rows.length,
@@ -101,11 +129,12 @@ export function legacyBatchRecipients(
   contacts: LegacyContact[],
   batchNumber: number,
   batchSize: number = LEGACY_BATCH_SIZE,
+  channel: MessagingChannel = "whatsapp",
 ): LegacyContact[] {
   const chunks = chunk(eligible(contacts), batchSize);
   const rows = chunks[batchNumber - 1];
   if (!rows) return [];
-  return rows.filter((r) => r.lastSentAt === null);
+  return rows.filter((r) => sentMarkerFor(r, channel) === null);
 }
 
 /** Whether a number names a real batch in this plan. */

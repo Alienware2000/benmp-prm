@@ -26,7 +26,7 @@ import {
 import { memoWithTtl, supabaseRestFetcher, type Fetcher } from "./db";
 
 const SELECT =
-  "id,full_name,whatsapp_number,church,country,status,last_sent_at";
+  "id,full_name,whatsapp_number,church,country,status,last_sent_at,sms_sent_at";
 
 /** No giving history for legacy contacts — every total resolves to zero. */
 const NO_GIVING = new Map<string, number>();
@@ -38,17 +38,16 @@ const NO_GIVING = new Map<string, number>();
 export async function loadLegacyGhanaContacts(
   fetcher: Fetcher = supabaseRestFetcher(),
 ): Promise<LegacyContact[]> {
-  const rows = await fetchAllRows<DbPartner & { last_sent_at: string | null }>(
-    fetcher,
-    `legacy_ghana_contacts?select=${SELECT}`,
-    "id.asc",
-  );
+  const rows = await fetchAllRows<
+    DbPartner & { last_sent_at: string | null; sms_sent_at: string | null }
+  >(fetcher, `legacy_ghana_contacts?select=${SELECT}`, "id.asc");
   // mapPartners gives the DirectoryPartner shape the composer expects; last_sent_at is
   // carried alongside so batching can tell who has already been messaged.
   const mapped = mapPartners(rows, NO_GIVING);
   return mapped.map((partner, i) => ({
     ...partner,
     lastSentAt: rows[i].last_sent_at,
+    smsSentAt: rows[i].sms_sent_at,
   }));
 }
 
@@ -61,7 +60,10 @@ export async function loadLegacyGhanaContacts(
  * only risks a duplicate on a later batch. It logs loudly instead so the office can
  * reconcile by hand.
  */
-export async function markLegacyContactsSent(ids: string[]): Promise<void> {
+export async function markLegacyContactsSent(
+  ids: string[],
+  column: "last_sent_at" | "sms_sent_at" = "last_sent_at",
+): Promise<void> {
   if (ids.length === 0) return;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -82,7 +84,7 @@ export async function markLegacyContactsSent(ids: string[]): Promise<void> {
             "Content-Type": "application/json",
             Prefer: "return=minimal",
           },
-          body: JSON.stringify({ last_sent_at: now }),
+          body: JSON.stringify({ [column]: now }),
         },
       );
       if (!res.ok) {

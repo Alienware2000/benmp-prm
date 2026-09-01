@@ -36,6 +36,9 @@ import {
 import { summarizePlan, filterByKind, type PlanKind } from "@/lib/poc/dispatch";
 import { loadMediaAsset, validateMediaForProvider } from "@/lib/poc/media";
 import { sendPlanned, parseAllowlist, wasDispatched } from "@/lib/send";
+import type { MessagingChannel } from "@/lib/messaging/types";
+import { smsCost } from "@/lib/poc/sms-cost";
+import { FlashSmsMessagingAdapter } from "@/lib/messaging/flashsms-adapter";
 import { getMessagingAdapter } from "@/lib/messaging";
 import {
   loadReconciliationCached,
@@ -87,6 +90,7 @@ export async function POST(req: Request) {
     maxAmountMinor?: unknown;
     audience?: unknown;
     batch?: unknown;
+    channel?: unknown;
     mediaAssetId?: unknown;
     from?: unknown;
     to?: unknown;
@@ -102,6 +106,9 @@ export async function POST(req: Request) {
         ? "unpaid"
         : null;
   const message = typeof body.message === "string" ? body.message : "";
+  // WhatsApp unless staff explicitly choose SMS. SMS is a different cost model
+  // (per 160-char part, per recipient) so it is never the silent default.
+  const channel: MessagingChannel = body.channel === "sms" ? "sms" : "whatsapp";
   const mediaAssetId =
     typeof body.mediaAssetId === "string" ? body.mediaAssetId : null;
   const dateValue = (value: unknown): string =>
@@ -222,13 +229,19 @@ export async function POST(req: Request) {
       dedupeAudiencePartners(legacyBatchRecipients(legacyContacts, batch)),
       message,
       media ?? undefined,
+      channel,
     );
   } else if (audience === "everyone") {
     const partners = filterAudienceByAmount(
       dedupeAudiencePartners(standingPartners),
       amountRange,
     );
-    planned = buildDirectMessages(partners, message, media ?? undefined);
+    planned = buildDirectMessages(
+      partners,
+      message,
+      media ?? undefined,
+      channel,
+    );
   } else if (
     audience === "top" ||
     audience === "consistent" ||
@@ -238,7 +251,12 @@ export async function POST(req: Request) {
       reconciliationAudiencePartners(result, audience),
       amountRange,
     );
-    planned = buildDirectMessages(partners, message, media ?? undefined);
+    planned = buildDirectMessages(
+      partners,
+      message,
+      media ?? undefined,
+      channel,
+    );
   } else {
     const filteredResult =
       audience === "paid" &&
@@ -264,6 +282,20 @@ export async function POST(req: Request) {
     );
   }
 
+  // Applied to every audience path, not just the direct ones: the planned thank-you
+  // and reminder queues are built by planMessages(), which has its own hardcoded
+  // channel. SMS also cannot carry an attachment, so media is stripped rather than
+  // silently dropped by the adapter mid-send.
+  if (channel === "sms") {
+    planned = planned.map((plannedMessage) => {
+      const rest = { ...plannedMessage };
+      delete rest.mediaUrl;
+      delete rest.mediaType;
+      delete rest.mediaFilename;
+      return { ...rest, channel: "sms" as const };
+    });
+  }
+
   const dedupeThankYous = audience === "paid" || audience === null;
   const messages = planned.filter(
     (plannedMessage) =>
@@ -275,9 +307,20 @@ export async function POST(req: Request) {
       ),
   );
   const alreadySent = planned.length - messages.length;
+  const sendableCount = messages.filter((m) => m.sendable && m.to).length;
+  // Longest body drives the price: one long name can push a borderline template over
+  // a part boundary and double the cost of the whole run.
+  const longestBody = messages.reduce(
+    (longest, m) => (m.body.length > longest.length ? m.body : longest),
+    "",
+  );
   const summary = {
     ...summarizePlan(messages, { optedOut }),
     alreadySent,
+    channel,
+    ...(channel === "sms"
+      ? { smsCost: smsCost(longestBody, sendableCount) }
+      : {}),
     sendLimit: MAX_IMMEDIATE_RECIPIENTS,
     overSendLimit:
       messages.filter((plannedMessage) => plannedMessage.sendable).length >
@@ -304,6 +347,41 @@ export async function POST(req: Request) {
       },
       { status: 400 },
     );
+  }
+
+  // SMS costs real money per part, per recipient. Ask the provider what this run
+  // actually costs and refuse it if the account cannot cover it — a partial send that
+  // dies on INSUFFICIENT_CREDITS halfway through 10k recipients is far worse than a
+  // clean refusal, because the office cannot tell who was reached.
+  if (channel === "sms" && sendableCount > 0) {
+    const adapter = getMessagingAdapter();
+    if (adapter instanceof FlashSmsMessagingAdapter) {
+      const firstPhone = messages.find((m) => m.to)?.to;
+      const estimate = firstPhone
+        ? await adapter.estimate([firstPhone], longestBody)
+        : { error: "no recipients" };
+      if ("error" in estimate) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: { message: `Could not price this send: ${estimate.error}` },
+          },
+          { status: 502 },
+        );
+      }
+      const needed = estimate.creditsNeeded * sendableCount;
+      if (needed > estimate.currentBalance) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: {
+              message: `This send needs ${needed.toLocaleString("en-US")} SMS credits (${estimate.creditsNeeded} per person) and the account has ${estimate.currentBalance.toLocaleString("en-US")}. Shorten the message or top up before sending.`,
+            },
+          },
+          { status: 400 },
+        );
+      }
+    }
   }
 
   const messaging = await messagingRuntimeConfigurationCached();

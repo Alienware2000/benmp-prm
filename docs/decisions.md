@@ -407,3 +407,22 @@ _2026-09-01_
 **Why**: every WhatsApp and SMS provider wired here returns `queued` — the message is accepted and delivered asynchronously. Code comparing against `"sent"` alone concludes nothing was delivered. On 2026-08-30 that is exactly what happened: 503 messages were dispatched, all came back `queued`, none were stamped with `last_sent_at`, and all 503 were left exposed to a duplicate send on the next batch. `scripts/backfill-legacy-sent.ts` repaired those rows from the `sent_messages` audit trail (503 backfilled, batch boundaries verified intact afterwards).
 
 **Said no to**: stamping on any non-failed status (a skip is not a delivery) · marking optimistically before dispatch · a per-provider status map when one shared predicate covers every adapter.
+
+## 0022 — SMS is a channel staff choose, with the price shown before the send
+
+_2026-09-01_
+
+**Decided**: the message composer gains a **Send by** control (WhatsApp / SMS), and the SMS path shows what a send will cost before staff can confirm it.
+
+1. **WhatsApp stays the default.** SMS is billed per 160-character part per recipient, so choosing it is a deliberate act, never a fallback the system takes on its own.
+2. **The cost is visible twice.** While typing: parts, credits per person, and *characters left before this costs one more part* — the cliff staff otherwise cannot see. At review: total credits for the run, and what shortening the message would save. A message using a non-GSM character (an emoji, a curly quote) says so, because that alone cuts each part from 160 characters to 70.
+3. **The server prices the run and can refuse it.** On confirm, the route asks FlashSMS `/sms/estimate` and returns 400 if the credits needed exceed the balance. A send that dies halfway through 10k recipients on `INSUFFICIENT_CREDITS` is worse than a clean refusal: the office cannot tell who was reached.
+4. **Pricing uses the longest rendered body**, not the template. One long `{name}` can push a borderline message over a part boundary and double the cost of the whole run.
+5. **SMS strips attachments**, in the UI and again on the server. The attachment field is hidden for SMS and a staged asset is cleared on switching, so nothing is silently dropped by the adapter mid-send.
+6. **Channel applies to every audience path**, including the planned thank-you and reminder queues, which `planMessages()` builds with its own hardcoded channel.
+
+`smsParts()` boundaries are verified against the provider (160 = 1 part, 161 = 2, 306 = 2, 307 = 3) and unit-tested at each one. The local estimate drives typing feedback only; the provider's own estimate is what gates the send.
+
+**Why**: the WaliChat incident showed how a send can go wrong silently and expensively. Here the failure mode is money: the original 881-character notice would have cost 65,058 credits against the reframed version's 21,686 — the same audience, 43,000 credits apart, and nothing in the old UI would have shown that before the send.
+
+**Said no to**: making SMS the automatic fallback when WhatsApp is unavailable · pricing from the template rather than the longest rendered message · trusting the client's cost estimate at send time · letting the adapter drop attachments silently.

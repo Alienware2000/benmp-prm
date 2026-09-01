@@ -35,7 +35,7 @@ import {
 } from "@/lib/poc/legacy-batches";
 import { summarizePlan, filterByKind, type PlanKind } from "@/lib/poc/dispatch";
 import { loadMediaAsset, validateMediaForProvider } from "@/lib/poc/media";
-import { sendPlanned, parseAllowlist } from "@/lib/send";
+import { sendPlanned, parseAllowlist, wasDispatched } from "@/lib/send";
 import { getMessagingAdapter } from "@/lib/messaging";
 import {
   loadReconciliationCached,
@@ -335,7 +335,7 @@ export async function POST(req: Request) {
     // for a retry of the same batch.
     await markLegacyContactsSent(
       report.outcomes
-        .filter((outcome) => outcome.status === "sent")
+        .filter((outcome) => wasDispatched(outcome.status))
         .map((outcome) => outcome.partnerRef),
     );
   }

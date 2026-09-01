@@ -113,7 +113,7 @@ SUPABASE_SERVICE_ROLE_KEY=   # server-only (CSV import commit, seeds)
 
 # Providers (behind adapters) — no payment provider (Decision 0007)
 BENMP_DATA_PROVIDER=mock|supabase
-BENMP_MESSAGING_PROVIDER=mock|wali|twilio|meta-cloud-api|infobip|vonage|whatchimp
+BENMP_MESSAGING_PROVIDER=mock|wali|twilio|meta-cloud-api|infobip|vonage|whatchimp|flashsms
 WALI_API_KEY=
 WALI_DEVICE_ID=
 WALI_API_URL=https://api.wali.chat/v1/messages

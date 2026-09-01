@@ -34,6 +34,23 @@ export type SendReport = {
   outcomes: SendOutcome[];
 };
 
+/**
+ * Did this outcome actually reach the provider?
+ *
+ * Every WhatsApp and SMS provider wired here returns **"queued"** on success — the
+ * message is accepted and delivered asynchronously; only a synchronous provider ever
+ * reports "sent". Code that treats just "sent" as success concludes nothing was
+ * delivered.
+ *
+ * That is not hypothetical: the first legacy Ghana broadcast dispatched 503 messages,
+ * every one came back "queued", and the caller marked none of them — leaving all 503
+ * exposed to a duplicate send on the next run. Anything deciding "did this go out?"
+ * must use this predicate rather than comparing to a single status.
+ */
+export function wasDispatched(status: SendStatus): boolean {
+  return status === "sent" || status === "queued";
+}
+
 export type SendOptions = {
   adapter?: MessagingAdapter;
   /** E.164 phones that have opted out — skipped before dispatch. */

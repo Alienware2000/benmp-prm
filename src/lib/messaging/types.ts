@@ -5,6 +5,7 @@ export type MessagingProvider =
   | "infobip"
   | "vonage"
   | "whatchimp"
+  | "flashsms"
   | "wali";
 
 export type MessagingChannel = "whatsapp" | "sms" | "email";

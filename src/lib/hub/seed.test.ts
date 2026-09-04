@@ -73,7 +73,7 @@ describe("parseHubSeed", () => {
     ).toThrow(/empty church name/);
   });
 
-  it("validates the real committed seed: 31 hubs, 810 churches", () => {
+  it("validates the real committed seed: 31 hubs, 808 churches", () => {
     const doc = JSON.parse(
       readFileSync(
         join(__dirname, "../../../scripts/data/ghana-hubs-churches.json"),
@@ -82,7 +82,7 @@ describe("parseHubSeed", () => {
     );
     const parsed = parseHubSeed(doc);
     expect(parsed.hubs).toHaveLength(31);
-    expect(parsed.churchCount).toBe(810);
+    expect(parsed.churchCount).toBe(808);
     expect(parsed.hubs.map((h) => h.hubNumber)).toEqual(
       Array.from({ length: 31 }, (_, i) => i + 1),
     );

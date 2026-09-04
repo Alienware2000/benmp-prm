@@ -4,6 +4,8 @@
  * everything goes through these helpers.
  */
 import type { HubAccountRecord } from "./auth";
+import { normalizeNameKey, type ExistingPartner } from "./ingest";
+import { isSensibleName } from "../poc/directory";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -160,6 +162,34 @@ export async function findExistingPhones(
     for (const r of waRows) {
       if (r.whatsapp_number) out.set(r.whatsapp_number, info(r));
     }
+  }
+  return out;
+}
+
+/**
+ * Every partner this hub already has, as { partnerId, nameKey }, for re-upload
+ * matching by name.
+ *
+ * Names rather than phones, because the field being corrected is usually the phone or
+ * the church — see Decision 0024. Paged: PostgREST truncates at 1,000 and a large hub
+ * can exceed that.
+ */
+export async function findHubPartnerNames(
+  hubId: string,
+): Promise<ExistingPartner[]> {
+  const out: ExistingPartner[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const rows = await rest<{ id: string; full_name: string | null }[]>(
+      `partners?hub_id=eq.${encodeURIComponent(hubId)}` +
+        `&select=id,full_name&order=id.asc&limit=1000&offset=${offset}`,
+    );
+    for (const r of rows) {
+      const nameKey = normalizeNameKey(r.full_name);
+      // A placeholder is not an identity: two "NO NAME" rows are not the same person.
+      if (nameKey === "" || !isSensibleName(r.full_name)) continue;
+      out.push({ partnerId: r.id, nameKey });
+    }
+    if (rows.length < 1000) break;
   }
   return out;
 }

@@ -29,6 +29,7 @@ import { normalizeChurchKey } from "@/lib/hub/seed";
 import {
   extractCandidates,
   validateCandidates,
+  type ExistingPartner,
   type ColumnMap,
   type ExistingPhoneInfo,
   type HubChurchOption,
@@ -98,10 +99,13 @@ function StepIndicator({ current }: { current: Step }) {
 export function IngestWizard({
   churches,
   hubId,
+  existingPartners,
 }: {
   churches: HubChurchOption[];
   /** Lets the preview tell an edit of this hub's own partner from another hub's. */
   hubId: string;
+  /** Partners this hub already has, so the preview matches the server exactly. */
+  existingPartners: ExistingPartner[];
 }) {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -145,9 +149,10 @@ export function IngestWizard({
     return validateCandidates(active, {
       churches,
       hubId,
+      existingPartners,
       existingPhones: new Map(Object.entries(existingPhones)),
     });
-  }, [rows, churches, hubId, existingPhones, step]);
+  }, [rows, churches, hubId, existingPartners, existingPhones, step]);
 
   const issuesByRow = useMemo(() => {
     const m = new Map<number, RowIssue[]>();

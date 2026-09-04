@@ -445,10 +445,14 @@ _2026-09-04_
 
 **Decided**: the hub ingest wizard now **updates** a partner when an uploaded row matches a phone that hub already owns, rather than rejecting the whole file. A number owned by **another hub** — or by a pre-hub record — is still rejected, exactly as before.
 
-1. **Matching is by phone**, MoMo or WhatsApp, against partners of the uploading hub. A match updates `full_name`, both numbers, `church`, `church_id` and `source`.
+1. **Matching is by NAME**, within the uploading hub, case- and whitespace-insensitive. Name is the key precisely because the field being corrected is usually the phone number or the church — matching on phone would miss the rows the admin is trying to fix and create a second record for the same person. A match updates both numbers, `church`, `church_id` and `source`.
+
+   A **same-hub phone match** is honoured as a secondary key, so correcting a misspelled name also works. Where name and phone point at *different* people the row is refused: that is one person's name being put onto another person's phone.
 2. **Giving history, `status` and opt-outs are never touched** by a re-upload. The sheet carries none of them, so it has no business overwriting them.
 3. **Cross-hub is blocked.** Ownership is compared on `hub_id`, and each update statement is filtered by `hub_id` as well as `id`, so even a wrong partner id could not reach another hub's row.
-4. **Ambiguity is refused, not guessed.** If a row's two numbers match two *different* existing partners, the row is flagged for the admin to resolve — updating either would silently corrupt the other.
+4. **Ambiguity is refused, not guessed.** A name shared by two partners in the same hub is flagged for the admin to disambiguate — 22 such names exist in the live hub data (John Tetteh, Wisdom Tetteh, Abigail Owusu …), and picking either would overwrite a real person with someone else's details. The same applies when a row's two numbers match two different partners. Placeholder names ("No Name") never match anything.
+
+7. **Nothing is ever deleted.** A re-upload adds and updates; rows absent from the new file are left exactly as they are. An upload is not a replacement of the hub's list.
 5. **The overwrite is visible before it happens.** The preview says how many rows will update existing partners and what will be replaced; the success screen reports "N new · M updated".
 6. **Only hub sessions get this.** `validateCandidates` treats a missing `hubId` as "no edit powers", so staff-side callers keep the old strict behaviour.
 

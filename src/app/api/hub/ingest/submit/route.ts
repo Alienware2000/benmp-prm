@@ -9,6 +9,7 @@ import {
 import {
   createIngestBatch,
   findExistingPhones,
+  findHubPartnerNames,
   getHubChurches,
   insertIngestRows,
   insertPartners,
@@ -115,10 +116,14 @@ export async function POST(req: NextRequest) {
       normalizePhone(c.whatsappPhone),
     ])
     .filter((p): p is string => p !== null);
-  const existingPhones = await findExistingPhones(phonesToCheck);
+  const [existingPhones, existingPartners] = await Promise.all([
+    findExistingPhones(phonesToCheck),
+    findHubPartnerNames(session.hubId),
+  ]);
   const validated = validateCandidates(candidates, {
     churches,
     existingPhones,
+    existingPartners,
     hubId: session.hubId,
   });
 

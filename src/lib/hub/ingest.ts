@@ -49,6 +49,11 @@ export type ValidatedRow = CandidateRow & {
   churchId: string | null;
   /** Canonical display name from the hub list when matched. */
   churchName: string | null;
+  /**
+   * Set when this row matches a partner the uploading hub already owns: the row is an
+   * EDIT of that partner rather than a new person. Null means a fresh insert.
+   */
+  updatesPartnerId: string | null;
   issues: RowIssue[];
 };
 
@@ -137,7 +142,13 @@ export function extractCandidates(
     const momoPhone = (raw[map.momoPhone] ?? "").trim();
     const whatsappPhone = (raw[map.whatsappPhone] ?? "").trim();
     const church = (raw[map.church] ?? "").trim();
-    if (name === "" && momoPhone === "" && whatsappPhone === "" && church === "") continue;
+    if (
+      name === "" &&
+      momoPhone === "" &&
+      whatsappPhone === "" &&
+      church === ""
+    )
+      continue;
     out.push({ rowIndex: i + 1, raw, name, momoPhone, whatsappPhone, church });
   }
   return out;
@@ -160,10 +171,20 @@ export function validateName(name: string): string | null {
 export type ExistingPhoneInfo = {
   /** Hub number the phone already belongs to, or null when it predates hubs. */
   hubNumber: number | null;
+  /** The partner row this phone belongs to — the row an edit would update. */
+  partnerId?: string;
+  /** Hub that owns it. Compared against the uploading hub to allow self-edits. */
+  hubId?: string | null;
 };
 
 export type ValidationContext = {
   churches: HubChurchOption[];
+  /**
+   * The uploading hub. A phone already held by THIS hub is an edit of the admin's own
+   * partner and is allowed; one held by another hub stays blocked, so no hub can take
+   * over another's people by uploading their number (Decision 0024).
+   */
+  hubId?: string;
   /** E.164 -> where it already exists in the database. */
   existingPhones: ReadonlyMap<string, ExistingPhoneInfo>;
 };
@@ -209,7 +230,10 @@ export function validateCandidates(
 
     let momoPhoneE164: string | null = null;
     if (cand.momoPhone === "") {
-      issues.push({ field: "momoPhone", message: "MoMo phone number is missing." });
+      issues.push({
+        field: "momoPhone",
+        message: "MoMo phone number is missing.",
+      });
     } else {
       momoPhoneE164 = normalizePhone(cand.momoPhone, "GH");
       if (!momoPhoneE164) {
@@ -223,7 +247,10 @@ export function validateCandidates(
 
     let whatsappPhoneE164: string | null = null;
     if (cand.whatsappPhone === "") {
-      issues.push({ field: "whatsappPhone", message: "WhatsApp number is missing." });
+      issues.push({
+        field: "whatsappPhone",
+        message: "WhatsApp number is missing.",
+      });
     } else {
       whatsappPhoneE164 = normalizePhone(cand.whatsappPhone);
       if (!whatsappPhoneE164) {
@@ -235,23 +262,46 @@ export function validateCandidates(
       }
     }
 
-    // Existing-phone check covers both numbers; a duplicate in either blocks the row.
+    // Existing-phone check covers both numbers. A phone held by ANOTHER hub (or by a
+    // pre-hub record) still blocks the row. A phone held by this hub identifies the
+    // partner to update — that is how an admin corrects a name, church or number.
+    const matchedPartnerIds = new Set<string>();
     for (const [field, phone] of [
       ["momoPhone", momoPhoneE164],
       ["whatsappPhone", whatsappPhoneE164],
     ] as const) {
       if (!phone) continue;
       const existing = ctx.existingPhones.get(phone);
-      if (existing) {
-        issues.push({
-          field,
-          message:
-            existing.hubNumber === null
-              ? "This number is already in the system."
-              : `This number is already in the system for Hub ${existing.hubNumber}.`,
-        });
+      if (!existing) continue;
+
+      const ownsIt =
+        ctx.hubId !== undefined &&
+        existing.hubId != null &&
+        existing.hubId === ctx.hubId;
+      if (ownsIt && existing.partnerId) {
+        matchedPartnerIds.add(existing.partnerId);
+        continue;
       }
+      issues.push({
+        field,
+        message:
+          existing.hubNumber === null
+            ? "This number is already in the system."
+            : `This number is already in the system for Hub ${existing.hubNumber}.`,
+      });
     }
+
+    // Two numbers on one row pointing at two different existing people is ambiguous —
+    // updating either would silently corrupt the other. Make the admin resolve it.
+    if (matchedPartnerIds.size > 1) {
+      issues.push({
+        field: "momoPhone",
+        message:
+          "These two numbers belong to two different people already in your hub. Correct one of them.",
+      });
+    }
+    const updatesPartnerId =
+      matchedPartnerIds.size === 1 ? [...matchedPartnerIds][0] : null;
 
     let churchId: string | null = null;
     let churchName: string | null = null;
@@ -271,7 +321,15 @@ export function validateCandidates(
       }
     }
 
-    return { ...cand, momoPhoneE164, whatsappPhoneE164, churchId, churchName, issues };
+    return {
+      ...cand,
+      momoPhoneE164,
+      whatsappPhoneE164,
+      churchId,
+      churchName,
+      updatesPartnerId,
+      issues,
+    };
   });
 }
 

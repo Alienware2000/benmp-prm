@@ -48,6 +48,7 @@ export default async function HubHomePage() {
       </div>
 
       <IngestWizard
+        hubId={session.hubId}
         churches={churches.map((c) => ({
           id: c.id,
           name: c.name,

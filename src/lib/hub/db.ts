@@ -4,13 +4,17 @@
  * everything goes through these helpers.
  */
 import type { HubAccountRecord } from "./auth";
+import { normalizeNameKey, type ExistingPartner } from "./ingest";
+import { isSensibleName } from "../poc/directory";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function headers(): Record<string, string> {
   if (!SUPABASE_URL || !KEY) {
-    throw new Error("Supabase is not configured (URL / service role key missing)");
+    throw new Error(
+      "Supabase is not configured (URL / service role key missing)",
+    );
   }
   return {
     apikey: KEY,
@@ -26,7 +30,9 @@ async function rest<T>(path: string, init?: RequestInit): Promise<T> {
     cache: "no-store",
   });
   if (!res.ok) {
-    throw new Error(`${init?.method ?? "GET"} ${path} -> ${res.status}: ${await res.text()}`);
+    throw new Error(
+      `${init?.method ?? "GET"} ${path} -> ${res.status}: ${await res.text()}`,
+    );
   }
   const text = await res.text();
   return (text ? JSON.parse(text) : null) as T;
@@ -118,36 +124,81 @@ export async function getHubChurches(hubId: string): Promise<HubChurchRow[]> {
  * Which of these E.164 phones already belong to a partner, and to which hub.
  * Chunked so the querystring stays sane on big uploads. A partner without a
  * hub (pre-hub data) comes back with hubNumber null.
+ *
+ * `partnerId` and `hubId` are returned so the ingest can tell an admin re-uploading
+ * their OWN partner (an edit, allowed) from one owned by another hub (still blocked).
  */
 export async function findExistingPhones(
   phones: string[],
-): Promise<Map<string, { hubNumber: number | null }>> {
-  const out = new Map<string, { hubNumber: number | null }>();
+): Promise<Map<string, ExistingPhoneRow>> {
+  const out = new Map<string, ExistingPhoneRow>();
   const unique = [...new Set(phones)].filter(Boolean);
   for (let i = 0; i < unique.length; i += 100) {
     const chunk = unique.slice(i, i + 100);
     const list = chunk.map((p) => `"${p}"`).join(",");
-    const momoRows = await rest<
-      { momo_phone_number: string; hubs: { hub_number: number } | null }[]
-    >(
-      `partners?momo_phone_number=in.(${encodeURIComponent(list)})` +
-        `&select=momo_phone_number,hubs(hub_number)`,
+    type Row = {
+      id: string;
+      hub_id: string | null;
+      momo_phone_number?: string | null;
+      whatsapp_number?: string | null;
+      hubs: { hub_number: number } | null;
+    };
+    const select =
+      "id,hub_id,momo_phone_number,whatsapp_number,hubs(hub_number)";
+    const momoRows = await rest<Row[]>(
+      `partners?momo_phone_number=in.(${encodeURIComponent(list)})&select=${select}`,
     );
-    const waRows = await rest<
-      { whatsapp_number: string; hubs: { hub_number: number } | null }[]
-    >(
-      `partners?whatsapp_number=in.(${encodeURIComponent(list)})` +
-        `&select=whatsapp_number,hubs(hub_number)`,
+    const waRows = await rest<Row[]>(
+      `partners?whatsapp_number=in.(${encodeURIComponent(list)})&select=${select}`,
     );
+    const info = (r: Row): ExistingPhoneRow => ({
+      partnerId: r.id,
+      hubId: r.hub_id,
+      hubNumber: r.hubs?.hub_number ?? null,
+    });
     for (const r of momoRows) {
-      if (r.momo_phone_number) out.set(r.momo_phone_number, { hubNumber: r.hubs?.hub_number ?? null });
+      if (r.momo_phone_number) out.set(r.momo_phone_number, info(r));
     }
     for (const r of waRows) {
-      if (r.whatsapp_number) out.set(r.whatsapp_number, { hubNumber: r.hubs?.hub_number ?? null });
+      if (r.whatsapp_number) out.set(r.whatsapp_number, info(r));
     }
   }
   return out;
 }
+
+/**
+ * Every partner this hub already has, as { partnerId, nameKey }, for re-upload
+ * matching by name.
+ *
+ * Names rather than phones, because the field being corrected is usually the phone or
+ * the church — see Decision 0024. Paged: PostgREST truncates at 1,000 and a large hub
+ * can exceed that.
+ */
+export async function findHubPartnerNames(
+  hubId: string,
+): Promise<ExistingPartner[]> {
+  const out: ExistingPartner[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const rows = await rest<{ id: string; full_name: string | null }[]>(
+      `partners?hub_id=eq.${encodeURIComponent(hubId)}` +
+        `&select=id,full_name&order=id.asc&limit=1000&offset=${offset}`,
+    );
+    for (const r of rows) {
+      const nameKey = normalizeNameKey(r.full_name);
+      // A placeholder is not an identity: two "NO NAME" rows are not the same person.
+      if (nameKey === "" || !isSensibleName(r.full_name)) continue;
+      out.push({ partnerId: r.id, nameKey });
+    }
+    if (rows.length < 1000) break;
+  }
+  return out;
+}
+
+export type ExistingPhoneRow = {
+  partnerId: string;
+  hubId: string | null;
+  hubNumber: number | null;
+};
 
 export type IngestBatchInput = {
   hubId: string;
@@ -221,6 +272,44 @@ export async function insertPartners(rows: PartnerInsert[]): Promise<void> {
   }
 }
 
+export type PartnerUpdate = {
+  partnerId: string;
+  hubId: string;
+  fields: Partial<
+    Pick<
+      PartnerInsert,
+      | "full_name"
+      | "momo_phone_number"
+      | "whatsapp_number"
+      | "church"
+      | "church_id"
+      | "source"
+    >
+  >;
+};
+
+/**
+ * Apply edits to partners the uploading hub already owns.
+ *
+ * One PATCH per partner: PostgREST has no per-row bulk update, and an edit run is a
+ * few dozen rows at most, not thousands. Every statement carries `hub_id=eq.<hub>` as
+ * well as the id — belt and braces, so that even a wrong partner id from a future bug
+ * cannot reach another hub's row.
+ */
+export async function updatePartners(updates: PartnerUpdate[]): Promise<void> {
+  for (const update of updates) {
+    await rest(
+      `partners?id=eq.${encodeURIComponent(update.partnerId)}` +
+        `&hub_id=eq.${encodeURIComponent(update.hubId)}`,
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify(update.fields),
+      },
+    );
+  }
+}
+
 export async function markBatchSubmitted(
   batchId: string,
   acceptedCount: number,
@@ -244,11 +333,15 @@ export type HubAccountMeta = {
 export async function getHubAccountMeta(
   accountId: string,
 ): Promise<HubAccountMeta | null> {
-  const rows = await rest<{ last_login_at: string | null; created_at: string }[]>(
+  const rows = await rest<
+    { last_login_at: string | null; created_at: string }[]
+  >(
     `hub_accounts?id=eq.${encodeURIComponent(accountId)}&select=last_login_at,created_at`,
   );
   const row = rows?.[0];
-  return row ? { lastLoginAt: row.last_login_at, createdAt: row.created_at } : null;
+  return row
+    ? { lastLoginAt: row.last_login_at, createdAt: row.created_at }
+    : null;
 }
 
 export async function updateHubLeaderName(

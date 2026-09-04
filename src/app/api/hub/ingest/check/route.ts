@@ -28,8 +28,15 @@ export async function POST(req: NextRequest) {
     : [];
 
   const existing = await findExistingPhones(phones);
-  return NextResponse.json({
-    ok: true,
-    existing: Object.fromEntries(existing),
-  });
+  // Only this hub's own partner/hub ids go to the browser. For a number owned by
+  // another hub the preview needs nothing but the hub number it already shows.
+  const safe = Object.fromEntries(
+    [...existing].map(([phone, info]) => [
+      phone,
+      info.hubId === session.hubId
+        ? info
+        : { hubNumber: info.hubNumber },
+    ]),
+  );
+  return NextResponse.json({ ok: true, existing: safe });
 }

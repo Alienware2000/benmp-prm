@@ -9,9 +9,11 @@ import {
 import {
   createIngestBatch,
   findExistingPhones,
+  findHubPartnerNames,
   getHubChurches,
   insertIngestRows,
   insertPartners,
+  updatePartners,
   markBatchSubmitted,
   type IngestRowInsert,
 } from "@/lib/hub/db";
@@ -114,8 +116,16 @@ export async function POST(req: NextRequest) {
       normalizePhone(c.whatsappPhone),
     ])
     .filter((p): p is string => p !== null);
-  const existingPhones = await findExistingPhones(phonesToCheck);
-  const validated = validateCandidates(candidates, { churches, existingPhones });
+  const [existingPhones, existingPartners] = await Promise.all([
+    findExistingPhones(phonesToCheck),
+    findHubPartnerNames(session.hubId),
+  ]);
+  const validated = validateCandidates(candidates, {
+    churches,
+    existingPhones,
+    existingPartners,
+    hubId: session.hubId,
+  });
 
   const flagged = validated.filter((v) => v.issues.length > 0);
   if (flagged.length > 0) {
@@ -158,8 +168,13 @@ export async function POST(req: NextRequest) {
   });
   await insertIngestRows(ingestRows);
 
+  // Rows matching a partner this hub already owns are edits, not new people
+  // (Decision 0024). Everything else is a fresh insert.
+  const toUpdate = validated.filter((v) => v.updatesPartnerId);
+  const toInsert = validated.filter((v) => !v.updatesPartnerId);
+
   await insertPartners(
-    validated.map((v) => ({
+    toInsert.map((v) => ({
       full_name: v.name,
       momo_phone_number: v.momoPhoneE164!,
       whatsapp_number: v.whatsappPhoneE164!,
@@ -173,12 +188,31 @@ export async function POST(req: NextRequest) {
     })),
   );
 
+  // Only the fields the sheet actually carries. Giving history, status and
+  // opt-outs are never touched by a re-upload.
+  await updatePartners(
+    toUpdate.map((v) => ({
+      partnerId: v.updatesPartnerId!,
+      hubId: session.hubId,
+      fields: {
+        full_name: v.name,
+        momo_phone_number: v.momoPhoneE164!,
+        whatsapp_number: v.whatsappPhoneE164!,
+        church: v.churchName!,
+        church_id: v.churchId!,
+        source: `hub_ingest_${batchId}`,
+      },
+    })),
+  );
+
   await markBatchSubmitted(batchId, validated.length);
 
   return NextResponse.json({
     ok: true,
     batchId,
     accepted: validated.length,
+    added: toInsert.length,
+    updated: toUpdate.length,
     removed: rows.length - accepted.length,
   });
 }

@@ -29,6 +29,7 @@ import { normalizeChurchKey } from "@/lib/hub/seed";
 import {
   extractCandidates,
   validateCandidates,
+  type ExistingPartner,
   type ColumnMap,
   type ExistingPhoneInfo,
   type HubChurchOption,
@@ -95,7 +96,17 @@ function StepIndicator({ current }: { current: Step }) {
   );
 }
 
-export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
+export function IngestWizard({
+  churches,
+  hubId,
+  existingPartners,
+}: {
+  churches: HubChurchOption[];
+  /** Lets the preview tell an edit of this hub's own partner from another hub's. */
+  hubId: string;
+  /** Partners this hub already has, so the preview matches the server exactly. */
+  existingPartners: ExistingPartner[];
+}) {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -119,10 +130,15 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
   const [existingPhones, setExistingPhones] = useState<
     Record<string, ExistingPhoneInfo>
   >({});
-  const [serverIssues, setServerIssues] = useState<
-    Record<number, RowIssue[]>
-  >({});
-  const [result, setResult] = useState<{ accepted: number; removed: number } | null>(null);
+  const [serverIssues, setServerIssues] = useState<Record<number, RowIssue[]>>(
+    {},
+  );
+  const [result, setResult] = useState<{
+    accepted: number;
+    added?: number;
+    updated?: number;
+    removed: number;
+  } | null>(null);
 
   const sheet = sheets[sheetIndex];
 
@@ -132,9 +148,11 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
     const active = rows.filter((r) => !r.removed);
     return validateCandidates(active, {
       churches,
+      hubId,
+      existingPartners,
       existingPhones: new Map(Object.entries(existingPhones)),
     });
-  }, [rows, churches, existingPhones, step]);
+  }, [rows, churches, hubId, existingPartners, existingPhones, step]);
 
   const issuesByRow = useMemo(() => {
     const m = new Map<number, RowIssue[]>();
@@ -148,6 +166,11 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
 
   const activeCount = rows.filter((r) => !r.removed).length;
   const flaggedCount = issuesByRow.size;
+  // Rows matching a partner this hub already has: saving edits them rather than
+  // adding someone new. Shown before the save so an overwrite is never a surprise.
+  const updateCount = validated.filter(
+    (v) => v.updatesPartnerId && !issuesByRow.has(v.rowIndex),
+  ).length;
 
   // ----- step 1: upload -----------------------------------------------------
   async function onFile(file: File | undefined) {
@@ -157,7 +180,10 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
     try {
       const form = new FormData();
       form.append("file", file);
-      const res = await fetch("/api/hub/ingest/parse", { method: "POST", body: form });
+      const res = await fetch("/api/hub/ingest/parse", {
+        method: "POST",
+        body: form,
+      });
       const data = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
         error?: string;
@@ -183,7 +209,8 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
 
   // ----- step 2: mapping ----------------------------------------------------
   const columnCount = useMemo(
-    () => (sheet ? Math.max(...sheet.rows.slice(0, 20).map((r) => r.length), 0) : 0),
+    () =>
+      sheet ? Math.max(...sheet.rows.slice(0, 20).map((r) => r.length), 0) : 0,
     [sheet],
   );
 
@@ -211,7 +238,9 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
     };
     const candidates = extractCandidates(sheet.rows, map, hasHeader);
     if (candidates.length === 0) {
-      setError("No rows found in those columns. Check the sheet and column choices.");
+      setError(
+        "No rows found in those columns. Check the sheet and column choices.",
+      );
       return;
     }
     const edit: EditRow[] = candidates.map((c) => ({ ...c, removed: false }));
@@ -221,7 +250,10 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
     setError(null);
     try {
       const phones = edit
-        .flatMap((r) => [normalizePhone(r.momoPhone, "GH"), normalizePhone(r.whatsappPhone)])
+        .flatMap((r) => [
+          normalizePhone(r.momoPhone, "GH"),
+          normalizePhone(r.whatsappPhone),
+        ])
         .filter((p): p is string => p !== null);
       const res = await fetch("/api/hub/ingest/check", {
         method: "POST",
@@ -243,7 +275,9 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
 
   // ----- step 3: preview edits ---------------------------------------------
   function editRow(rowIndex: number, patch: Partial<EditRow>) {
-    setRows((rs) => rs.map((r) => (r.rowIndex === rowIndex ? { ...r, ...patch } : r)));
+    setRows((rs) =>
+      rs.map((r) => (r.rowIndex === rowIndex ? { ...r, ...patch } : r)),
+    );
     setServerIssues((s) => {
       if (!(rowIndex in s)) return s;
       const next = { ...s };
@@ -283,7 +317,9 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
             Object.fromEntries(data.rows.map((r) => [r.rowIndex, r.issues])),
           );
         }
-        setError(data.error ?? "Could not save. Fix the flagged rows and try again.");
+        setError(
+          data.error ?? "Could not save. Fix the flagged rows and try again.",
+        );
       }
     } catch {
       setError("Could not reach the server. Nothing was saved — try again.");
@@ -336,8 +372,8 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
             <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
               An Excel file (.xlsx) or CSV with names, MoMo numbers, WhatsApp
               numbers, and the church each partner belongs to. You will check
-              and correct everything before anything is saved — nothing goes
-              in behind your back.
+              and correct everything before anything is saved — nothing goes in
+              behind your back.
             </p>
             <div className="mt-5">
               <input
@@ -374,8 +410,8 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                 Where is everything in “{fileName}”?
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Pick the sheet, then point at the four columns. Column titles
-                in the file don&apos;t matter — your choice here does.
+                Pick the sheet, then point at the four columns. Column titles in
+                the file don&apos;t matter — your choice here does.
               </p>
             </div>
 
@@ -430,7 +466,8 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                     onChange={(e) =>
                       setCols((c) => ({
                         ...c,
-                        [key]: e.target.value === "" ? "" : Number(e.target.value),
+                        [key]:
+                          e.target.value === "" ? "" : Number(e.target.value),
                       }))
                     }
                     className={inputBase + " border-border"}
@@ -462,7 +499,10 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                                 ? "Church"
                                 : null;
                       return (
-                        <th key={c} className="border-b border-border px-3 py-1.5">
+                        <th
+                          key={c}
+                          className="border-b border-border px-3 py-1.5"
+                        >
                           {tag ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
                               <Check className="h-3 w-3" aria-hidden />
@@ -480,7 +520,14 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                 </thead>
                 <tbody>
                   {sheet.rows.slice(0, 6).map((r, i) => (
-                    <tr key={i} className={i === 0 && hasHeader ? "bg-muted/60 font-semibold" : "odd:bg-background"}>
+                    <tr
+                      key={i}
+                      className={
+                        i === 0 && hasHeader
+                          ? "bg-muted/60 font-semibold"
+                          : "odd:bg-background"
+                      }
+                    >
                       {Array.from({ length: columnCount }, (_, c) => {
                         const picked =
                           c === cols.name ||
@@ -492,7 +539,9 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                             key={c}
                             className={
                               "whitespace-nowrap border-b border-border px-3 py-1.5 " +
-                              (picked ? "bg-brand/5 text-foreground" : "text-muted-foreground")
+                              (picked
+                                ? "bg-brand/5 text-foreground"
+                                : "text-muted-foreground")
                             }
                           >
                             {(r[c] ?? "").slice(0, 40)}
@@ -506,7 +555,11 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
             </div>
 
             <div className="flex items-center justify-between gap-3">
-              <button type="button" onClick={reset} className="text-sm font-semibold text-muted-foreground hover:text-foreground">
+              <button
+                type="button"
+                onClick={reset}
+                className="text-sm font-semibold text-muted-foreground hover:text-foreground"
+              >
                 Start over
               </button>
               <button
@@ -521,7 +574,9 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                 onClick={toPreview}
                 className="inline-flex h-11 items-center gap-2 rounded-md bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-45"
               >
-                {busy && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />}
+                {busy && (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />
+                )}
                 Check the rows
               </button>
             </div>
@@ -536,15 +591,34 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                   Check before saving
                 </h2>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  {activeCount} row{activeCount === 1 ? "" : "s"} from “{sheet?.name}”
+                  {activeCount} row{activeCount === 1 ? "" : "s"} from “
+                  {sheet?.name}”
                   {flaggedCount > 0 ? (
                     <span className="font-semibold text-danger">
-                      {" "}· {flaggedCount} need{flaggedCount === 1 ? "s" : ""} attention
+                      {" "}
+                      · {flaggedCount} need{flaggedCount === 1 ? "s" : ""}{" "}
+                      attention
                     </span>
                   ) : (
-                    <span className="font-semibold text-success"> · all clean</span>
+                    <span className="font-semibold text-success">
+                      {" "}
+                      · all clean
+                    </span>
                   )}
                 </p>
+                {updateCount > 0 && (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    <span className="font-semibold text-foreground">
+                      {updateCount} row{updateCount === 1 ? "" : "s"} will
+                      update
+                      {updateCount === 1 ? " a partner" : " partners"} you
+                      already have
+                    </span>{" "}
+                    — matched by phone number. Their name, church and numbers
+                    will be replaced with what is shown here. Giving history is
+                    not affected.
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 {flaggedCount > 0 && (
@@ -553,7 +627,10 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                     onClick={() =>
                       document
                         .querySelector('[data-flagged="true"]')
-                        ?.scrollIntoView({ behavior: "smooth", block: "center" })
+                        ?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        })
                     }
                     className="inline-flex h-9 items-center gap-1.5 rounded-md border border-danger/30 bg-danger/5 px-3 text-xs font-semibold text-danger transition hover:bg-danger/10"
                   >
@@ -561,7 +638,11 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
                     Go to first problem
                   </button>
                 )}
-                <button type="button" onClick={reset} className="text-sm font-semibold text-muted-foreground hover:text-foreground">
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="text-sm font-semibold text-muted-foreground hover:text-foreground"
+                >
                   Start over
                 </button>
               </div>
@@ -594,7 +675,10 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
             </div>
 
             {error && (
-              <p role="alert" className="flex items-start gap-2 rounded-md border border-danger/25 bg-danger/5 px-3 py-2.5 text-[13px] leading-5 text-danger">
+              <p
+                role="alert"
+                className="flex items-start gap-2 rounded-md border border-danger/25 bg-danger/5 px-3 py-2.5 text-[13px] leading-5 text-danger"
+              >
                 <CircleAlert className="mt-0.5 h-4 w-4 flex-none" aria-hidden />
                 {error}
               </p>
@@ -626,6 +710,11 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
             <h2 className="mt-3 text-base font-semibold text-foreground">
               {result.accepted} partner{result.accepted === 1 ? "" : "s"} saved
             </h2>
+            {(result.updated ?? 0) > 0 && (
+              <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
+                {result.added ?? 0} new · {result.updated} updated
+              </p>
+            )}
             <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
               From “{fileName}”
               {result.removed > 0
@@ -645,13 +734,19 @@ export function IngestWizard({ churches }: { churches: HubChurchOption[] }) {
         )}
 
         {step === "upload" && error && (
-          <p role="alert" className="mt-4 flex items-start gap-2 rounded-md border border-danger/25 bg-danger/5 px-3 py-2.5 text-left text-[13px] leading-5 text-danger">
+          <p
+            role="alert"
+            className="mt-4 flex items-start gap-2 rounded-md border border-danger/25 bg-danger/5 px-3 py-2.5 text-left text-[13px] leading-5 text-danger"
+          >
             <CircleAlert className="mt-0.5 h-4 w-4 flex-none" aria-hidden />
             {error}
           </p>
         )}
         {step === "map" && error && (
-          <p role="alert" className="mt-4 flex items-start gap-2 rounded-md border border-danger/25 bg-danger/5 px-3 py-2.5 text-[13px] leading-5 text-danger">
+          <p
+            role="alert"
+            className="mt-4 flex items-start gap-2 rounded-md border border-danger/25 bg-danger/5 px-3 py-2.5 text-[13px] leading-5 text-danger"
+          >
             <CircleAlert className="mt-0.5 h-4 w-4 flex-none" aria-hidden />
             {error}
           </p>
@@ -675,7 +770,10 @@ function PreviewRow({
   onEdit: (rowIndex: number, patch: Partial<EditRow>) => void;
 }) {
   const issueFor = (field: RowIssue["field"]) =>
-    issues.filter((i) => i.field === field).map((i) => i.message).join(" ");
+    issues
+      .filter((i) => i.field === field)
+      .map((i) => i.message)
+      .join(" ");
 
   if (row.removed) {
     return (
@@ -706,7 +804,10 @@ function PreviewRow({
 
   const flagged = issues.length > 0;
   return (
-    <tr className="odd:bg-background align-top" data-flagged={flagged || undefined}>
+    <tr
+      className="odd:bg-background align-top"
+      data-flagged={flagged || undefined}
+    >
       <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-muted-foreground">
         <span className="inline-flex items-center gap-1">
           {flagged ? (
@@ -722,7 +823,10 @@ function PreviewRow({
           <input
             value={row.name}
             onChange={(e) => onEdit(row.rowIndex, { name: e.target.value })}
-            className={inputBase + (issueFor("name") ? " border-danger/60" : " border-border")}
+            className={
+              inputBase +
+              (issueFor("name") ? " border-danger/60" : " border-border")
+            }
           />
         </FlaggedCell>
       </td>
@@ -731,8 +835,13 @@ function PreviewRow({
           <input
             value={row.momoPhone}
             inputMode="tel"
-            onChange={(e) => onEdit(row.rowIndex, { momoPhone: e.target.value })}
-            className={inputBase + (issueFor("momoPhone") ? " border-danger/60" : " border-border")}
+            onChange={(e) =>
+              onEdit(row.rowIndex, { momoPhone: e.target.value })
+            }
+            className={
+              inputBase +
+              (issueFor("momoPhone") ? " border-danger/60" : " border-border")
+            }
           />
         </FlaggedCell>
       </td>
@@ -741,8 +850,15 @@ function PreviewRow({
           <input
             value={row.whatsappPhone}
             inputMode="tel"
-            onChange={(e) => onEdit(row.rowIndex, { whatsappPhone: e.target.value })}
-            className={inputBase + (issueFor("whatsappPhone") ? " border-danger/60" : " border-border")}
+            onChange={(e) =>
+              onEdit(row.rowIndex, { whatsappPhone: e.target.value })
+            }
+            className={
+              inputBase +
+              (issueFor("whatsappPhone")
+                ? " border-danger/60"
+                : " border-border")
+            }
           />
         </FlaggedCell>
       </td>
@@ -751,10 +867,15 @@ function PreviewRow({
           <select
             value={matchedChurch?.name ?? ""}
             onChange={(e) => onEdit(row.rowIndex, { church: e.target.value })}
-            className={inputBase + (issueFor("church") ? " border-danger/60" : " border-border")}
+            className={
+              inputBase +
+              (issueFor("church") ? " border-danger/60" : " border-border")
+            }
           >
             <option value="" disabled>
-              {row.church ? `“${row.church.slice(0, 28)}” — pick from list` : "Pick church..."}
+              {row.church
+                ? `“${row.church.slice(0, 28)}” — pick from list`
+                : "Pick church..."}
             </option>
             {churches.map((c) => (
               <option key={c.id} value={c.name}>
@@ -816,12 +937,20 @@ function guessColumns(sheet: ParsedSheet | undefined): {
   header.forEach((cell, i) => {
     const h = cell.toLowerCase();
     if (name === "" && /name/.test(h) && !/church|branch/.test(h)) name = i;
-    if (momoPhone === "" && /(momo|mobile money|mobile)/.test(h) && !/whatsapp/.test(h)) {
+    if (
+      momoPhone === "" &&
+      /(momo|mobile money|mobile)/.test(h) &&
+      !/whatsapp/.test(h)
+    ) {
       momoPhone = i;
     }
     if (whatsappPhone === "" && /(whatsapp|wa)/.test(h)) whatsappPhone = i;
     // Only fall back to a generic phone column for MoMo if nothing more specific matched.
-    if (momoPhone === "" && /(phone|tel|number|contact)/.test(h) && !/whatsapp/.test(h)) {
+    if (
+      momoPhone === "" &&
+      /(phone|tel|number|contact)/.test(h) &&
+      !/whatsapp/.test(h)
+    ) {
       momoPhone = i;
     }
     if (church === "" && /(church|branch|assembly)/.test(h)) church = i;

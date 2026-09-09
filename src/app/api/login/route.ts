@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE, sessionToken } from "@/proxy";
-import { loginHub } from "@/lib/hub/auth";
-import { findHubAccountByUsername, touchHubLastLogin } from "@/lib/hub/db";
+import { loginHub, loginHubById } from "@/lib/hub/auth";
+import {
+  findHubAccountByHubId,
+  findHubAccountByUsername,
+  touchHubLastLogin,
+} from "@/lib/hub/db";
 import {
   createHubSessionToken,
   hubSessionSecret,
@@ -21,14 +25,31 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as {
     password?: unknown;
     hubNumber?: unknown;
+    hubId?: unknown;
   };
   const password = typeof body.password === "string" ? body.password : "";
 
-  if (body.hubNumber !== undefined) {
-    const hubNumber = typeof body.hubNumber === "string" ? body.hubNumber : "";
-    const result = await loginHub(hubNumber, password, findHubAccountByUsername);
+  // Two hub doors. `hubId` is the picker (Decision 0020) and works for every
+  // region; `hubNumber` is the pre-regions UD Ghana form, kept working so a
+  // cached page or a bookmarked script does not break on deploy day.
+  if (body.hubId !== undefined || body.hubNumber !== undefined) {
+    const result =
+      body.hubId !== undefined
+        ? await loginHubById(
+            typeof body.hubId === "string" ? body.hubId : "",
+            password,
+            findHubAccountByHubId,
+          )
+        : await loginHub(
+            typeof body.hubNumber === "string" ? body.hubNumber : "",
+            password,
+            findHubAccountByUsername,
+          );
     if (!result.ok) {
-      return NextResponse.json({ ok: false, error: result.error }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, error: result.error },
+        { status: 401 },
+      );
     }
     const { account } = result;
     await touchHubLastLogin(account.id);
@@ -36,7 +57,9 @@ export async function POST(req: Request) {
       {
         accountId: account.id,
         hubId: account.hub_id,
+        regionCode: account.region_code,
         hubNumber: account.hub_number,
+        hubLabel: account.hub_label,
         mustChange: account.must_change_password,
       },
       hubSessionSecret(),
@@ -59,7 +82,10 @@ export async function POST(req: Request) {
 
   // If no password is configured the gate is open; treat any login as success.
   if (expected && password !== expected) {
-    return NextResponse.json({ ok: false, error: "Incorrect password." }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: "Incorrect password." },
+      { status: 401 },
+    );
   }
 
   const res = NextResponse.json({ ok: true });

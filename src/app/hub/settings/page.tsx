@@ -46,7 +46,9 @@ export default async function HubSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-foreground sm:text-2xl">Settings</h1>
+        <h1 className="text-xl font-bold text-foreground sm:text-2xl">
+          Settings
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Your hub&apos;s account details and security.
         </p>
@@ -67,10 +69,10 @@ export default async function HubSettingsPage() {
         <div className="grid gap-x-8 gap-y-4 px-4 py-4 sm:grid-cols-2 sm:px-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Hub number
+              {summary.hubNumber === null ? "Hub" : "Hub number"}
             </p>
             <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
-              {summary.hubNumber}
+              {summary.hubLabel}
             </p>
           </div>
           <div>

@@ -18,12 +18,20 @@
 export const HUB_SESSION_COOKIE = "hub_session";
 export const HUB_SESSION_MAX_AGE_S = 60 * 60 * 24 * 7; // 7 days, matching staff
 
+/** Region a hub session belongs to, when the token predates regions. */
+export const DEFAULT_REGION_CODE = "UD_GHANA";
+
 export type HubSession = {
   /** hub_accounts.id */
   accountId: string;
   /** hubs.id */
   hubId: string;
-  hubNumber: number;
+  /** regions.code — which region's portal this session is inside. */
+  regionCode: string;
+  /** null in a region that identifies hubs by name (Decision 0020). */
+  hubNumber: number | null;
+  /** What to call this hub in the UI: "8 — Cape Coast", or "Kpandai". */
+  hubLabel: string;
   mustChange: boolean;
   /** unix seconds */
   exp: number;
@@ -101,12 +109,23 @@ export async function verifyHubSessionToken(
   if (
     typeof s.accountId !== "string" ||
     typeof s.hubId !== "string" ||
-    typeof s.hubNumber !== "number" ||
     typeof s.mustChange !== "boolean" ||
     typeof s.exp !== "number"
   ) {
     return null;
   }
   if (s.exp <= nowS) return null;
-  return s as HubSession;
+
+  // Tokens issued before regions existed carry a bare hubNumber and nothing
+  // else. Rather than log 30 working hub admins out on deploy day, read them as
+  // what they are: UD Ghana, labelled by number.
+  const hubNumber = typeof s.hubNumber === "number" ? s.hubNumber : null;
+  if (hubNumber === null && typeof s.hubLabel !== "string") return null;
+  return {
+    ...(s as HubSession),
+    regionCode:
+      typeof s.regionCode === "string" ? s.regionCode : DEFAULT_REGION_CODE,
+    hubNumber,
+    hubLabel: typeof s.hubLabel === "string" ? s.hubLabel : `Hub ${hubNumber}`,
+  };
 }

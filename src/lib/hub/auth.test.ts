@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { loginHub, validateNewHubPassword, type HubAccountRecord } from "./auth";
+import {
+  loginHub,
+  loginHubById,
+  validateNewHubPassword,
+  validateNewPassword,
+  type HubAccountRecord,
+} from "./auth";
 import { hashPassword } from "./password";
 
 const account = (over: Partial<HubAccountRecord> = {}): HubAccountRecord => ({
@@ -9,6 +15,8 @@ const account = (over: Partial<HubAccountRecord> = {}): HubAccountRecord => ({
   password_hash: hashPassword("7"),
   must_change_password: true,
   hub_number: 7,
+  hub_label: "7 — East End",
+  region_code: "UD_GHANA",
   ...over,
 });
 
@@ -54,6 +62,66 @@ describe("validateNewHubPassword", () => {
   });
 
   it("blocks the hub number even disguised with spaces (once long enough)", () => {
-    expect(validateNewHubPassword("3 1 3 1 3 1 3 1", 31313131)).toMatch(/hub number/);
+    expect(validateNewHubPassword("3 1 3 1 3 1 3 1", 31313131)).toMatch(
+      /hub number/,
+    );
+  });
+});
+
+describe("loginHubById (Decision 0020)", () => {
+  const store = (rec: HubAccountRecord | null) => async (hubId: string) =>
+    rec && rec.hub_id === hubId ? rec : null;
+
+  it("logs a numbered hub in by id", async () => {
+    const rec = account();
+    expect((await loginHubById("hub-7", "7", store(rec))).ok).toBe(true);
+  });
+
+  it("logs a named hub in by id, with no hub number at all", async () => {
+    const rec = account({
+      id: "acc-kpandai",
+      hub_id: "hub-kpandai",
+      username: "uj:kpandai",
+      password_hash: hashPassword("swift-river-40"),
+      hub_number: null,
+      hub_label: "Kpandai",
+      region_code: "UJ_GHANA",
+    });
+    const out = await loginHubById("hub-kpandai", "swift-river-40", store(rec));
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.account.hub_number).toBeNull();
+  });
+
+  it("rejects a wrong password, and an empty one without touching the store", async () => {
+    const rec = account();
+    expect((await loginHubById("hub-7", "nope", store(rec))).ok).toBe(false);
+    let looked = false;
+    await loginHubById("hub-7", "", async () => {
+      looked = true;
+      return rec;
+    });
+    expect(looked).toBe(false);
+  });
+
+  it("rejects an unknown hub id", async () => {
+    expect((await loginHubById("hub-nope", "7", store(account()))).ok).toBe(
+      false,
+    );
+  });
+});
+
+describe("validateNewPassword", () => {
+  it("refuses the issued password, whatever it was", () => {
+    expect(validateNewPassword("swift-river-40", "swift-river-40")).toMatch(
+      /issued/,
+    );
+    expect(
+      validateNewPassword("a-better-password", "swift-river-40"),
+    ).toBeNull();
+  });
+
+  it("keeps the length and whitespace rules", () => {
+    expect(validateNewPassword("short", "x")).toMatch(/8 characters/);
+    expect(validateNewPassword(" padded password ", "x")).toMatch(/space/);
   });
 });

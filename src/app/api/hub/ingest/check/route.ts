@@ -19,12 +19,17 @@ export async function POST(req: NextRequest) {
     hubSessionSecret(),
   );
   if (!session) {
-    return NextResponse.json({ ok: false, error: "Not signed in." }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: "Not signed in." },
+      { status: 401 },
+    );
   }
 
   const body = (await req.json().catch(() => ({}))) as { phones?: unknown };
   const phones = Array.isArray(body.phones)
-    ? body.phones.filter((p): p is string => typeof p === "string").slice(0, 10_000)
+    ? body.phones
+        .filter((p): p is string => typeof p === "string")
+        .slice(0, 10_000)
     : [];
 
   const existing = await findExistingPhones(phones);
@@ -35,7 +40,7 @@ export async function POST(req: NextRequest) {
       phone,
       info.hubId === session.hubId
         ? info
-        : { hubNumber: info.hubNumber },
+        : { hubNumber: info.hubNumber, hubLabel: info.hubLabel },
     ]),
   );
   return NextResponse.json({ ok: true, existing: safe });

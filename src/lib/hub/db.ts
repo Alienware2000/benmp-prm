@@ -44,17 +44,31 @@ type AccountRow = {
   username: string;
   password_hash: string;
   must_change_password: boolean;
-  hubs: { hub_number: number } | null;
+  hubs: {
+    hub_number: number | null;
+    name: string;
+    regions: { code: string } | null;
+  } | null;
 };
 
-export async function findHubAccountByUsername(
-  username: string,
-): Promise<HubAccountRecord | null> {
-  const rows = await rest<AccountRow[]>(
-    `hub_accounts?username=eq.${encodeURIComponent(username)}` +
-      `&select=id,hub_id,username,password_hash,must_change_password,hubs(hub_number)`,
-  );
-  const row = rows?.[0];
+const ACCOUNT_SELECT =
+  "id,hub_id,username,password_hash,must_change_password," +
+  "hubs(hub_number,name,regions(code))";
+
+/**
+ * How a hub is written in the UI. A numbered region leads with the number,
+ * because that is what the office says out loud ("hub 8"); a named region is
+ * just its name.
+ */
+export function hubLabel(
+  hubNumber: number | null,
+  name: string | null,
+): string {
+  if (hubNumber === null) return name ?? "";
+  return name ? `${hubNumber} — ${name}` : `Hub ${hubNumber}`;
+}
+
+function toAccount(row: AccountRow | undefined): HubAccountRecord | null {
   if (!row || !row.hubs) return null;
   return {
     id: row.id,
@@ -63,26 +77,40 @@ export async function findHubAccountByUsername(
     password_hash: row.password_hash,
     must_change_password: row.must_change_password,
     hub_number: row.hubs.hub_number,
+    hub_label: hubLabel(row.hubs.hub_number, row.hubs.name),
+    region_code: row.hubs.regions?.code ?? "UD_GHANA",
   };
+}
+
+export async function findHubAccountByUsername(
+  username: string,
+): Promise<HubAccountRecord | null> {
+  const rows = await rest<AccountRow[]>(
+    `hub_accounts?username=eq.${encodeURIComponent(username)}&select=${ACCOUNT_SELECT}`,
+  );
+  return toAccount(rows?.[0]);
+}
+
+/**
+ * Lookup for the picker login (Decision 0020) — one account per hub, so the
+ * hub id identifies the account.
+ */
+export async function findHubAccountByHubId(
+  hubId: string,
+): Promise<HubAccountRecord | null> {
+  const rows = await rest<AccountRow[]>(
+    `hub_accounts?hub_id=eq.${encodeURIComponent(hubId)}&select=${ACCOUNT_SELECT}`,
+  );
+  return toAccount(rows?.[0]);
 }
 
 export async function findHubAccountById(
   accountId: string,
 ): Promise<HubAccountRecord | null> {
   const rows = await rest<AccountRow[]>(
-    `hub_accounts?id=eq.${encodeURIComponent(accountId)}` +
-      `&select=id,hub_id,username,password_hash,must_change_password,hubs(hub_number)`,
+    `hub_accounts?id=eq.${encodeURIComponent(accountId)}&select=${ACCOUNT_SELECT}`,
   );
-  const row = rows?.[0];
-  if (!row || !row.hubs) return null;
-  return {
-    id: row.id,
-    hub_id: row.hub_id,
-    username: row.username,
-    password_hash: row.password_hash,
-    must_change_password: row.must_change_password,
-    hub_number: row.hubs.hub_number,
-  };
+  return toAccount(rows?.[0]);
 }
 
 export async function touchHubLastLogin(accountId: string): Promise<void> {
@@ -141,10 +169,10 @@ export async function findExistingPhones(
       hub_id: string | null;
       momo_phone_number?: string | null;
       whatsapp_number?: string | null;
-      hubs: { hub_number: number } | null;
+      hubs: { hub_number: number | null; name: string | null } | null;
     };
     const select =
-      "id,hub_id,momo_phone_number,whatsapp_number,hubs(hub_number)";
+      "id,hub_id,momo_phone_number,whatsapp_number,hubs(hub_number,name)";
     const momoRows = await rest<Row[]>(
       `partners?momo_phone_number=in.(${encodeURIComponent(list)})&select=${select}`,
     );
@@ -155,6 +183,7 @@ export async function findExistingPhones(
       partnerId: r.id,
       hubId: r.hub_id,
       hubNumber: r.hubs?.hub_number ?? null,
+      hubLabel: r.hubs ? hubLabel(r.hubs.hub_number, r.hubs.name) : null,
     });
     for (const r of momoRows) {
       if (r.momo_phone_number) out.set(r.momo_phone_number, info(r));
@@ -198,6 +227,8 @@ export type ExistingPhoneRow = {
   partnerId: string;
   hubId: string | null;
   hubNumber: number | null;
+  /** "12 — Asamankese" / "Kpandai"; null for a partner with no hub. */
+  hubLabel: string | null;
 };
 
 export type IngestBatchInput = {
@@ -385,7 +416,9 @@ export async function getHubPartners(hubId: string): Promise<HubPartnerRow[]> {
 }
 
 export type HubSummary = {
-  hubNumber: number;
+  hubNumber: number | null;
+  hubLabel: string;
+  regionName: string;
   leaderName: string;
   churchCount: number;
   partnerCount: number;
@@ -393,9 +426,14 @@ export type HubSummary = {
 
 export async function getHubSummary(hubId: string): Promise<HubSummary | null> {
   const id = encodeURIComponent(hubId);
-  const hubs = await rest<{ hub_number: number; leader_name: string }[]>(
-    `hubs?id=eq.${id}&select=hub_number,leader_name`,
-  );
+  const hubs = await rest<
+    {
+      hub_number: number | null;
+      name: string;
+      leader_name: string;
+      regions: { name: string } | null;
+    }[]
+  >(`hubs?id=eq.${id}&select=hub_number,name,leader_name,regions(name)`);
   const hub = hubs?.[0];
   if (!hub) return null;
 
@@ -416,8 +454,62 @@ export async function getHubSummary(hubId: string): Promise<HubSummary | null> {
   ]);
   return {
     hubNumber: hub.hub_number,
+    hubLabel: hubLabel(hub.hub_number, hub.name),
+    regionName: hub.regions?.name ?? "UD Ghana",
     leaderName: hub.leader_name,
     churchCount,
     partnerCount,
   };
+}
+
+export type RegionOption = {
+  code: string;
+  name: string;
+  /** "number" | "name" — how this region identifies a hub (Decision 0020). */
+  hubIdentifier: string;
+  hubs: { id: string; label: string; leaderName: string }[];
+};
+
+/**
+ * Everything the login picker renders: the regions, and the hubs inside each.
+ *
+ * Deliberately unauthenticated data — it is the office's own org chart, and an
+ * admin has to pick their hub before they can prove who they are. It carries no
+ * ids beyond the hub's, no counts and no account state, so knowing it gets an
+ * attacker no further than knowing the hub numbers already did.
+ *
+ * Hubs without an account are omitted: offering a hub nobody can sign into
+ * produces a login that always fails.
+ */
+export async function listRegionsForLogin(): Promise<RegionOption[]> {
+  const regions = await rest<
+    { code: string; name: string; hub_identifier: string }[]
+  >("regions?select=code,name,hub_identifier&order=sort_order.asc");
+
+  const hubs = await rest<
+    {
+      id: string;
+      hub_number: number | null;
+      name: string;
+      leader_name: string;
+      regions: { code: string } | null;
+      hub_accounts: { id: string }[];
+    }[]
+  >(
+    "hubs?select=id,hub_number,name,leader_name,regions(code),hub_accounts(id)" +
+      "&order=hub_number.asc.nullslast,name.asc",
+  );
+
+  return regions.map((r) => ({
+    code: r.code,
+    name: r.name,
+    hubIdentifier: r.hub_identifier,
+    hubs: hubs
+      .filter((h) => h.regions?.code === r.code && h.hub_accounts.length > 0)
+      .map((h) => ({
+        id: h.id,
+        label: hubLabel(h.hub_number, h.name),
+        leaderName: h.leader_name,
+      })),
+  }));
 }

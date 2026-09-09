@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateNewHubPassword } from "@/lib/hub/auth";
+import { validateNewPassword } from "@/lib/hub/auth";
 import { hashPassword, verifyPassword } from "@/lib/hub/password";
 import { findHubAccountById, updateHubPassword } from "@/lib/hub/db";
 import {
@@ -24,14 +24,18 @@ export async function POST(req: NextRequest) {
     hubSessionSecret(),
   );
   if (!session) {
-    return NextResponse.json({ ok: false, error: "Not signed in." }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: "Not signed in." },
+      { status: 401 },
+    );
   }
 
   const body = (await req.json().catch(() => ({}))) as {
     currentPassword?: unknown;
     newPassword?: unknown;
   };
-  const current = typeof body.currentPassword === "string" ? body.currentPassword : "";
+  const current =
+    typeof body.currentPassword === "string" ? body.currentPassword : "";
   const next = typeof body.newPassword === "string" ? body.newPassword : "";
 
   const account = await findHubAccountById(session.accountId);
@@ -42,7 +46,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const problem = validateNewHubPassword(next, account.hub_number);
+  // The banned value is whatever the account was issued: the hub number in UD
+  // Ghana, the generated password in a named region.
+  const problem = validateNewPassword(
+    next,
+    account.hub_number === null ? current : String(account.hub_number),
+  );
   if (problem) {
     return NextResponse.json({ ok: false, error: problem }, { status: 400 });
   }
@@ -53,7 +62,9 @@ export async function POST(req: NextRequest) {
     {
       accountId: account.id,
       hubId: account.hub_id,
+      regionCode: account.region_code,
       hubNumber: account.hub_number,
+      hubLabel: account.hub_label,
       mustChange: false,
     },
     hubSessionSecret(),

@@ -1,10 +1,17 @@
 "use client";
 
 import { CircleAlert, Eye, EyeOff, LoaderCircle, LogIn } from "lucide-react";
-import { FormEvent, KeyboardEvent, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type Mode = "staff" | "hub";
+
+type RegionOption = {
+  code: string;
+  name: string;
+  hubIdentifier: string;
+  hubs: { id: string; label: string; leaderName: string }[];
+};
 
 export function LoginForm() {
   const router = useRouter();
@@ -12,12 +19,37 @@ export function LoginForm() {
   const next = params.get("next") || "/poc";
 
   const [mode, setMode] = useState<Mode>("staff");
-  const [hubNumber, setHubNumber] = useState("");
+  const [regions, setRegions] = useState<RegionOption[] | null>(null);
+  const [regionsFailed, setRegionsFailed] = useState(false);
+  const [regionCode, setRegionCode] = useState("");
+  const [hubId, setHubId] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [caps, setCaps] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Loaded once the admin opens the hub tab, not on page load: office staff are
+  // the common case and never need it.
+  useEffect(() => {
+    if (mode !== "hub" || regions !== null || regionsFailed) return;
+    let live = true;
+    fetch("/api/regions")
+      .then((r) => r.json())
+      .then((data: { ok?: boolean; regions?: RegionOption[] }) => {
+        if (!live) return;
+        if (!data.ok || !data.regions) throw new Error("no regions");
+        setRegions(data.regions);
+        // One region needs no choosing.
+        if (data.regions.length === 1) setRegionCode(data.regions[0].code);
+      })
+      .catch(() => live && setRegionsFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [mode, regions, regionsFailed]);
+
+  const region = regions?.find((r) => r.code === regionCode) ?? null;
 
   function onKey(e: KeyboardEvent<HTMLInputElement>) {
     setCaps(e.getModifierState?.("CapsLock") ?? false);
@@ -28,8 +60,7 @@ export function LoginForm() {
     setBusy(true);
     setError(null);
     try {
-      const body =
-        mode === "hub" ? { hubNumber, password } : { password };
+      const body = mode === "hub" ? { hubId, password } : { password };
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -46,8 +77,9 @@ export function LoginForm() {
         }
         router.refresh();
       } else if (mode === "hub") {
+        // The hub came from a dropdown, so the password is the wrong half.
         setError(
-          "That hub number and password combination is not correct. Check with the BENMP office and try again.",
+          "That password is not correct for this hub. Check with the BENMP office and try again.",
         );
       } else {
         setError(
@@ -96,27 +128,79 @@ export function LoginForm() {
       </div>
 
       {mode === "hub" && (
-        <div>
-          <label
-            htmlFor="hub-number"
-            className="mb-2 block text-[13px] font-semibold text-foreground"
-          >
-            Hub number
-          </label>
-          <input
-            id="hub-number"
-            type="text"
-            inputMode="numeric"
-            autoComplete="username"
-            value={hubNumber}
-            onChange={(e) => {
-              setHubNumber(e.target.value);
-              setError(null);
-            }}
-            placeholder="e.g. 12"
-            className="h-12 w-full rounded-md border border-border bg-background px-3.5 text-sm text-foreground outline-none transition focus:border-brand focus:bg-surface focus:ring-[3px] focus:ring-brand/15 placeholder:text-muted-foreground/60"
-          />
-        </div>
+        <>
+          {regionsFailed ? (
+            <p
+              role="alert"
+              className="rounded-md border border-danger/25 bg-danger/5 px-3 py-2.5 text-[13px] leading-5 text-danger"
+            >
+              Could not load the region list. Refresh the page, or contact the
+              BENMP office.
+            </p>
+          ) : regions === null ? (
+            <p className="flex items-center gap-2 px-1 text-[13px] text-muted-foreground">
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />
+              Loading regions...
+            </p>
+          ) : (
+            <>
+              <div>
+                <label
+                  htmlFor="region"
+                  className="mb-2 block text-[13px] font-semibold text-foreground"
+                >
+                  Region
+                </label>
+                <select
+                  id="region"
+                  value={regionCode}
+                  onChange={(e) => {
+                    setRegionCode(e.target.value);
+                    setHubId("");
+                    setError(null);
+                  }}
+                  className="h-12 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-brand focus:bg-surface focus:ring-[3px] focus:ring-brand/15"
+                >
+                  <option value="">Choose your region</option>
+                  {regions.map((r) => (
+                    <option key={r.code} value={r.code}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="hub"
+                  className="mb-2 block text-[13px] font-semibold text-foreground"
+                >
+                  Hub
+                </label>
+                <select
+                  id="hub"
+                  value={hubId}
+                  disabled={!region}
+                  onChange={(e) => {
+                    setHubId(e.target.value);
+                    setError(null);
+                  }}
+                  className="h-12 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-brand focus:bg-surface focus:ring-[3px] focus:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  <option value="">
+                    {region ? "Choose your hub" : "Choose a region first"}
+                  </option>
+                  {region?.hubs.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.label}
+                      {h.leaderName ? ` (${h.leaderName})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+        </>
       )}
 
       <div>
@@ -184,9 +268,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={
-          busy ||
-          password.length === 0 ||
-          (mode === "hub" && hubNumber.trim().length === 0)
+          busy || password.length === 0 || (mode === "hub" && hubId === "")
         }
         className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-brand px-4 text-sm font-semibold text-white transition hover:bg-brand-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand/40 disabled:cursor-not-allowed disabled:opacity-45"
       >

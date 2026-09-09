@@ -461,3 +461,54 @@ _2026-09-04_
 **Supersedes**: Decision 0018's blanket "no overwriting of duplicate rows", for same-hub matches only.
 
 **Said no to**: letting any hub claim a partner by uploading their number (one wrong digit would silently move a real person, and their old hub would never be told) · silently skipping duplicate rows instead of updating them · overwriting fields the sheet does not carry · matching on name (too many genuine duplicates).
+
+## 0020 — Regions above hubs: one portal, per-region hub identity
+
+_2026-09-09_
+
+**Decided**: the hub platform gains a level above it. The office's real hierarchy is
+**Region → Hub/Denomination → Church → BENMP Partner**, across seven regions (UD Ghana,
+UJ Ghana, Europe, North America, Africa, Eschatos, United Cities). The upper two levels
+move about; churches and partners are comparatively static. One portal serves every
+region — not a copy per region.
+
+1. **`regions` is a table, not an enum or a deployment.** Adding Europe is a row plus a
+   seed file, not a code change. `hub_identifier` (`'number' | 'name'`) is the only thing
+   the app branches on.
+2. **Hub identity is per region.** UD Ghana identifies a hub by **number** (1–31,
+   Decision 0018 item 1); UJ Ghana identifies it by **name** (26 hubs — Tumu, Kpandai,
+   … — supplied by the office as WhatsApp submissions). So `hubs.hub_number` becomes
+   nullable, `hubs.name` is added, and every uniqueness rule is re-scoped from global to
+   `(region_id, …)`. UD's "hub 8" and UJ's "Kpandai" must be able to coexist.
+3. **Login is a picker, not a typed identifier.** Region dropdown → hub dropdown →
+   password, submitting `hubId`. Nobody spells "Tamale Aparche" or has to know they are
+   hub 8, and the failure message can name the password as the wrong half because the hub
+   came from a list. The 31 UD passwords are untouched: only the identification step
+   changed. `{ hubNumber, password }` still works.
+4. **Pre-regions sessions keep working.** A `hub_session` cookie issued before this change
+   carries a bare `hubNumber`; it is read as UD Ghana rather than logged out, so the 30
+   active hub admins are not signed out on deploy.
+5. **UD hub names were always in the office, never in the database.** "Hub 08 - Cape
+   Coast" is how the office writes it; only the number was stored. Backfilled from the
+   office list, so the picker reads `8 — Cape Coast (Paschal Godwyll)`.
+6. **Named-region initial passwords are random and printed once**, not derived from the
+   hub name: the name is public — it is in the login dropdown — so a name-derived password
+   would be no password at all. `must_change_password` still applies.
+7. **A blank leader name is allowed.** Wa's branches came from the office without an admin
+   name; refusing to seed a region over one missing display label would be the wrong trade.
+   The loader reports it.
+
+**Why**: the office asked for "the same portal for uploading for each region". Seven copies
+of the hub code, diverging as each region is corrected, is the failure mode worth designing
+out. Everything below the hub — the wizard, church validation, the audit trail, the partner
+tables — is already hub-scoped, so a region is data rather than a fork.
+
+**Said no to**: a separate UJ portal (seven codebases) · a region-level admin tier above hubs
+(the office confirmed "admin" means the hub admin) · hub names as usernames typed by hand
+(misspelling is the most likely login failure) · hub names as initial passwords (public) ·
+globally unique hub names (regions legitimately reuse them) · renumbering UJ's hubs 1–26 to
+match UD (the office identifies them by name).
+
+**Superseded**: Decision 0018 item 1's "hubs are identified by number, always" — true of UD
+Ghana, not of every region. Item 3's "username = hub number" survives only as a stored
+column; the login submits a hub id.

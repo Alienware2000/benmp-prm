@@ -216,15 +216,20 @@ Live routes on the POC deployment (not the planned Supabase-Auth staff model abo
 ### `POST /api/login`
 
 - `{ "password" }` — staff: verifies against the shared `POC_PASSWORD`, sets `poc_session`.
-- `{ "hubNumber", "password" }` — hub leader: verifies against `hub_accounts` (scrypt), touches `last_login_at`, sets `hub_session` (HMAC-signed stateless cookie, 7 days, secret `HUB_SESSION_SECRET` → fallback `POC_PASSWORD`). Response: `{ ok, mustChange }`. Unknown hub and wrong password return one indistinguishable 401.
+- `{ "hubId", "password" }` — hub admin, **the current door** (Decision 0020): `hubId` comes from the region/hub picker, so nothing depends on typing or spelling. Verifies against `hub_accounts` (scrypt), touches `last_login_at`, sets `hub_session` (HMAC-signed stateless cookie, 7 days, secret `HUB_SESSION_SECRET` → fallback `POC_PASSWORD`). Response: `{ ok, mustChange }`. Because the hub was chosen from a list, the 401 names the password as the wrong half rather than staying ambiguous.
+- `{ "hubNumber", "password" }` — the pre-regions UD Ghana form, still accepted so a cached page or a script does not break. Unknown hub and wrong password return one indistinguishable 401, as before.
+
+### `GET /api/regions`
+
+Unauthenticated: the login picker's data, `{ ok, regions: [{ code, name, hubIdentifier, hubs: [{ id, label, leaderName }] }] }`. It is the office's own structure — no counts, no account state, no partner data — and an admin must pick a hub before they can prove who they are. Hubs with no account are omitted, so the picker cannot offer a login that always fails.
 
 ### `POST /api/hub/password`
 
-Requires a valid hub session. Body `{ currentPassword, newPassword }`. Current password is re-verified against the database (a stolen cookie alone cannot rotate it). New password: ≥ 8 chars, not the hub number. On success re-issues `hub_session` with `mustChange: false`.
+Requires a valid hub session. Body `{ currentPassword, newPassword }`. Current password is re-verified against the database (a stolen cookie alone cannot rotate it). New password: ≥ 8 chars, not the password the account was issued (the hub number in UD Ghana, the generated one in a name region). On success re-issues `hub_session` with `mustChange: false`.
 
 ### `PATCH /api/hub/account`
 
-Requires a valid hub session. Body `{ leaderName }` (2-80 chars) — updates the hub's leader/contact display name. The hub number is the identity and is not editable.
+Requires a valid hub session. Body `{ leaderName }` (2-80 chars) — updates the hub's leader/contact display name. The hub's identity (its number or name, and its region) is not editable here.
 
 ### `POST /api/hub/logout`
 
@@ -235,7 +240,7 @@ Clears `hub_session`.
 All require a valid hub session; the proxy additionally blocks them while a password change is pending. Validation rules live in `src/lib/hub/ingest.ts` (pure, unit-tested) and run identically in the preview UI and on the server.
 
 - `POST /api/hub/ingest/parse` — multipart upload of one `.xlsx`/`.xlsm`/`.csv` (≤ 8 MB, ≤ 5000 rows/sheet, ≤ 60 columns). Returns `{ fileName, sheets: [{ name, rows: string[][] }] }` — plain text grids for sheet/column picking. Excel cell types (numbers, dates, rich text, formula results) are flattened to display text; an integer phone cell keeps its digits. No writes.
-- `POST /api/hub/ingest/check` — `{ phones: string[] }` (E.164) → `{ existing: { [phone]: { hubNumber | null, partnerId?, hubId? } } }`, so the preview can flag "already in the system for Hub N" before save. `partnerId`/`hubId` are returned **only for numbers the calling hub already owns** — another hub's internal ids never reach the browser. Re-checked at submit regardless.
+- `POST /api/hub/ingest/check` — `{ phones: string[] }` (E.164) → `{ existing: { [phone]: { hubNumber | null, hubLabel | null, partnerId?, hubId? } } }`, so the preview can flag "already in the system for 12 — Asamankese" before save. `hubLabel` carries the owning hub's display name because a name-region hub has no number to quote (Decision 0020). `partnerId`/`hubId` are returned **only for numbers the calling hub already owns** — another hub's internal ids never reach the browser. Re-checked at submit regardless.
 - `POST /api/hub/ingest/submit` — `{ fileName, sheetName, columnMap, rows: [{ rowIndex, raw, name, phone, church, removed }] }`. Client state is untrusted: every non-removed row is re-validated (name ≥ 2 words; phone normalizes to E.164 with Ghana default; church on the hub's list, case/whitespace-insensitive; no duplicate phone in the file or in `partners`). Any flagged row → 400 with per-row issues; nothing is written. Clean → writes batch (draft) → all rows incl. removed (audit) → partners → batch submitted. Response carries `{ accepted, added, updated, removed }`.
 
   **Re-upload is an edit (Decision 0024).** A row whose **name** matches a partner of the same hub (case/whitespace-insensitive), or whose MoMo/WhatsApp number belongs to a partner of the same hub, updates that partner (`full_name`, both numbers, `church`, `church_id`, `source`) instead of inserting; giving history, `status` and opt-outs are untouched. A number belonging to **another hub, or to a pre-hub record, is still rejected** — no hub can take over another's partner by uploading their number. A row is rejected as ambiguous when its name is shared by two partners in the hub, when its two numbers match two different partners, or when the name and the numbers point at different people. Rows absent from the file are never deleted. Updates are one PATCH per partner, each filtered by `hub_id` as well as `id`.

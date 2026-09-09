@@ -1,0 +1,509 @@
+{
+  "source": "Hub admin WhatsApp submissions, transcribed from ~/Desktop/Notes (2026-09-08)",
+  "notes": "Canonical UJ Ghana hub/church list. Hubs are identified by NAME in this region (Decision 0020), unlike UD Ghana's numbers. Corrections applied from the office: Gballa belongs to Walewale only, Yankazia to Gushegu only, Nanori to Nalerigu only; Gilgal is not a hub and its Gilgal/Kokrobite churches sit under JITM; Tatale's 'Tasundo 2' and 'Tasundo no2' are the same church. In-hub duplicates dropped: Kanimo (Gushegu), Jakpokpondo (Yendi). Wa's branches were supplied directly by the office; its admin name is not yet known.",
+  "hubs": [
+    {
+      "name": "Tumu",
+      "displayName": "Tumu",
+      "leader": "Theresa Ahiaku",
+      "churches": [
+        "Tumu",
+        "Silbelle",
+        "Kong",
+        "Kowie",
+        "Sakalu",
+        "Bujan",
+        "Bouti",
+        "Pinah",
+        "Nankpawie"
+      ]
+    },
+    {
+      "name": "Kpandai",
+      "displayName": "Kpandai",
+      "leader": "Ps George Akuobeagye Kumah",
+      "churches": [
+        "Kpandai Main",
+        "Jetiman",
+        "Lesseni",
+        "Lungni",
+        "Buya",
+        "Katiejeli",
+        "Jama Nkwanta",
+        "Meme",
+        "Dodope No.1",
+        "Nkanchina No.2"
+      ]
+    },
+    {
+      "name": "Lawra",
+      "displayName": "Lawra",
+      "leader": "Edith Adonu",
+      "churches": [
+        "Lawra",
+        "Nandom",
+        "Jirapa",
+        "Baazu"
+      ]
+    },
+    {
+      "name": "Bimbilla",
+      "displayName": "Bimbilla",
+      "leader": "Herbert Kwesi",
+      "churches": [
+        "Kabreya",
+        "Kpalsogu",
+        "Kpaturi",
+        "Nabayili",
+        "Taali",
+        "Moba",
+        "Lepusi",
+        "Makayili",
+        "Kungbondo",
+        "Tunayili",
+        "Nabagnando"
+      ]
+    },
+    {
+      "name": "Nakpanduri",
+      "displayName": "Nakpanduri",
+      "leader": "Evelyn Adeleke",
+      "churches": [
+        "Nakpanduri Main",
+        "Sayeegu",
+        "Tusuk",
+        "Forkinbatuk",
+        "Nayin-Gbebruk",
+        "Bindi",
+        "Najong No.1",
+        "Najikaonborok",
+        "Tumoni",
+        "Gbinbalanchet",
+        "Tuna"
+      ]
+    },
+    {
+      "name": "JITM",
+      "displayName": "Jesus is the Master",
+      "leader": "Emefa Boakye Yiadom",
+      "churches": [
+        "Nungua Brigade",
+        "Teshie Alloway",
+        "Labone",
+        "Teshie Nungua Estate",
+        "Teshie Cathedral",
+        "Nungua Cathedral",
+        "Ringway",
+        "Makarios Tower",
+        "Nungua C5",
+        "Osu",
+        "Rose of Sharon",
+        "La Luu",
+        "La Wireless",
+        "Trade Fair",
+        "Gilgal",
+        "Tema Cornerstone",
+        "Tema Newtown",
+        "Kokrobite"
+      ]
+    },
+    {
+      "name": "Zagyuri",
+      "displayName": "Zagyuri",
+      "leader": "Denise Owusu",
+      "churches": [
+        "Zagyuri Cathedral",
+        "Alpha and Omega Cathedral - Tamale Airport",
+        "Buipe",
+        "Kagbrashei",
+        "Lahagu",
+        "Parishei",
+        "Pong Tamale",
+        "Savelugu South",
+        "Yapei",
+        "Gurugu"
+      ]
+    },
+    {
+      "name": "Nalerigu",
+      "displayName": "Nalerigu",
+      "leader": "Pas Victor Tikpokua Konlaa",
+      "churches": [
+        "Nalerigu Cathedral",
+        "Nalerigu NTC",
+        "Zarantinga",
+        "Zaari",
+        "Nagboo",
+        "Nanori",
+        "Kpangali",
+        "Jagoo"
+      ]
+    },
+    {
+      "name": "Bawku",
+      "displayName": "Bawku",
+      "leader": "Emmanuel Awini",
+      "churches": [
+        "Bawku",
+        "Sapeliga",
+        "Banse",
+        "Nayoko No.2",
+        "Zabugu",
+        "Binduri",
+        "Zaago No.2",
+        "Zawse Bakanga",
+        "Yarigungu"
+      ]
+    },
+    {
+      "name": "Saboba",
+      "displayName": "Saboba",
+      "leader": "Frederick Nakoh",
+      "churches": [
+        "Saboba",
+        "Kiteek",
+        "Kimoateek",
+        "Kuntuli",
+        "Sanguli-Saboba",
+        "Chereponi",
+        "Garinkuka",
+        "Konare",
+        "Asare",
+        "Lalitani",
+        "New Zagbeli",
+        "N-Nalog",
+        "Wonjuga"
+      ]
+    },
+    {
+      "name": "Damongo",
+      "displayName": "Damongo",
+      "leader": "Ernest Agbezuke",
+      "churches": [
+        "Damongo Cathedral",
+        "Dakpalakura",
+        "Peace Town",
+        "Daboya",
+        "Yipala",
+        "Broto"
+      ]
+    },
+    {
+      "name": "Tatale",
+      "displayName": "Tatale",
+      "leader": "Maliyi Njimbasuni Daniel",
+      "churches": [
+        "Tatale Town",
+        "Tasundo 2",
+        "Nakpale-Borle",
+        "Mantili",
+        "Nahuyili",
+        "Uchadindo",
+        "Kanando",
+        "Wonguloni",
+        "Kuntumbiyili",
+        "Kukpalgu",
+        "Sangbaa",
+        "Kpaributabu",
+        "Nkalingbani",
+        "Zabzugu",
+        "Taguldo",
+        "Kohiyili",
+        "Tayondo",
+        "Kolikolini",
+        "Tambihya",
+        "Nyankpala",
+        "Sakpalengabani",
+        "Ojojoja",
+        "Wassado",
+        "Ogbunja",
+        "Kinyobedo",
+        "Langbani",
+        "Sanguli",
+        "Dondoni",
+        "Bilando",
+        "Jankun",
+        "Bitido",
+        "Gor-Tani",
+        "Mangoase",
+        "Kpalgagbini",
+        "Nachamba No.1",
+        "Pogmado",
+        "Kunkunjoni",
+        "Piemabani",
+        "Sabonjida",
+        "Bekpanjibi",
+        "Kandin",
+        "Gbandi",
+        "Yachedo",
+        "Njobilbo",
+        "Nandambido",
+        "Nabouli",
+        "Kpanyantido",
+        "Diboi",
+        "Zoya",
+        "Kpasak",
+        "Manantido",
+        "Napajado",
+        "Tulado",
+        "Jatoyili",
+        "Wasieni"
+      ]
+    },
+    {
+      "name": "Walewale",
+      "displayName": "Walewale",
+      "leader": "Johnson Kuwella",
+      "churches": [
+        "Walewale",
+        "Gambaga",
+        "Gballa",
+        "Gbangu",
+        "Kpangli",
+        "Laatarigu",
+        "Sagadugu",
+        "Tamboku",
+        "Wulugu",
+        "Diani"
+      ]
+    },
+    {
+      "name": "Bolgatanga",
+      "displayName": "Bolgatanga",
+      "leader": "Adongo Sandra",
+      "churches": [
+        "Bolga",
+        "Zaare",
+        "Basengo",
+        "Sirigu"
+      ]
+    },
+    {
+      "name": "Sandema",
+      "displayName": "Sandema",
+      "leader": "Selina Nankani",
+      "churches": [
+        "Sandema",
+        "Akuri-Yeri",
+        "Kalijisa",
+        "Gbedema",
+        "Kadema",
+        "Kaasa"
+      ]
+    },
+    {
+      "name": "Zebilla",
+      "displayName": "Zebilla",
+      "leader": "Thomas Debura",
+      "churches": [
+        "Zebilla Cathedral",
+        "Widnaba",
+        "Boyakpalsako",
+        "Kusanaba",
+        "Tanga",
+        "Sakom",
+        "Kukore",
+        "Abulanga",
+        "Binaba",
+        "Aneogo",
+        "Kuboko",
+        "Tonde",
+        "Kinadabote",
+        "Tangkpalsako",
+        "Nangodi",
+        "Azuwera",
+        "Azaago",
+        "Bazua",
+        "Asapaligo",
+        "Adonsi",
+        "Kamega",
+        "Timonde",
+        "Gumbo",
+        "Kubore",
+        "Korpella"
+      ]
+    },
+    {
+      "name": "Wa",
+      "displayName": "Wa",
+      "leader": "",
+      "churches": [
+        "Wa",
+        "Kparisaga",
+        "Piisi",
+        "Kaleo",
+        "Cheria",
+        "Nyoli"
+      ]
+    },
+    {
+      "name": "Salaga",
+      "displayName": "Salaga",
+      "leader": "Edith Mutse",
+      "churches": [
+        "Salaga Cathedral",
+        "Kuwani",
+        "Yakubupe",
+        "Katanga",
+        "Kitoe/Kabupe",
+        "Upando",
+        "Kayereso",
+        "Adamupe",
+        "Nakando",
+        "Mbawudo",
+        "Kapito/Kujodo",
+        "Kinklin",
+        "Kinklin Nkwanta",
+        "Kitoe Nkwanta",
+        "Kumdi",
+        "Kojoboni",
+        "Chakori"
+      ]
+    },
+    {
+      "name": "Bunkpurugu",
+      "displayName": "Bunkpurugu",
+      "leader": "William Jordan Arthur",
+      "churches": [
+        "Bunkpurugu",
+        "Kpentaung",
+        "Kambagu",
+        "Mangor",
+        "Wawa",
+        "Bunbuna",
+        "Nanyiar",
+        "Gbingbanmon",
+        "Labikon",
+        "Gbankurugu",
+        "Guangbiang"
+      ]
+    },
+    {
+      "name": "Bole",
+      "displayName": "Bole",
+      "leader": "Mary-Ann Yussuff",
+      "churches": [
+        "Bole Cathedral",
+        "Sawla",
+        "Doli",
+        "Bamboi",
+        "Tinga",
+        "Bole Custom Barrier",
+        "Carpenter",
+        "New Longoro"
+      ]
+    },
+    {
+      "name": "Tamale North",
+      "displayName": "Tamale North",
+      "leader": "Felix Apeti",
+      "churches": [
+        "Everlasting Father Cathedral - Tamale North",
+        "Wisdom of God Cathedral - Nyerezee Tamale",
+        "Datoyili Cathedral",
+        "Changnayili",
+        "Chanshegu",
+        "Dakpiemyili",
+        "Jantong",
+        "Jonshegu/Lamashegu",
+        "Kaafihinayilli",
+        "Nachimbiya",
+        "Wulanyili",
+        "Yipelnayili",
+        "Tunaayili",
+        "Shishegu",
+        "Kumbungu"
+      ]
+    },
+    {
+      "name": "Mankesim",
+      "displayName": "Mankessim",
+      "leader": "Ayesha Adjoa Adjei",
+      "churches": [
+        "Ekumfi Essuehyia",
+        "Ekumfi Otuam",
+        "Ekumfi Essakyir",
+        "Ekumfi Akra",
+        "Ekumfi Narkwa",
+        "Mankessim",
+        "Enyan Denkyira",
+        "Abonko",
+        "Saltpond Gethsemane",
+        "Kormantse",
+        "Afrangua Town"
+      ]
+    },
+    {
+      "name": "Tamale Aparche",
+      "displayName": "Tamale Aparche",
+      "leader": "Linda Amekor",
+      "churches": [
+        "Tamale Aparche",
+        "Kpawumu",
+        "Vitin",
+        "Kambonayili",
+        "Zujung",
+        "Toah",
+        "Sanzrigu",
+        "Zorborgu",
+        "Tugu",
+        "Zorzorgu",
+        "Yekura",
+        "Zakarayili"
+      ]
+    },
+    {
+      "name": "Navrongo",
+      "displayName": "Navrongo",
+      "leader": "Cynthia Hupenu",
+      "churches": [
+        "Navrongo Cathedral",
+        "Dobo",
+        "Nayagnia",
+        "Gongnia",
+        "Bonia",
+        "Chuchuliga",
+        "Paga",
+        "Paga Chania",
+        "Paga Saaka",
+        "Mirigu",
+        "Manyoro",
+        "Saboro"
+      ]
+    },
+    {
+      "name": "Gushegu",
+      "displayName": "Gushegu",
+      "leader": "Lordia Aseye Opoku Agyemang",
+      "churches": [
+        "Gushegu Cathedral",
+        "Dayudigli",
+        "Kanimo",
+        "Katani",
+        "Sukaya",
+        "Tambabu",
+        "Yankazia",
+        "Zamashegu",
+        "Karaga"
+      ]
+    },
+    {
+      "name": "Yendi",
+      "displayName": "Yendi",
+      "leader": "Kpanja Enoch",
+      "churches": [
+        "Jakpokpondo",
+        "Zagbang No.3",
+        "Mawondo",
+        "Wambung",
+        "Montondo",
+        "Nadundo",
+        "Chidando",
+        "Binchiratanga",
+        "Njonando",
+        "Yashiegu",
+        "Nakokpagli"
+      ]
+    }
+  ]
+}

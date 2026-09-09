@@ -48,10 +48,11 @@ export default async function HubHomePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">
-          Hub {summary.hubNumber}
+          {summary.hubLabel}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Led by {summary.leaderName}
+          {summary.regionName}
+          {summary.leaderName ? ` · Led by ${summary.leaderName}` : ""}
         </p>
       </div>
 

@@ -13,6 +13,7 @@ Required next migration from the delivery plan:
 - `supabase/migrations/0002_foundation_config.sql`
 - `supabase/migrations/0005_hub_platform.sql` (Ghana hub platform)
 - `supabase/migrations/0006_partner_momo_phone.sql` (rename `mobile_number` to `momo_phone_number`; add `hub_ingest_rows.whatsapp_phone_e164`)
+- `supabase/migrations/0010_regions.sql` (regions above hubs — Decision 0020)
 
 This project uses Supabase Postgres first, but the data model should remain ordinary Postgres. Business logic should stay behind `PrmRepository`, messaging adapters, and AI tools so Neon, Aurora Postgres, or Cloud SQL remain possible exits later. There is no payment adapter — money enters only through CSV import (Decision 0007).
 
@@ -669,15 +670,40 @@ Two populations share the table: `source = 'qodesh_registration'` (927, branch `
 
 New tables for the Ghana hub-admin platform. These are additive; the existing POC tables are untouched until the archive-and-clear cutover (Decision 0018 item 7). Seed source: `scripts/data/ghana-hubs-churches.json` (31 hubs, 807 churches, cleaned from the office workbook).
 
+### `regions` (2026-09-09, Decision 0020)
+
+The top of the hierarchy: **Region → Hub/Denomination → Church → BENMP Partner**.
+
+| Column           | Type        | Notes                                                             |
+| ---------------- | ----------- | ----------------------------------------------------------------- |
+| `id`             | uuid pk     |                                                                   |
+| `code`           | text unique | `UD_GHANA`, `UJ_GHANA`, … Stable; the app never keys off the name. |
+| `name`           | text        | Display label, e.g. `UD Ghana`.                                    |
+| `hub_identifier` | text        | `'number'` or `'name'` — how this region identifies a hub.         |
+| `sort_order`     | int         | Order in the login picker.                                         |
+| `created_at`     | timestamptz |                                                                   |
+
+Seeded with UD Ghana (`number`) and UJ Ghana (`name`). The other five regions —
+Europe, North America, Africa, Eschatos, United Cities — are rows to add, not code
+to write.
+
 ### `hubs`
 
-| Column        | Type        | Notes                                              |
-| ------------- | ----------- | -------------------------------------------------- |
-| `id`          | uuid pk     |                                                    |
-| `hub_number`  | int unique  | The UID the office uses. 1–31.                     |
-| `leader_name` | text        | Display label only — never an identifier.          |
-| `country`     | text        | `'Ghana'` for now; the split-by-country seam.      |
-| `created_at`  | timestamptz |                                                    |
+| Column        | Type          | Notes                                                                   |
+| ------------- | ------------- | ----------------------------------------------------------------------- |
+| `id`          | uuid pk       |                                                                         |
+| `region_id`   | uuid fk       | → `regions`. Backfilled to UD Ghana for the original 31.                |
+| `hub_number`  | int, nullable | The UID in a **number** region (UD Ghana, 1–31). `null` in a name region. |
+| `name`        | text          | The hub's own name — `Takoradi`, `Kpandai`. Distinct from `leader_name`. |
+| `name_key`    | text          | Normalized (upper, single-spaced) identity within the region.            |
+| `leader_name` | text          | Display label only — never an identifier.                               |
+| `country`     | text          | `'Ghana'` for now; the split-by-country seam.                            |
+| `created_at`  | timestamptz   |                                                                         |
+
+Uniqueness is **per region**, never global: `unique(region_id, hub_number)` (partial,
+where the number is non-null) and `unique(region_id, name_key)`. UD's "hub 8" and UJ's
+"Kpandai" coexist, and a later region may reuse either. The pre-0010 global
+`hubs_hub_number_key` is dropped.
 
 ### `hub_churches`
 
@@ -694,8 +720,8 @@ New tables for the Ghana hub-admin platform. These are additive; the existing PO
 | ---------------------- | ------------ | --------------------------------------------------------- |
 | `id`                   | uuid pk      |                                                           |
 | `hub_id`               | uuid fk, unique | One account per hub.                                   |
-| `username`             | text unique  | The hub number as text.                                   |
-| `password_hash`        | text         | scrypt (node:crypto, no external dep). Initial password = hub number. |
+| `username`             | text unique  | The hub number as text in UD Ghana; `uj:<name-key>` in UJ Ghana. Vestigial since Decision 0020 — the login picker submits `hub_id`. |
+| `password_hash`        | text         | scrypt (node:crypto, no external dep). Initial password = hub number in UD Ghana; a random issued password in a name region. |
 | `must_change_password` | boolean      | Default `true`; login forces the change before anything else. |
 | `last_login_at`        | timestamptz  |                                                           |
 

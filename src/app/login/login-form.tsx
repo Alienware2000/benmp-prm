@@ -250,7 +250,9 @@ export function LoginForm() {
           {caps
             ? "Caps Lock is on."
             : mode === "hub"
-              ? "First time signing in? Your starting password is your hub number."
+              ? region?.hubIdentifier === "name"
+                ? "First time signing in? Your starting password is your hub name, spelled as it appears above."
+                : "First time signing in? Your starting password is your hub number."
               : "Use the password provided by the BENMP office."}
         </p>
       </div>

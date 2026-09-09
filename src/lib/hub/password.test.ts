@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { hashPassword, initialHubPassword, verifyPassword } from "./password";
+import {
+  hashPassword,
+  initialHubPassword,
+  initialNamedHubPassword,
+  verifyPassword,
+} from "./password";
 
 describe("hub password hashing", () => {
   it("round-trips a password and rejects the wrong one", () => {
@@ -23,5 +28,14 @@ describe("hub password hashing", () => {
   it("initial password is the hub number (Decision 0018), forced to change on first login", () => {
     expect(initialHubPassword(7)).toBe("7");
     expect(verifyPassword("7", hashPassword(initialHubPassword(7)))).toBe(true);
+  });
+
+  it("initial password in a name region is the hub name (Decision 0020)", () => {
+    expect(initialNamedHubPassword("Kpandai")).toBe("Kpandai");
+    expect(initialNamedHubPassword("  Tamale North  ")).toBe("Tamale North");
+    const stored = hashPassword(initialNamedHubPassword("Tamale North"));
+    expect(verifyPassword("Tamale North", stored)).toBe(true);
+    // Exact, like the hub number: the picker shows the spelling to use.
+    expect(verifyPassword("tamale north", stored)).toBe(false);
   });
 });

@@ -721,7 +721,7 @@ where the number is non-null) and `unique(region_id, name_key)`. UD's "hub 8" an
 | `id`                   | uuid pk      |                                                           |
 | `hub_id`               | uuid fk, unique | One account per hub.                                   |
 | `username`             | text unique  | The hub number as text in UD Ghana; `uj:<name-key>` in UJ Ghana. Vestigial since Decision 0020 — the login picker submits `hub_id`. |
-| `password_hash`        | text         | scrypt (node:crypto, no external dep). Initial password = hub number in UD Ghana; a random issued password in a name region. |
+| `password_hash`        | text         | scrypt (node:crypto, no external dep). Initial password = hub number in a number region, hub name in a name region — public either way, so `must_change_password` is the protection. |
 | `must_change_password` | boolean      | Default `true`; login forces the change before anything else. |
 | `last_login_at`        | timestamptz  |                                                           |
 

@@ -23,12 +23,29 @@ export function verifyPassword(password: string, stored: string): boolean {
   const parts = stored.split("$");
   if (parts.length !== 3 || parts[0] !== "scrypt") return false;
   const [, saltHex, hashHex] = parts;
-  if (!/^[0-9a-f]+$/.test(saltHex) || !/^[0-9a-f]+$/.test(hashHex)) return false;
+  if (!/^[0-9a-f]+$/.test(saltHex) || !/^[0-9a-f]+$/.test(hashHex))
+    return false;
   const expected = Buffer.from(hashHex, "hex");
-  const actual = scryptSync(password, Buffer.from(saltHex, "hex"), expected.length);
+  const actual = scryptSync(
+    password,
+    Buffer.from(saltHex, "hex"),
+    expected.length,
+  );
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
 export function initialHubPassword(hubNumber: number): string {
   return String(hubNumber);
+}
+
+/**
+ * The initial password in a name region: the hub's own name, exactly as the
+ * login picker shows it (Decision 0020). Mirrors the numbered regions, where
+ * the initial password is the hub number.
+ *
+ * Like the hub number, this is public — it is in the dropdown — so
+ * `must_change_password` is the actual protection, not the value itself.
+ */
+export function initialNamedHubPassword(hubName: string): string {
+  return hubName.trim();
 }

@@ -491,9 +491,16 @@ region — not a copy per region.
 5. **UD hub names were always in the office, never in the database.** "Hub 08 - Cape
    Coast" is how the office writes it; only the number was stored. Backfilled from the
    office list, so the picker reads `8 — Cape Coast (Paschal Godwyll)`.
-6. **Named-region initial passwords are random and printed once**, not derived from the
-   hub name: the name is public — it is in the login dropdown — so a name-derived password
-   would be no password at all. `must_change_password` still applies.
+6. **The initial password in a name region is the hub name**, exactly as the picker shows
+   it — the same shape as UD Ghana, where it is the hub number (office instruction,
+   2026-09-09). It is public, like a hub number: anyone who can open the dropdown can read
+   it. `must_change_password` is therefore the whole protection, and it is the same
+   protection UD Ghana has always had — the value buys nothing, the forced change does. The
+   office weighed this and chose consistency across regions over a value it would have had
+   to distribute by hand to 26 admins.
+
+   It is matched **exactly**, case and spacing included, because the picker displays the
+   spelling to use.
 7. **A blank leader name is allowed.** Wa's branches came from the office without an admin
    name; refusing to seed a region over one missing display label would be the wrong trade.
    The loader reports it.
@@ -505,9 +512,10 @@ tables — is already hub-scoped, so a region is data rather than a fork.
 
 **Said no to**: a separate UJ portal (seven codebases) · a region-level admin tier above hubs
 (the office confirmed "admin" means the hub admin) · hub names as usernames typed by hand
-(misspelling is the most likely login failure) · hub names as initial passwords (public) ·
-globally unique hub names (regions legitimately reuse them) · renumbering UJ's hubs 1–26 to
-match UD (the office identifies them by name).
+(misspelling is the most likely login failure) · globally unique hub names (regions
+legitimately reuse them) · renumbering UJ's hubs 1–26 to match UD (the office identifies them
+by name) · randomly generated initial passwords (proposed, and declined by the office in
+favour of matching UD's hub-number convention — see item 6).
 
 **Superseded**: Decision 0018 item 1's "hubs are identified by number, always" — true of UD
 Ghana, not of every region. Item 3's "username = hub number" survives only as a stored

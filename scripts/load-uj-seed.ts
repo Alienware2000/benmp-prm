@@ -13,14 +13,14 @@
  *  - accounts are created only if missing, so a re-run cannot reset a password
  *    an admin has already chosen
  *
- * Initial passwords are RANDOM and printed once, here, at creation time. They
- * are not derived from the hub name: a hub name is public (it is in the login
- * dropdown), so a name-derived password would be no password at all. Every
- * account still carries must_change_password.
+ * The initial password is the HUB NAME, exactly as the login picker shows it —
+ * the same shape as UD Ghana, where it is the hub number (office instruction,
+ * 2026-09-09). Like a hub number it is public, so must_change_password is the
+ * real protection: every admin replaces it on first login before anything else
+ * in the portal works.
  *
  * Run: npx tsx --env-file=.env.local scripts/load-uj-seed.ts
  */
-import { randomInt } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,7 +29,7 @@ import {
   normalizeHubKey,
   parseNamedHubSeed,
 } from "../src/lib/hub/seed";
-import { hashPassword } from "../src/lib/hub/password";
+import { hashPassword, initialNamedHubPassword } from "../src/lib/hub/password";
 
 const REGION_CODE = "UJ_GHANA";
 const REGION_NAME = "UJ Ghana";
@@ -55,42 +55,6 @@ async function rest<T>(path: string, init?: RequestInit): Promise<T> {
   }
   const text = await res.text();
   return (text ? JSON.parse(text) : []) as T;
-}
-
-/**
- * Readable one-time password: two short words and two digits, e.g.
- * "river-stone-47". It is read aloud down a phone line to a hub admin once, so
- * it has to survive being spoken; it is replaced on first login regardless.
- */
-const WORDS = [
-  "river",
-  "stone",
-  "cedar",
-  "amber",
-  "harbor",
-  "meadow",
-  "falcon",
-  "copper",
-  "lantern",
-  "summit",
-  "willow",
-  "anchor",
-  "garnet",
-  "juniper",
-  "compass",
-  "thicket",
-  "beacon",
-  "marble",
-  "cotton",
-  "orchard",
-  "saffron",
-  "timber",
-];
-function issuePassword(): string {
-  const a = WORDS[randomInt(WORDS.length)];
-  let b = WORDS[randomInt(WORDS.length)];
-  while (b === a) b = WORDS[randomInt(WORDS.length)];
-  return `${a}-${b}-${randomInt(10, 100)}`;
 }
 
 async function main() {
@@ -196,7 +160,7 @@ async function main() {
   const newAccounts = seed.hubs
     .filter((h) => !have.has(hubIdByKey.get(normalizeHubKey(h.name))!))
     .map((h) => {
-      const password = issuePassword();
+      const password = initialNamedHubPassword(h.displayName);
       issued.push({ hub: h.displayName, leader: h.leader, password });
       return {
         hub_id: hubIdByKey.get(normalizeHubKey(h.name))!,
@@ -221,8 +185,8 @@ async function main() {
 
   if (issued.length > 0) {
     console.log(
-      "\nInitial passwords — printed ONCE, not recoverable. Hand these to the hub admins;\n" +
-        "each is forced to replace it on first login.\n",
+      "\nInitial passwords — each hub's own name, as shown in the login picker.\n" +
+        "Every admin is forced to replace it on first login.\n",
     );
     const pad = Math.max(...issued.map((i) => i.hub.length));
     for (const i of issued) {

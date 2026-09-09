@@ -37,8 +37,8 @@ export default function LoginPage() {
               Sign in to BENMP Partners
             </h1>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Office staff use the shared password. Hub leaders sign in with
-              their hub number.
+              Office staff use the shared password. BENMP Admins choose their
+              region and hub.
             </p>
           </div>
 

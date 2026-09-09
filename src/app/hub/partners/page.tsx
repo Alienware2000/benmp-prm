@@ -33,7 +33,7 @@ export default async function HubPartnersPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Your partners</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Everyone Hub {session.hubNumber} has uploaded —{" "}
+          Everyone {session.hubLabel} has uploaded —{" "}
           {partners.length === 0
             ? "none yet. Use the upload on the home page to add your first list."
             : `${partners.length} ${partners.length === 1 ? "person" : "people"}.`}

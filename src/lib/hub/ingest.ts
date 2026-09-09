@@ -190,6 +190,12 @@ export type ExistingPartner = {
 export type ExistingPhoneInfo = {
   /** Hub number the phone already belongs to, or null when it predates hubs. */
   hubNumber: number | null;
+  /**
+   * How to name that hub to the admin ("12 — Asamankese", "Kpandai"). Optional:
+   * a named-region hub has no number to fall back on (Decision 0020), while
+   * pre-regions callers still pass only the number.
+   */
+  hubLabel?: string | null;
   /** The partner row this phone belongs to — the row an edit would update. */
   partnerId?: string;
   /** Hub that owns it. Compared against the uploading hub to allow self-edits. */
@@ -334,10 +340,14 @@ export function validateCandidates(
       }
       issues.push({
         field,
-        message:
-          existing.hubNumber === null
+        message: (() => {
+          const owner =
+            existing.hubLabel ??
+            (existing.hubNumber === null ? null : `Hub ${existing.hubNumber}`);
+          return owner === null
             ? "This number is already in the system."
-            : `This number is already in the system for Hub ${existing.hubNumber}.`,
+            : `This number is already in the system for ${owner}.`;
+        })(),
       });
     }
 

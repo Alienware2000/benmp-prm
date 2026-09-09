@@ -46,7 +46,7 @@ export default async function HubLayout({
           <div className="flex items-center gap-3">
             {session && (
               <span className="rounded-full border border-brand/15 bg-brand/5 px-3 py-1.5 text-xs font-semibold text-brand">
-                Hub {session.hubNumber}
+                {session.hubLabel}
               </span>
             )}
             <HubSignOut />

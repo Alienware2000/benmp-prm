@@ -118,7 +118,11 @@ export function parseHubSeed(doc: unknown): ParsedHubSeed {
 export type NamedHubSeed = {
   /** Region-scoped identity, e.g. "Kpandai". */
   name: string;
-  /** How the office writes it out, where that differs ("JITM" -> "Jesus is the Master"). */
+  /**
+   * What the login picker shows — and therefore, in a name region, the initial
+   * password (Decision 0020). Defaults to `name`; override only when the office
+   * writes the hub out differently ("Mankesim" -> "Mankessim").
+   */
   displayName: string;
   leader: string;
   churches: string[];

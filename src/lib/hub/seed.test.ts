@@ -107,15 +107,17 @@ describe("parseNamedHubSeed", () => {
 
   it("defaults displayName to the name and allows an override", () => {
     const out = parseNamedHubSeed({
-      hubs: [hub(), hub({ name: "JITM", displayName: "Jesus is the Master" })],
+      hubs: [hub(), hub({ name: "Mankesim", displayName: "Mankessim" })],
     });
     expect(out.hubs[0].displayName).toBe("Kpandai");
-    expect(out.hubs[1].displayName).toBe("Jesus is the Master");
+    expect(out.hubs[1].displayName).toBe("Mankessim");
   });
 
   it("rejects two hubs whose names differ only by case or spacing", () => {
     expect(() =>
-      parseNamedHubSeed({ hubs: [hub({ name: "Tamale North" }), hub({ name: "TAMALE  north" })] }),
+      parseNamedHubSeed({
+        hubs: [hub({ name: "Tamale North" }), hub({ name: "TAMALE  north" })],
+      }),
     ).toThrow(/duplicate hub name/);
   });
 
@@ -128,22 +130,31 @@ describe("parseNamedHubSeed", () => {
   it("rejects a hub with no churches, and reports every problem at once", () => {
     expect(() =>
       parseNamedHubSeed({ hubs: [hub({ churches: [] }), hub({ name: "  " })] }),
-    ).toThrow(/churches must be a non-empty array[\s\S]*name must be a non-empty string/);
+    ).toThrow(
+      /churches must be a non-empty array[\s\S]*name must be a non-empty string/,
+    );
   });
 
   it("allows a blank leader — Wa arrived without an admin name", () => {
-    const out = parseNamedHubSeed({ hubs: [hub({ name: "Wa", leader: undefined })] });
+    const out = parseNamedHubSeed({
+      hubs: [hub({ name: "Wa", leader: undefined })],
+    });
     expect(out.hubs[0].leader).toBe("");
   });
 
   it("does not require contiguity the way the numbered seed does", () => {
-    expect(() => parseNamedHubSeed({ hubs: [hub({ name: "Zebilla" })] })).not.toThrow();
+    expect(() =>
+      parseNamedHubSeed({ hubs: [hub({ name: "Zebilla" })] }),
+    ).not.toThrow();
   });
 });
 
 describe("the real UJ Ghana seed file", () => {
   const doc = JSON.parse(
-    readFileSync(join(__dirname, "../../../scripts/data/uj-hubs-churches.json"), "utf8"),
+    readFileSync(
+      join(__dirname, "../../../scripts/data/uj-hubs-churches.json"),
+      "utf8",
+    ),
   );
 
   it("parses to 26 hubs and 321 churches", () => {
@@ -154,7 +165,10 @@ describe("the real UJ Ghana seed file", () => {
 
   it("holds the office's cross-hub rulings", () => {
     const by = new Map(
-      parseNamedHubSeed(doc).hubs.map((h) => [h.name, h.churches.map(normalizeChurchKey)]),
+      parseNamedHubSeed(doc).hubs.map((h) => [
+        h.name,
+        h.churches.map(normalizeChurchKey),
+      ]),
     );
     // Gballa -> Walewale only, Yankazia -> Gushegu only, Nanori -> Nalerigu only.
     expect(by.get("Walewale")).toContain("GBALLA");
@@ -165,7 +179,9 @@ describe("the real UJ Ghana seed file", () => {
     expect(by.get("Walewale")).not.toContain("NANORI");
     // Gilgal is not a hub; its two churches sit under JITM.
     expect([...by.keys()]).not.toContain("Gilgal");
-    expect(by.get("JITM")).toEqual(expect.arrayContaining(["GILGAL", "KOKROBITE"]));
+    expect(by.get("JITM")).toEqual(
+      expect.arrayContaining(["GILGAL", "KOKROBITE"]),
+    );
   });
 
   it("gives every hub at least one church, Wa included", () => {

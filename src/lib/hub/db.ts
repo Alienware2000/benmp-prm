@@ -462,6 +462,19 @@ export async function getHubSummary(hubId: string): Promise<HubSummary | null> {
   };
 }
 
+/**
+ * Does this hub have a login account? The embedded value is an object when
+ * PostgREST sees the relationship as one-to-one (hub_accounts.hub_id is
+ * `unique`) and an array when it does not, so both are handled — reading only
+ * one shape silently emptied every dropdown in production.
+ */
+export function hasAccount(
+  embedded: { id: string }[] | { id: string } | null | undefined,
+): boolean {
+  if (!embedded) return false;
+  return Array.isArray(embedded) ? embedded.length > 0 : Boolean(embedded.id);
+}
+
 export type RegionOption = {
   code: string;
   name: string;
@@ -493,7 +506,10 @@ export async function listRegionsForLogin(): Promise<RegionOption[]> {
       name: string;
       leader_name: string;
       regions: { code: string } | null;
-      hub_accounts: { id: string }[];
+      // PostgREST returns an OBJECT here, not an array: hub_accounts.hub_id is
+      // `unique`, so the relationship is detected as one-to-one. Both shapes are
+      // accepted rather than relying on that staying true.
+      hub_accounts: { id: string }[] | { id: string } | null;
     }[]
   >(
     "hubs?select=id,hub_number,name,leader_name,regions(code),hub_accounts(id)" +
@@ -505,7 +521,7 @@ export async function listRegionsForLogin(): Promise<RegionOption[]> {
     name: r.name,
     hubIdentifier: r.hub_identifier,
     hubs: hubs
-      .filter((h) => h.regions?.code === r.code && h.hub_accounts.length > 0)
+      .filter((h) => h.regions?.code === r.code && hasAccount(h.hub_accounts))
       .map((h) => ({
         id: h.id,
         label: hubLabel(h.hub_number, h.name),

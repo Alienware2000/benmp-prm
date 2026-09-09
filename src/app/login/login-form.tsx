@@ -10,7 +10,7 @@ type RegionOption = {
   code: string;
   name: string;
   hubIdentifier: string;
-  hubs: { id: string; label: string; leaderName: string }[];
+  hubs: { id: string; label: string }[];
 };
 
 export function LoginForm() {
@@ -103,7 +103,7 @@ export function LoginForm() {
         {(
           [
             ["staff", "Office staff"],
-            ["hub", "Hub leader"],
+            ["hub", "BENMP Admin"],
           ] as const
         ).map(([value, label]) => (
           <button
@@ -193,7 +193,6 @@ export function LoginForm() {
                   {region?.hubs.map((h) => (
                     <option key={h.id} value={h.id}>
                       {h.label}
-                      {h.leaderName ? ` (${h.leaderName})` : ""}
                     </option>
                   ))}
                 </select>

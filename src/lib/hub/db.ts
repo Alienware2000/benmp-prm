@@ -480,16 +480,16 @@ export type RegionOption = {
   name: string;
   /** "number" | "name" — how this region identifies a hub (Decision 0020). */
   hubIdentifier: string;
-  hubs: { id: string; label: string; leaderName: string }[];
+  hubs: { id: string; label: string }[];
 };
 
 /**
  * Everything the login picker renders: the regions, and the hubs inside each.
  *
- * Deliberately unauthenticated data — it is the office's own org chart, and an
- * admin has to pick their hub before they can prove who they are. It carries no
- * ids beyond the hub's, no counts and no account state, so knowing it gets an
- * attacker no further than knowing the hub numbers already did.
+ * Deliberately unauthenticated data — an admin has to pick their hub before
+ * they can prove who they are. Nothing but the hub's id and its label: no
+ * leader names, no counts, no account state, so knowing it gets an attacker no
+ * further than knowing the hub numbers already did.
  *
  * Hubs without an account are omitted: offering a hub nobody can sign into
  * produces a login that always fails.
@@ -504,7 +504,6 @@ export async function listRegionsForLogin(): Promise<RegionOption[]> {
       id: string;
       hub_number: number | null;
       name: string;
-      leader_name: string;
       regions: { code: string } | null;
       // PostgREST returns an OBJECT here, not an array: hub_accounts.hub_id is
       // `unique`, so the relationship is detected as one-to-one. Both shapes are
@@ -512,7 +511,7 @@ export async function listRegionsForLogin(): Promise<RegionOption[]> {
       hub_accounts: { id: string }[] | { id: string } | null;
     }[]
   >(
-    "hubs?select=id,hub_number,name,leader_name,regions(code),hub_accounts(id)" +
+    "hubs?select=id,hub_number,name,regions(code),hub_accounts(id)" +
       "&order=hub_number.asc.nullslast,name.asc",
   );
 
@@ -525,7 +524,6 @@ export async function listRegionsForLogin(): Promise<RegionOption[]> {
       .map((h) => ({
         id: h.id,
         label: hubLabel(h.hub_number, h.name),
-        leaderName: h.leader_name,
       })),
   }));
 }

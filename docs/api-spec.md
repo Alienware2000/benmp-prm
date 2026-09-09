@@ -221,7 +221,9 @@ Live routes on the POC deployment (not the planned Supabase-Auth staff model abo
 
 ### `GET /api/regions`
 
-Unauthenticated: the login picker's data, `{ ok, regions: [{ code, name, hubIdentifier, hubs: [{ id, label, leaderName }] }] }`. It is the office's own structure — no counts, no account state, no partner data — and an admin must pick a hub before they can prove who they are. Hubs with no account are omitted, so the picker cannot offer a login that always fails.
+Unauthenticated: the login picker's data, `{ ok, regions: [{ code, name, hubIdentifier, hubs: [{ id, label }] }] }`. An admin must pick a hub before they can prove who they are, so this has to load first; it carries nothing but the hub id and its display label — no leader names, no counts, no account state, no partner data. Hubs with no account are omitted, so the picker cannot offer a login that always fails.
+
+The route must stay listed in `src/lib/public-paths.ts`, or the middleware answers the login page's own fetch with a 307 to `/poc` and the picker cannot load.
 
 ### `POST /api/hub/password`
 

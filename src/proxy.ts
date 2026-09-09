@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { decideHubRoute } from "@/lib/hub/gate";
+import { isPublicPath } from "@/lib/public-paths";
 import {
   HUB_SESSION_COOKIE,
   hubSessionSecret,
@@ -34,15 +35,18 @@ export const SESSION_COOKIE = "poc_session";
 
 /** Cookie value = base64(sha256(password)); can't be forged without knowing the password. */
 export async function sessionToken(password: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password));
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(password),
+  );
   return btoa(String.fromCharCode(...new Uint8Array(digest)));
 }
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // The login flow is the only public surface.
-  if (pathname === "/login" || pathname === "/api/login") {
+  // The unauthenticated surface, listed in src/lib/public-paths.ts.
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 

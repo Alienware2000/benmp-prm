@@ -1,25 +1,22 @@
 /**
- * UJ Ghana seed loader (Decision 0020): scripts/data/uj-hubs-churches.json
- * -> `regions`, `hubs`, `hub_churches`, `hub_accounts`.
+ * Named-region seed loader for the Paul GTWC submissions (Decision 0025):
+ * scripts/data/<region>-hubs-churches.json -> `regions`, `hubs`,
+ * `hub_churches` (incl. branch pastor leader fields), `hub_accounts`.
  *
- * Sibling of load-hub-seed.ts, which does the same job for UD Ghana. The one
- * real difference is identity: UD hubs are numbers, UJ hubs are names, so every
- * upsert here keys on (region_id, name_key) instead of hub_number.
- *
- * Idempotent, with the same safety posture as its sibling:
- *  - hubs upsert on (region_id, name_key); leader/display name refresh in place
- *  - churches upsert on (hub_id, name_key); churches dropped from the seed are
+ * Sibling of load-uj-seed.ts, generalised: one script serves every
+ * name-identified region, picked by argument. Same safety posture:
+ *  - hubs upsert on (region_id, name_key); leader/display/country refresh
+ *  - churches upsert on (hub_id, name_key); seed-removed churches are
  *    reported but NEVER deleted (partners may reference them)
- *  - accounts are created only if missing, so a re-run cannot reset a password
- *    an admin has already chosen
+ *  - accounts are created only if missing, so a re-run cannot reset a
+ *    password an admin has already chosen
  *
- * The initial password is the HUB NAME, exactly as the login picker shows it —
- * the same shape as UD Ghana, where it is the hub number (office instruction,
- * 2026-09-09). Like a hub number it is public, so must_change_password is the
- * real protection: every admin replaces it on first login before anything else
- * in the portal works.
+ * The initial password is the HUB NAME exactly as the login picker shows it
+ * (Decision 0020 item 6), with must_change_password forcing a real one on
+ * first sign-in.
  *
- * Run: npx tsx --env-file=.env.local scripts/load-uj-seed.ts
+ * Run: npx tsx --env-file=.env.local scripts/load-region-hubs-seed.ts africa
+ *      npx tsx --env-file=.env.local scripts/load-region-hubs-seed.ts europe
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -31,8 +28,25 @@ import {
 } from "../src/lib/hub/seed";
 import { hashPassword, initialNamedHubPassword } from "../src/lib/hub/password";
 
-const REGION_CODE = "UJ_GHANA";
-const REGION_NAME = "UJ Ghana";
+const REGIONS = {
+  africa: {
+    code: "AFRICA",
+    name: "Africa",
+    file: "africa-hubs-churches.json",
+    sortOrder: 3,
+    defaultCountry: "Africa",
+  },
+  europe: {
+    code: "EUROPE",
+    name: "Europe",
+    file: "europe-hubs-churches.json",
+    sortOrder: 4,
+    defaultCountry: "Europe",
+  },
+} as const;
+
+const which = process.argv[2] as keyof typeof REGIONS;
+const config = REGIONS[which];
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -58,6 +72,11 @@ async function rest<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 async function main() {
+  if (!config) {
+    throw new Error(
+      `usage: load-region-hubs-seed.ts <${Object.keys(REGIONS).join("|")}>`,
+    );
+  }
   if (!SUPABASE_URL || !KEY) {
     throw new Error(
       "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required",
@@ -66,29 +85,25 @@ async function main() {
 
   const doc = JSON.parse(
     readFileSync(
-      join(
-        dirname(fileURLToPath(import.meta.url)),
-        "data/uj-hubs-churches.json",
-      ),
+      join(dirname(fileURLToPath(import.meta.url)), "data", config.file),
       "utf8",
     ),
   );
   const seed = parseNamedHubSeed(doc);
   console.log(
-    `seed parsed: ${seed.hubs.length} hubs, ${seed.churchCount} churches`,
+    `${config.name}: seed parsed, ${seed.hubs.length} hubs, ${seed.churchCount} churches`,
   );
 
-  // Region (created by migration 0010; upserted here so the script also works
-  // against a database where only the earlier migrations have run).
+  // Region row: additive upsert, same pattern as UJ (Decision 0020).
   const regions = await rest<{ id: string }[]>("regions?on_conflict=code", {
     method: "POST",
     headers: { Prefer: "resolution=merge-duplicates,return=representation" },
     body: JSON.stringify([
       {
-        code: REGION_CODE,
-        name: REGION_NAME,
+        code: config.code,
+        name: config.name,
         hub_identifier: "name",
-        sort_order: 2,
+        sort_order: config.sortOrder,
       },
     ]),
   });
@@ -101,7 +116,7 @@ async function main() {
     name: h.displayName,
     name_key: normalizeHubKey(h.name),
     leader_name: h.leader,
-    country: "Ghana",
+    country: h.country || config.defaultCountry,
   }));
   const hubs = await rest<{ id: string; name_key: string }[]>(
     "hubs?on_conflict=region_id,name_key",
@@ -114,7 +129,8 @@ async function main() {
   const hubIdByKey = new Map(hubs.map((h) => [h.name_key, h.id]));
   console.log(`hubs upserted: ${hubs.length}`);
 
-  // Churches: upsert on (hub_id, name_key); report seed-removed ones, never delete.
+  // Churches: upsert on (hub_id, name_key), carrying the branch pastor.
+  // Seed-removed churches are reported, never deleted.
   let churchUpserts = 0;
   for (const h of seed.hubs) {
     const hubId = hubIdByKey.get(normalizeHubKey(h.name))!;
@@ -151,29 +167,22 @@ async function main() {
   }
   console.log(`churches upserted: ${churchUpserts}`);
 
-  // Accounts: only the missing ones. Existing password hashes are never touched.
-  const hubIds = [...hubIdByKey.values()];
-  const existingAccounts = await rest<{ hub_id: string }[]>(
-    `hub_accounts?hub_id=in.(${hubIds.join(",")})&select=hub_id`,
+  // Accounts: create only the missing ones; never rewrite password_hash.
+  const existingAccounts = await rest<{ username: string; hub_id: string }[]>(
+    `hub_accounts?select=username,hub_id`,
   );
-  const have = new Set(existingAccounts.map((a) => a.hub_id));
-
-  const issued: { hub: string; leader: string; password: string }[] = [];
+  const haveHubIds = new Set(existingAccounts.map((a) => a.hub_id));
   const newAccounts = seed.hubs
-    .filter((h) => !have.has(hubIdByKey.get(normalizeHubKey(h.name))!))
-    .map((h) => {
-      const password = initialNamedHubPassword(h.displayName);
-      issued.push({ hub: h.displayName, leader: h.leader, password });
-      return {
-        hub_id: hubIdByKey.get(normalizeHubKey(h.name))!,
-        // Vestigial since the login picker submits a hub id, but the column is
-        // unique and NOT NULL; namespaced so it can never collide with a UD number.
-        username: `uj:${normalizeHubKey(h.name).toLowerCase().replace(/\s+/g, "-")}`,
-        password_hash: hashPassword(password),
-        must_change_password: true,
-      };
-    });
-
+    .map((h) => ({ h, hubId: hubIdByKey.get(normalizeHubKey(h.name))! }))
+    .filter(({ hubId }) => !haveHubIds.has(hubId))
+    .map(({ h, hubId }) => ({
+      hub_id: hubId,
+      // Vestigial since the login picker submits a hub id, but the column is
+      // unique and NOT NULL; namespaced per region, same shape as UJ's.
+      username: `${config.code.toLowerCase()}:${normalizeHubKey(h.name).toLowerCase().replace(/\s+/g, "-")}`,
+      password_hash: hashPassword(initialNamedHubPassword(h.displayName)),
+      must_change_password: true,
+    }));
   if (newAccounts.length > 0) {
     await rest("hub_accounts", {
       method: "POST",
@@ -182,22 +191,8 @@ async function main() {
     });
   }
   console.log(
-    `accounts created: ${newAccounts.length} (existing untouched: ${have.size})`,
+    `accounts created: ${newAccounts.length} (existing untouched: ${haveHubIds.size})`,
   );
-
-  if (issued.length > 0) {
-    console.log(
-      "\nInitial passwords — each hub's own name, as shown in the login picker.\n" +
-        "Every admin is forced to replace it on first login.\n",
-    );
-    const pad = Math.max(...issued.map((i) => i.hub.length));
-    for (const i of issued) {
-      console.log(
-        `  ${i.hub.padEnd(pad)}  ${i.password.padEnd(20)} ${i.leader || "(admin name unknown)"}`,
-      );
-    }
-    console.log("");
-  }
 }
 
 main().catch((err) => {

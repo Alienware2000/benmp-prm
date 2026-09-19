@@ -45,8 +45,10 @@ export function normalizePhoneForCallingCode(
   if (digits.startsWith(cc) && nsnLengths.includes(digits.length - cc.length)) {
     return `+${digits}`;
   }
-  // bare NSN, no calling code at all
-  if (nsnLengths.includes(digits.length)) {
+  // bare NSN, no calling code at all. A leading 0 is never part of an NSN —
+  // it is the trunk prefix, handled below — so "024412345" (one digit short
+  // of the 0<nsn> form) must not be misread as a 9-digit NSN.
+  if (!digits.startsWith("0") && nsnLengths.includes(digits.length)) {
     return `+${cc}${digits}`;
   }
   // 0<nsn>, national trunk-prefix form

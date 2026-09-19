@@ -1,0 +1,1157 @@
+{
+  "source": "Paul GTWC office WhatsApp spreadsheets, downloaded 2026-09-19 (kept outside git in ~/Dev/Data/pastors-info-2026-09-19)",
+  "notes": "Canonical Europe hub/church list. Hubs identified by denomination NAME (Decision 0020; Paul GTWC office 2026-09-19: 'I'm sending for Europe now… there are 2 more left'). Each church carries its branch pastor as leaderName/leaderPhone. Where a source file lists several pastors under one branch name (e.g. PSCI's Leeds congregations), the branch appears once with the first-listed pastor; the full pastor lists remain in the source folder.",
+  "hubs": [
+    {
+      "name": "CIDC",
+      "displayName": "CIDC",
+      "leader": "",
+      "country": "Europe",
+      "churches": [
+        {
+          "name": "ALESSANDRIA",
+          "leaderName": "ERIC AMPONTUAH",
+          "leaderPhone": "+39 366 8057816"
+        },
+        {
+          "name": "BARCELONA",
+          "leaderName": "PRINCE AFRIYIE",
+          "leaderPhone": "+34687556080"
+        },
+        {
+          "name": "BERGAMO",
+          "leaderName": "MICHAEL ASARE",
+          "leaderPhone": "+39 329 9645194"
+        },
+        {
+          "name": "BOLOGNA",
+          "leaderName": "KWAME ANIM",
+          "leaderPhone": "+39 346 054 8257"
+        },
+        {
+          "name": "BUCHAREST",
+          "leaderName": "DELA ADDAI",
+          "leaderPhone": "+40723075194"
+        },
+        {
+          "name": "BUDAPEST",
+          "leaderName": "KWEKU OSAM ARMAH",
+          "leaderPhone": "36305992046"
+        },
+        {
+          "name": "DEBRECEN",
+          "leaderName": "PHILIP ACQUAH-JACKSON",
+          "leaderPhone": "+36203993416"
+        },
+        {
+          "name": "EMPOLI",
+          "leaderName": "MICHAEL ASARE",
+          "leaderPhone": "+39 329 9645194"
+        },
+        {
+          "name": "FIRENZE",
+          "leaderName": "CHARLES WILSON",
+          "leaderPhone": "3510868594"
+        },
+        {
+          "name": "ISTANBUL",
+          "leaderName": "KENNEDY AMPONSAH YEBOAH",
+          "leaderPhone": "+905379874283"
+        },
+        {
+          "name": "LODI",
+          "leaderName": "DOGBEY ELOLO KOSSI MENSAH",
+          "leaderPhone": "+393319261455"
+        },
+        {
+          "name": "LUXEMBOURG",
+          "leaderName": "ISAAC PRINCE-AGBODJAN",
+          "leaderPhone": "33769237389"
+        },
+        {
+          "name": "MADRID",
+          "leaderName": "EBENEZER KWEKU AMPONSAH",
+          "leaderPhone": "+41 76 708 90 85"
+        },
+        {
+          "name": "MANTOVA",
+          "leaderName": "BLESSING SIAKPERE",
+          "leaderPhone": "+39 3291762552"
+        },
+        {
+          "name": "MILANO",
+          "leaderName": "IMMANUEL OBENG",
+          "leaderPhone": "+39 320 331 5850"
+        },
+        {
+          "name": "MODENA",
+          "leaderName": "JOSPHINA OBENG",
+          "leaderPhone": "+39 329 476 7311"
+        },
+        {
+          "name": "MORTARA",
+          "leaderName": "KENNEDY NGANGA NJENGA",
+          "leaderPhone": "+39 345 6495509"
+        },
+        {
+          "name": "NAPOLI",
+          "leaderName": "MESHARK MARTEI KORLEY",
+          "leaderPhone": "+39 389 219 26 50"
+        },
+        {
+          "name": "NORWAY",
+          "leaderName": "EMMANUEL LLOYD OWARE",
+          "leaderPhone": "+39 350 910 4378"
+        },
+        {
+          "name": "NOVARA",
+          "leaderName": "ALEXANDER ARYEH ADJETEY",
+          "leaderPhone": "+39 329 735 1772"
+        },
+        {
+          "name": "NYIREGYHAZA",
+          "leaderName": "JUCILINO AGUIAR DA GLORIA",
+          "leaderPhone": "+36707345391"
+        },
+        {
+          "name": "PARMA",
+          "leaderName": "BETTY OWARE",
+          "leaderPhone": "+39 388 439 2202"
+        },
+        {
+          "name": "PÉCS",
+          "leaderName": "SYLVIA AMO ASIAMAH",
+          "leaderPhone": "+36202796785"
+        },
+        {
+          "name": "PIACENZA",
+          "leaderName": "JAKES EDAYI",
+          "leaderPhone": "+39 329 335 2537"
+        },
+        {
+          "name": "REGGIO EMILIA",
+          "leaderName": "JOSEPH GHANSAH",
+          "leaderPhone": "+39 388 189 0926"
+        },
+        {
+          "name": "ROMA",
+          "leaderName": "CHRIS TWUM BARIMAN",
+          "leaderPhone": "+39 3500623997"
+        },
+        {
+          "name": "SASSUOLO",
+          "leaderName": "EUGENE OFORI-ATTA",
+          "leaderPhone": "+39 380 902 0235"
+        },
+        {
+          "name": "SAVENA BOLOGNA",
+          "leaderName": "EMMANUEL YEBOAH",
+          "leaderPhone": "+39 3894813237"
+        },
+        {
+          "name": "SLIEMA",
+          "leaderName": "GEORGE ALADESURU",
+          "leaderPhone": "+447954572294"
+        },
+        {
+          "name": "SZEGED",
+          "leaderName": "MATTHEW DADZIE JR.",
+          "leaderPhone": "+233249909098"
+        },
+        {
+          "name": "VERONA",
+          "leaderName": "JOHN AIDOO AMPOFO",
+          "leaderPhone": "+39 338 754 8302"
+        },
+        {
+          "name": "VICENZA",
+          "leaderName": "RAPHAEL AIDOO",
+          "leaderPhone": "+393880571702"
+        },
+        {
+          "name": "VIENNA",
+          "leaderName": "FRANCIS ASARE",
+          "leaderPhone": "+43 699 106 780 38"
+        },
+        {
+          "name": "VOGHERA",
+          "leaderName": "CLEMENT KUSI",
+          "leaderPhone": "393515232135"
+        }
+      ]
+    },
+    {
+      "name": "GTSL",
+      "displayName": "GTSL",
+      "leader": "Bishop Richard N Aryee - +447506806087",
+      "country": "Europe",
+      "churches": [
+        {
+          "name": "Aberdeen",
+          "leaderName": "Ps Uduma Ikpa",
+          "leaderPhone": "447739725591"
+        },
+        {
+          "name": "Aberdeen Campus",
+          "leaderName": "Chizoba Anwumeri",
+          "leaderPhone": "447311613311"
+        },
+        {
+          "name": "Belfast",
+          "leaderName": "Rev Ben Dadebo",
+          "leaderPhone": "447908742519"
+        },
+        {
+          "name": "Belfast Campus",
+          "leaderName": "Joy Ewurafua Poku",
+          "leaderPhone": "447713940283"
+        },
+        {
+          "name": "Dublin",
+          "leaderName": "Rev Krispin Adoko",
+          "leaderPhone": "353851690069"
+        },
+        {
+          "name": "Dublin Campus",
+          "leaderName": "Ps Ekow Mensah",
+          "leaderPhone": "353830308644"
+        },
+        {
+          "name": "Dundee",
+          "leaderName": "MS Moses Asante",
+          "leaderPhone": "447956331224"
+        },
+        {
+          "name": "Edinburgh",
+          "leaderName": "Rev Nana Brew",
+          "leaderPhone": "447782405733"
+        },
+        {
+          "name": "Granton",
+          "leaderName": "Ps George Williams",
+          "leaderPhone": "447939970399"
+        },
+        {
+          "name": "Glasgow",
+          "leaderName": "LP Ellen Nettey",
+          "leaderPhone": "447985773152"
+        },
+        {
+          "name": "Glasgow Campus",
+          "leaderName": "Shaun Jones-Eganda",
+          "leaderPhone": "447513051002"
+        },
+        {
+          "name": "Newcastle",
+          "leaderName": "Bishop Richard N Aryee",
+          "leaderPhone": "447506806087"
+        },
+        {
+          "name": "Sunderland",
+          "leaderName": "Bishop Emmanuel Baiden",
+          "leaderPhone": "447985326046"
+        }
+      ]
+    },
+    {
+      "name": "JGG",
+      "displayName": "JGG",
+      "leader": "",
+      "country": "Europe",
+      "churches": [
+        {
+          "name": "Aachen",
+          "leaderName": "Obed Boateng",
+          "leaderPhone": "49 176 56079179"
+        },
+        {
+          "name": "Augsburg",
+          "leaderName": "Ogie Ahanor",
+          "leaderPhone": "417 89 48 43 57"
+        },
+        {
+          "name": "Berlin (German)",
+          "leaderName": "Edwin Adu-Tutu",
+          "leaderPhone": "49151 72 42 17 93"
+        },
+        {
+          "name": "Berlin(English)",
+          "leaderName": "Frank Charles Hudson-Odoi",
+          "leaderPhone": "49 1573 1132022"
+        },
+        {
+          "name": "Bremen",
+          "leaderName": "Clement Kwaw",
+          "leaderPhone": "49 1525 4644077"
+        },
+        {
+          "name": "Cologne",
+          "leaderName": "Alex Boateng",
+          "leaderPhone": "4916 38 07 37 22"
+        },
+        {
+          "name": "Dusseldorf",
+          "leaderName": "Joey Asante",
+          "leaderPhone": "49 176 62546082"
+        },
+        {
+          "name": "Essen",
+          "leaderName": "Henry Obeng",
+          "leaderPhone": "4916 27 65 64 32"
+        },
+        {
+          "name": "Frankfurt",
+          "leaderName": "Dinah Awuku",
+          "leaderPhone": "4917 99 76 62 99"
+        },
+        {
+          "name": "Fulda",
+          "leaderName": "Celine Roehn",
+          "leaderPhone": "49 1743458626"
+        },
+        {
+          "name": "Hamburg",
+          "leaderName": "Michael Amoh",
+          "leaderPhone": "49176 37 13 13 86"
+        },
+        {
+          "name": "Hannover",
+          "leaderName": "Benjamin Osei-Karikari",
+          "leaderPhone": "4917 09 95 68 63"
+        },
+        {
+          "name": "Kassel",
+          "leaderName": "Emmanuel Aboagye-Ofori",
+          "leaderPhone": "49157 53 45 49 24"
+        },
+        {
+          "name": "Munich",
+          "leaderName": "Morris Kwabena Awuah Otchere-Forbih",
+          "leaderPhone": "4916 22 71 71 04"
+        },
+        {
+          "name": "Rodelheim",
+          "leaderName": "Thomas Opoku-Fofie",
+          "leaderPhone": "49176 22 14 38 07"
+        },
+        {
+          "name": "Wiesbaden",
+          "leaderName": "Barbara Asa-nie",
+          "leaderPhone": "49 1630807134"
+        }
+      ]
+    },
+    {
+      "name": "Living Waters",
+      "displayName": "Living Waters",
+      "leader": "",
+      "country": "Europe",
+      "churches": [
+        {
+          "name": "Zürich",
+          "leaderName": "Eben Johnson",
+          "leaderPhone": "0041762462509"
+        },
+        {
+          "name": "Biel",
+          "leaderName": "Duke Gyamerah",
+          "leaderPhone": "0041767622266"
+        },
+        {
+          "name": "Winterthur",
+          "leaderName": "Pastor Andy Ahanor",
+          "leaderPhone": "0041765623521"
+        },
+        {
+          "name": "Neuchatel",
+          "leaderName": "Anita Antwi",
+          "leaderPhone": "0041788990023"
+        },
+        {
+          "name": "Lausanne",
+          "leaderName": "Anita Blavo",
+          "leaderPhone": "0041794846100"
+        },
+        {
+          "name": "Bern",
+          "leaderName": "Johnbull Bello",
+          "leaderPhone": "0041779014437"
+        },
+        {
+          "name": "Schaffhausen",
+          "leaderName": "Devotion Igboanugo",
+          "leaderPhone": "0041764905320"
+        },
+        {
+          "name": "Geneva",
+          "leaderName": "Eddie Techie-Mensen",
+          "leaderPhone": "0041765204547"
+        },
+        {
+          "name": "Basel",
+          "leaderName": "Franziska Annan",
+          "leaderPhone": "0041792809690"
+        },
+        {
+          "name": "St. Gallen",
+          "leaderName": "Giusi Eze",
+          "leaderPhone": "0041788951137"
+        },
+        {
+          "name": "Aarau",
+          "leaderName": "Joshua Iyare",
+          "leaderPhone": "0041764535545"
+        },
+        {
+          "name": "Nyon",
+          "leaderName": "Edith Efraim",
+          "leaderPhone": "0033607309958"
+        },
+        {
+          "name": "Olten",
+          "leaderName": "Moses Effah",
+          "leaderPhone": "00447930399471"
+        },
+        {
+          "name": "Luzern",
+          "leaderName": "Nii-Coppoe Aidoo",
+          "leaderPhone": "0041797658975"
+        },
+        {
+          "name": "Vevey",
+          "leaderName": "Teddy Muamba",
+          "leaderPhone": "0041787010959"
+        },
+        {
+          "name": "Thun",
+          "leaderName": "Thersa Green",
+          "leaderPhone": "0041763224496"
+        },
+        {
+          "name": "Chaux de Fonds",
+          "leaderName": "Raphael Amoatey",
+          "leaderPhone": "0041763200283"
+        },
+        {
+          "name": "Liechtenstein",
+          "leaderName": "David Brenya",
+          "leaderPhone": "0041765022780"
+        },
+        {
+          "name": "Baden",
+          "leaderName": "Basi Dawit",
+          "leaderPhone": "0041765174988"
+        }
+      ]
+    },
+    {
+      "name": "MSCI",
+      "displayName": "MSCI",
+      "leader": "",
+      "country": "Europe",
+      "churches": [
+        {
+          "name": "ASHTON",
+          "leaderName": "GERMAIN PIERRE ACEMAH",
+          "leaderPhone": "+447577869831"
+        },
+        {
+          "name": "ASTON",
+          "leaderName": "JACOB ADJEI KYEI",
+          "leaderPhone": "+447828796163"
+        },
+        {
+          "name": "BARKING",
+          "leaderName": "RALPH KWEKU FIKWAW DUODU",
+          "leaderPhone": "+447961286147"
+        },
+        {
+          "name": "BASILDON",
+          "leaderName": "SAMPSON AFREH",
+          "leaderPhone": "+447429078736"
+        },
+        {
+          "name": "BECKTON",
+          "leaderName": "JOSHUA BAAKO",
+          "leaderPhone": "+447985641070"
+        },
+        {
+          "name": "BLACKHTORN",
+          "leaderName": "ELIJAH DELA AHIADZU",
+          "leaderPhone": "+447459432315"
+        },
+        {
+          "name": "BOLTON",
+          "leaderName": "MAXWELL SEDZIAFA",
+          "leaderPhone": "+447908731418"
+        },
+        {
+          "name": "BRIXTON",
+          "leaderName": "LEWIS AHIAKU",
+          "leaderPhone": "+447909186078"
+        },
+        {
+          "name": "BROCKLEY",
+          "leaderName": "KWASI YEBOAH OWUSU",
+          "leaderPhone": "+447469976567"
+        },
+        {
+          "name": "BURY",
+          "leaderName": "ALBERT MOULD",
+          "leaderPhone": "+447545649709"
+        },
+        {
+          "name": "CAMBERWELL",
+          "leaderName": "MARVIN NYAMEKYE",
+          "leaderPhone": "+447958627887"
+        },
+        {
+          "name": "CAMBRIDGE",
+          "leaderName": "BENEDICT FREMPONG-ASARE",
+          "leaderPhone": "+447740223565"
+        },
+        {
+          "name": "CANNING TOWN",
+          "leaderName": "ANDREW EDUSEI",
+          "leaderPhone": "+447907107630"
+        },
+        {
+          "name": "CARDIFF",
+          "leaderName": "RICHARD OTOO",
+          "leaderPhone": "+447903518928"
+        },
+        {
+          "name": "CATFORD",
+          "leaderName": "KWABENA ANSAH",
+          "leaderPhone": "+447930212907"
+        },
+        {
+          "name": "CHRIST CATHEDRAL LONDON",
+          "leaderName": "NANA KWAME ADU-GYAMFI",
+          "leaderPhone": "+447538142586"
+        },
+        {
+          "name": "CLAPHAM",
+          "leaderName": "SHEILA BONNEY-ANDREWS",
+          "leaderPhone": "+447932056767"
+        },
+        {
+          "name": "CLAYTON",
+          "leaderName": "DANIEL OWARE- AMANKWAAH",
+          "leaderPhone": "+447769227216"
+        },
+        {
+          "name": "COLINDALE",
+          "leaderName": "BEATRICE OSIKA",
+          "leaderPhone": "+447958295200"
+        },
+        {
+          "name": "COURT HOUSE GREEN",
+          "leaderName": "JOSEPH NELSON",
+          "leaderPhone": "+447903856588"
+        },
+        {
+          "name": "COVENTRY",
+          "leaderName": "PATRICK ASIEDU",
+          "leaderPhone": "+447985618948"
+        },
+        {
+          "name": "CROYDON",
+          "leaderName": "SAMUEL RICHARD HILL",
+          "leaderPhone": "+447404411960"
+        },
+        {
+          "name": "DAGENHAM",
+          "leaderName": "JOSEPH OKYERE",
+          "leaderPhone": "+447445441923"
+        },
+        {
+          "name": "DEPTFORD",
+          "leaderName": "DAVIA SHANIKA NABUDERE",
+          "leaderPhone": "+447932021778"
+        },
+        {
+          "name": "DERBY",
+          "leaderName": "MARVIN APPIAH",
+          "leaderPhone": "+447984114707"
+        },
+        {
+          "name": "EALING",
+          "leaderName": "GEORGE YEBOAH",
+          "leaderPhone": "+447949046653"
+        },
+        {
+          "name": "EAST HAM",
+          "leaderName": "ALFRED GATI",
+          "leaderPhone": "+447932966440"
+        },
+        {
+          "name": "EDMONTON UK",
+          "leaderName": "FRED HAMMOND",
+          "leaderPhone": "+447956835740"
+        },
+        {
+          "name": "FIRTH PARK",
+          "leaderName": "RALPH NIMOH",
+          "leaderPhone": "+447985214968"
+        },
+        {
+          "name": "GREENFORD",
+          "leaderName": "EMMANUEL KWAKU AGYEPONG",
+          "leaderPhone": "+447712835362"
+        },
+        {
+          "name": "HACKNEY",
+          "leaderName": "EMMANUEL ALLOTEY",
+          "leaderPhone": "+447903232871"
+        },
+        {
+          "name": "HARROW",
+          "leaderName": "EUGENE GYIMAH",
+          "leaderPhone": "+447772366993"
+        },
+        {
+          "name": "HATFIELD",
+          "leaderName": "FRANCIS BLANKSON",
+          "leaderPhone": "+447712256440"
+        },
+        {
+          "name": "HEYWOOD",
+          "leaderName": "THERESE MARIE ALABA",
+          "leaderPhone": "+447727693802"
+        },
+        {
+          "name": "HOUNSLOW",
+          "leaderName": "GERALD AGYAKWA",
+          "leaderPhone": "+447875932253"
+        },
+        {
+          "name": "IIFORD",
+          "leaderName": "STEVEN NDANGI",
+          "leaderPhone": "+447738672779"
+        },
+        {
+          "name": "IPSWICH",
+          "leaderName": "KINGSFORD JOHNSON",
+          "leaderPhone": "+447801573147"
+        },
+        {
+          "name": "KETTERING",
+          "leaderName": "TICH RUZANNE",
+          "leaderPhone": "+447922366125"
+        },
+        {
+          "name": "KINGSTANDING",
+          "leaderName": "SOLOMON KANKAM-BOADU",
+          "leaderPhone": "+447919678966"
+        },
+        {
+          "name": "LADYWOOD",
+          "leaderName": "EDWARD KWAME DETI",
+          "leaderPhone": "+447919271560"
+        },
+        {
+          "name": "LEICESTER",
+          "leaderName": "JOHN SAM",
+          "leaderPhone": "+447876713436"
+        },
+        {
+          "name": "LEYTON",
+          "leaderName": "KWADJO KYEI-MENSAH",
+          "leaderPhone": "+447403427097"
+        },
+        {
+          "name": "LIVERPOOL",
+          "leaderName": "CLARENCE ACQUAYE",
+          "leaderPhone": "+447950344176"
+        },
+        {
+          "name": "LOUGHBOROUGH",
+          "leaderName": "KWAME AKOWUA",
+          "leaderPhone": "+447586828899"
+        },
+        {
+          "name": "MANCHESTER",
+          "leaderName": "EDWARD ASONG",
+          "leaderPhone": "+447957963269"
+        },
+        {
+          "name": "MITCHAM",
+          "leaderName": "WILLIAM SASU",
+          "leaderPhone": "+447904893287"
+        },
+        {
+          "name": "MOSTON",
+          "leaderName": "EDWARD ANKAMAH",
+          "leaderPhone": "+447985495534"
+        },
+        {
+          "name": "NECHELLS",
+          "leaderName": "KWASI OWUSU ASAMOAH",
+          "leaderPhone": "+447723687650"
+        },
+        {
+          "name": "NEW CROSS",
+          "leaderName": "DARIUS NKRUMAH",
+          "leaderPhone": "+447881206781"
+        },
+        {
+          "name": "NEW SOUTHGATE",
+          "leaderName": "PATRICK ADOFO",
+          "leaderPhone": "+447944325291"
+        },
+        {
+          "name": "NORBURY",
+          "leaderName": "CONRAD KABE",
+          "leaderPhone": "+447577884889"
+        },
+        {
+          "name": "NORTH KENSIGNTON",
+          "leaderName": "FRANK AMPONG",
+          "leaderPhone": "+447904205469"
+        },
+        {
+          "name": "NORTH OXFORD",
+          "leaderName": "SOLOMON SARPONG MEREPA",
+          "leaderPhone": "+447397820847"
+        },
+        {
+          "name": "NORTHAMPTON",
+          "leaderName": "DOUGLAS ASOMAH",
+          "leaderPhone": "+447985416560"
+        },
+        {
+          "name": "NORTHAMPTON FARCOTTON",
+          "leaderName": "LEONARD DANVESSELL",
+          "leaderPhone": "+447397820847"
+        },
+        {
+          "name": "NORWICH",
+          "leaderName": "JOSEPH ADJIMANI",
+          "leaderPhone": "+447450792727"
+        },
+        {
+          "name": "NOTTINGHAM HUCKNALL",
+          "leaderName": "SAMUEL COMMEY",
+          "leaderPhone": "+447944304150"
+        },
+        {
+          "name": "OLDHAM",
+          "leaderName": "EMMANUEL KOTEY",
+          "leaderPhone": "+447728505031"
+        },
+        {
+          "name": "OXFORD",
+          "leaderName": "FRANK ADDAI",
+          "leaderPhone": "+447908719982"
+        },
+        {
+          "name": "OXFORD CUTTESLOWE",
+          "leaderName": "VICTOR MGBACHI",
+          "leaderPhone": "+447904940574"
+        },
+        {
+          "name": "READING",
+          "leaderName": "BENJAMIN ANYAN",
+          "leaderPhone": "+447940517222"
+        },
+        {
+          "name": "READING TILEHURST",
+          "leaderName": "EMMNAUEL OWIREDU-YEBOAH",
+          "leaderPhone": "+447470935367"
+        },
+        {
+          "name": "ROCHDALE",
+          "leaderName": "PHILIP ISRAEL AGBLEY",
+          "leaderPhone": "+447930941970"
+        },
+        {
+          "name": "ROMFORD",
+          "leaderName": "JOEL DEDZO DZOKOTO",
+          "leaderPhone": "+447438428982"
+        },
+        {
+          "name": "RUGBY",
+          "leaderName": "MARIAN YEBOAH",
+          "leaderPhone": "+447446824123"
+        },
+        {
+          "name": "SALFORD",
+          "leaderName": "LAWRENCE AMETEPE",
+          "leaderPhone": "+447505994394"
+        },
+        {
+          "name": "SHEFFIELD",
+          "leaderName": "DANIEL TSIDI ADAGBE",
+          "leaderPhone": "+447951512086"
+        },
+        {
+          "name": "SHEFFIELD -WICKER",
+          "leaderName": "FELIX KYEREMEH",
+          "leaderPhone": "+447478333042"
+        },
+        {
+          "name": "SHEFFIELD ABBEYDALE",
+          "leaderName": "EBENEZER SARKODIE",
+          "leaderPhone": "+447576966953"
+        },
+        {
+          "name": "SOUTH CROYDON",
+          "leaderName": "ADENIYI OLUMUYIWA",
+          "leaderPhone": "+447943841147"
+        },
+        {
+          "name": "SOUTH WIMBLEDON",
+          "leaderName": "KENNEDY AKUOKO",
+          "leaderPhone": "+447950357560"
+        },
+        {
+          "name": "SOUTHEND",
+          "leaderName": "GERHARD AMOAH",
+          "leaderPhone": "+447527848428"
+        },
+        {
+          "name": "STOCKPORT",
+          "leaderName": "KENNETH ABUBEKR",
+          "leaderPhone": "+447477302470"
+        },
+        {
+          "name": "STOCKWELL",
+          "leaderName": "VANESSAH JENKEO",
+          "leaderPhone": "+447984480768"
+        },
+        {
+          "name": "STOKE-ON-TRENT",
+          "leaderName": "EMMANUEL KESE",
+          "leaderPhone": "+447440131357"
+        },
+        {
+          "name": "STRATFORD",
+          "leaderName": "BENJAMIN TAGOE",
+          "leaderPhone": "+447932875516"
+        },
+        {
+          "name": "STREATHAM VALE",
+          "leaderName": "RICHARD OWUO",
+          "leaderPhone": "+447833020049"
+        },
+        {
+          "name": "SUTTON",
+          "leaderName": "JOSHUA ANNOBIL",
+          "leaderPhone": "+447960577984"
+        },
+        {
+          "name": "SWISS COTTAGE",
+          "leaderName": "DORIS ASANTE-FRIMPONG",
+          "leaderPhone": "+447956505252"
+        },
+        {
+          "name": "TELFORD",
+          "leaderName": "KELVIN KWADWO KORANTENG",
+          "leaderPhone": "+447534687396"
+        },
+        {
+          "name": "THAMESMEAD",
+          "leaderName": "STEPHEN AGYEPONG",
+          "leaderPhone": "+447852947035"
+        },
+        {
+          "name": "THORNTON HEATH",
+          "leaderName": "ISAAC FRIMPONG",
+          "leaderPhone": "+447958083639"
+        },
+        {
+          "name": "TRAFFORD",
+          "leaderName": "CORRETTA ABUBEKR",
+          "leaderPhone": "+447897722129"
+        },
+        {
+          "name": "TULSE HILL",
+          "leaderName": "SHEILA HAGAN",
+          "leaderPhone": "+447930605904"
+        },
+        {
+          "name": "UXBRIDGE",
+          "leaderName": "EMMANUEL ADI",
+          "leaderPhone": "+447956521916"
+        },
+        {
+          "name": "WALSALL",
+          "leaderName": "KWADWO KUMI BONSU",
+          "leaderPhone": "+447876829509"
+        },
+        {
+          "name": "WALTHAM CROSS",
+          "leaderName": "MICHAEL QUARTEY",
+          "leaderPhone": "+447944155035"
+        },
+        {
+          "name": "WALTHAMSTOW",
+          "leaderName": "ANNA VANDERPUYE",
+          "leaderPhone": "+447903509618"
+        },
+        {
+          "name": "WANDSWORTH",
+          "leaderName": "DANIEL JINO MILLS-ODOI",
+          "leaderPhone": "+447961327412"
+        },
+        {
+          "name": "WATFORD",
+          "leaderName": "ISAAC ADJEI",
+          "leaderPhone": "+447533463523"
+        },
+        {
+          "name": "WELLINGBOROUGH",
+          "leaderName": "KUDZAISHE SHANANGURA",
+          "leaderPhone": "+447838519009"
+        },
+        {
+          "name": "WEMBLEY",
+          "leaderName": "RICHARD NARH-DORH",
+          "leaderPhone": "+447444833240"
+        },
+        {
+          "name": "WEST BROMWICH",
+          "leaderName": "GEORGE BADU",
+          "leaderPhone": "+447950885940"
+        },
+        {
+          "name": "WIGAN",
+          "leaderName": "KELVIN MENSAH",
+          "leaderPhone": "+447949765713"
+        },
+        {
+          "name": "WILLENHALL",
+          "leaderName": "HENRY ADI",
+          "leaderPhone": "+447841905767"
+        },
+        {
+          "name": "WIRRAL",
+          "leaderName": "BENI CADITO",
+          "leaderPhone": "+447391215630"
+        },
+        {
+          "name": "WOLVERHAMPTON",
+          "leaderName": "LENROY MEADE",
+          "leaderPhone": "+447958547325"
+        },
+        {
+          "name": "WOOLWICH",
+          "leaderName": "BENJAMIN ANHTONY",
+          "leaderPhone": "+447903619407"
+        },
+        {
+          "name": "WYTHENSHAWE",
+          "leaderName": "FELIX ADU-GYAMFI APPIAH",
+          "leaderPhone": "+447984233414"
+        }
+      ]
+    },
+    {
+      "name": "PSCI",
+      "displayName": "PSCI",
+      "leader": "",
+      "country": "Europe",
+      "churches": [
+        {
+          "name": "ARMLEY",
+          "leaderName": "EMIL TAKYI",
+          "leaderPhone": "0044 7712152840"
+        },
+        {
+          "name": "BARNSLEY",
+          "leaderName": "BOANERGE YAMOAH",
+          "leaderPhone": "0044 79585257819"
+        },
+        {
+          "name": "BATTERSEA",
+          "leaderName": "ARCHIBALD TANNOR",
+          "leaderPhone": "0044 7951733671"
+        },
+        {
+          "name": "BEESTON",
+          "leaderName": "GIDEON YANKEY",
+          "leaderPhone": "0044 7894019083"
+        },
+        {
+          "name": "BIRMINGHAM",
+          "leaderName": "RUBY NYAMEKYE-ADAMS",
+          "leaderPhone": "0044 7904 380934"
+        },
+        {
+          "name": "BRADFORD",
+          "leaderName": "DONNA LARYEA",
+          "leaderPhone": "0044 7741078593"
+        },
+        {
+          "name": "BELVEDERE",
+          "leaderName": "JOHN ADEYEMO",
+          "leaderPhone": "0044 7939 687071"
+        },
+        {
+          "name": "BRAMLEY",
+          "leaderName": "BRIAN SIYOLWE",
+          "leaderPhone": "0044 7399272232"
+        },
+        {
+          "name": "BROMLEY",
+          "leaderName": "KELVIN KWAME SOWAH",
+          "leaderPhone": "0044 7508618634"
+        },
+        {
+          "name": "CHAPEL TOWN",
+          "leaderName": "PERPETUAL JERMY",
+          "leaderPhone": "0044 7877332883"
+        },
+        {
+          "name": "LEEDS",
+          "leaderName": "EDITH POKU",
+          "leaderPhone": "0044 7904282512"
+        },
+        {
+          "name": "MIDDLESBOROUGH",
+          "leaderName": "BARBARA BAFFOE BONNIE",
+          "leaderPhone": "447946266233"
+        },
+        {
+          "name": "PETERBOROUGH",
+          "leaderName": "ESTHER ADDAE",
+          "leaderPhone": "0044 7428 036212"
+        },
+        {
+          "name": "CHARLTON",
+          "leaderName": "DANIEL NABUDERE",
+          "leaderPhone": "0044 7783469198"
+        },
+        {
+          "name": "COLLIERS WOOD",
+          "leaderName": "EMMANUEL ALADE",
+          "leaderPhone": "0044 7583124513"
+        },
+        {
+          "name": "DARLINGTON",
+          "leaderName": "DAVID NII SACKEY",
+          "leaderPhone": "0044 7562931819"
+        },
+        {
+          "name": "DEWSBURY",
+          "leaderName": "CHRIS MINZELE",
+          "leaderPhone": "0044 7463877243"
+        },
+        {
+          "name": "DIGBETH",
+          "leaderName": "DENZEL GIOVANNI ODEYALE",
+          "leaderPhone": "0044 7379902018"
+        },
+        {
+          "name": "DONCASTER",
+          "leaderName": "TINASHE CHEKUWA",
+          "leaderPhone": "0044 7535361255"
+        },
+        {
+          "name": "DUDLEY",
+          "leaderName": "MICHAEL ASUMADU-DUA",
+          "leaderPhone": "0044 7826977275"
+        },
+        {
+          "name": "HEADINGLEY",
+          "leaderName": "MICHAEL OKOMENG",
+          "leaderPhone": "0044 7308231192"
+        },
+        {
+          "name": "HUDDEERSFIELD CITY",
+          "leaderName": "REBECCA SIYOLWE",
+          "leaderPhone": "0044 7446495520"
+        },
+        {
+          "name": "HUDDERSFIELD MAIN",
+          "leaderName": "REBECCA SIYOLWE",
+          "leaderPhone": "0044 7446495520"
+        },
+        {
+          "name": "HULL",
+          "leaderName": "RICHARD TSENUOKPOR",
+          "leaderPhone": "0044 7940581554"
+        },
+        {
+          "name": "STEVENAGE",
+          "leaderName": "DYLAN OWUSU",
+          "leaderPhone": "0044 7961225474"
+        },
+        {
+          "name": "PETERBOROUGH CITY",
+          "leaderName": "EUGENE AGGREY AMOAH",
+          "leaderPhone": "0044 7710080155"
+        },
+        {
+          "name": "WAKEFIELD",
+          "leaderName": "MARTIN TARHBEN",
+          "leaderPhone": "0044 7863583234"
+        },
+        {
+          "name": "ROCHESTER",
+          "leaderName": "DAVID UCHENNA EKWURUKE",
+          "leaderPhone": "0044 7702060321"
+        },
+        {
+          "name": "YORK",
+          "leaderName": "THEODORA ASSIFUAH",
+          "leaderPhone": "0044 7904309391"
+        },
+        {
+          "name": "ROTHERHAM",
+          "leaderName": "EMMA SHERIFF",
+          "leaderPhone": "0044 7446097780"
+        },
+        {
+          "name": "SURREY QUAYS",
+          "leaderName": "DENZIL BOATENG SAM-ORHIN",
+          "leaderPhone": "0044 7443962953"
+        }
+      ]
+    },
+    {
+      "name": "Rose of Sharon",
+      "displayName": "Rose of Sharon",
+      "leader": "",
+      "country": "Europe",
+      "churches": [
+        {
+          "name": "BEDFORD",
+          "leaderName": "JOSEPH OMARI",
+          "leaderPhone": "+447534050817"
+        },
+        {
+          "name": "DUNSTABLE",
+          "leaderName": "DANIEL COKER",
+          "leaderPhone": "+447951209938"
+        },
+        {
+          "name": "FISHERMEAD",
+          "leaderName": "FESTUS AYITEY-ADJIN",
+          "leaderPhone": "+447903867731"
+        },
+        {
+          "name": "HOCKWELL",
+          "leaderName": "KEVIN MENSAH",
+          "leaderPhone": "+447834856235"
+        },
+        {
+          "name": "MILTON KEYNES",
+          "leaderName": "PHILLIPPA MARKA COKER",
+          "leaderPhone": "+447957519573"
+        },
+        {
+          "name": "LUTON",
+          "leaderName": "KOFI AYEH",
+          "leaderPhone": "+447830262303"
+        },
+        {
+          "name": "TWO MILE ASH",
+          "leaderName": "PRISCILLA ABORA",
+          "leaderPhone": "+447958165309"
+        }
+      ]
+    }
+  ]
+}

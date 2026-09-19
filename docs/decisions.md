@@ -520,3 +520,20 @@ favour of matching UD's hub-number convention — see item 6).
 **Superseded**: Decision 0018 item 1's "hubs are identified by number, always" — true of UD
 Ghana, not of every region. Item 3's "username = hub number" survives only as a stored
 column; the login submits a hub id.
+
+## 0025 — Africa and Europe regions from the Paul GTWC submissions
+
+_2026-09-19_
+
+**Decided**: the Africa and Europe regions go live from the spreadsheet batch Bishop Paul's office sent over WhatsApp (2026-09-18/19) — one "Pastors Info" file per denomination or country, all on one template (Branch | Pastor | WhatsApp | Country | Denomination). Each file becomes a **hub** in its region; its branch rows become the hub's church list.
+
+1. **Hub naming**: Africa hubs are named by **country**, with a disambiguator only where one country has several files ("South Africa — Serious Christian" / "South Africa — Strong Christian", "Gabon — Libreville" / "Gabon — Port Gentil", "Equatorial Guinea — Malabo" / "— Bata"). Europe hubs are named by **denomination** (MSCI, PSCI, CIDC, JGG, GTSL, Rose of Sharon, Living Waters) since each spans many cities. Paul's office allowed either ("You can use the country names or the denomination names").
+2. **Churches carry their branch pastor** — new `hub_churches.leader_name` / `leader_phone` columns (migration 0012). The submissions are pastor contact lists; storing them makes every church's pastor visible to staff instead of living in spreadsheets. UD/UJ churches have them empty until supplied.
+3. **Where a file lists several pastors under one branch name** (PSCI's ten Leeds congregations, Living Waters' Zürich), the branch appears once in the church list with the first-listed pastor. The church list exists to validate partner uploads — one name entry is what an upload will write. Full pastor lists remain with the source files, kept outside git.
+4. **Initial password = hub name** exactly as the picker shows it, forced change on first sign-in — Decision 0020 item 6 unchanged.
+5. **Held out**: `BENMP_Database_.xlsx` (individual Burkina Faso/Mali contacts — partner-level data that belongs in a hub's wizard, awaiting Paul's clarification) and the blank template files. Liberia's differently-shaped sheet (RANK/NAME/BRANCH/CONTACT) is transcribed and included as a normal hub.
+6. **Two more Europe files are expected** ("there are 2 more left but we can start with this") — the loader is idempotent, so they are a seed-file edit plus a re-run, not a schema event.
+
+**Why**: this is the third and fourth instance of the Decision 0020 region pattern; regions are data. The one real question was hub identity, and country-first for Africa keeps its 30-hub dropdown readable while Europe's denominations are the only sensible identity for multi-country networks.
+
+**Said no to**: denomination names throughout (long near-duplicate Africa entries) · inventing branch names to keep every duplicate-named congregation (the office's own list is the authority; the wizard validates against what partners will actually write) · seeding the Burkina contacts file as a hub without knowing what it is.

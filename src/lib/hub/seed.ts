@@ -115,6 +115,18 @@ export function parseHubSeed(doc: unknown): ParsedHubSeed {
  * Named-hub regions (Decision 0020)
  * ------------------------------------------------------------------ */
 
+/**
+ * A church in a named-region seed. The Africa/Europe files carry each branch
+ * pastor's name and WhatsApp number (Decision 0025); UJ Ghana's seed predates
+ * that and lists plain strings, which parse as churches with empty leader
+ * fields.
+ */
+export type SeedChurch = {
+  name: string;
+  leaderName: string;
+  leaderPhone: string;
+};
+
 export type NamedHubSeed = {
   /** Region-scoped identity, e.g. "Kpandai". */
   name: string;
@@ -125,7 +137,9 @@ export type NamedHubSeed = {
    */
   displayName: string;
   leader: string;
-  churches: string[];
+  /** Informational label; defaults to the loader's region default when empty. */
+  country: string;
+  churches: SeedChurch[];
 };
 
 export type ParsedNamedHubSeed = {
@@ -181,29 +195,53 @@ export function parseNamedHubSeed(doc: unknown): ParsedNamedHubSeed {
     if (hub.leader !== undefined && typeof hub.leader !== "string") {
       errors.push(`hub ${hub.name}: leader must be a string`);
     }
+    if (hub.country !== undefined && typeof hub.country !== "string") {
+      errors.push(`hub ${hub.name}: country must be a string`);
+    }
     if (!Array.isArray(hub.churches) || hub.churches.length === 0) {
       errors.push(`hub ${hub.name}: churches must be a non-empty array`);
       continue;
     }
     const keys = new Set<string>();
+    const churches: SeedChurch[] = [];
     for (const c of hub.churches) {
-      if (typeof c !== "string" || c.trim() === "") {
+      // A church is either a plain name (UJ Ghana's original shape) or an
+      // object carrying the branch pastor (Decision 0025).
+      const entry =
+        typeof c === "string"
+          ? { name: c, leaderName: "", leaderPhone: "" }
+          : (c as Partial<SeedChurch>);
+      const name = typeof entry.name === "string" ? entry.name.trim() : "";
+      if (name === "") {
         errors.push(`hub ${hub.name}: empty church name`);
         continue;
       }
-      const key = normalizeChurchKey(c);
+      if (
+        (entry.leaderName !== undefined && typeof entry.leaderName !== "string") ||
+        (entry.leaderPhone !== undefined && typeof entry.leaderPhone !== "string")
+      ) {
+        errors.push(`hub ${hub.name}: church "${name}" leader fields must be strings`);
+        continue;
+      }
+      const key = normalizeChurchKey(name);
       if (keys.has(key)) {
-        errors.push(`hub ${hub.name}: duplicate church "${c}"`);
+        errors.push(`hub ${hub.name}: duplicate church "${name}"`);
         continue;
       }
       keys.add(key);
+      churches.push({
+        name,
+        leaderName: (entry.leaderName ?? "").trim(),
+        leaderPhone: (entry.leaderPhone ?? "").trim(),
+      });
     }
-    churchCount += keys.size;
+    churchCount += churches.length;
     hubs.push({
       name: hub.name.trim(),
       displayName: (hub.displayName ?? hub.name).trim(),
       leader: (hub.leader ?? "").trim(),
-      churches: hub.churches as string[],
+      country: (hub.country ?? "").trim(),
+      churches,
     });
   }
 

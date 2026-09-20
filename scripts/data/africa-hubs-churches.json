@@ -1,6 +1,6 @@
 {
   "source": "Paul GTWC office WhatsApp spreadsheets, downloaded 2026-09-19 (kept outside git in ~/Dev/Data/pastors-info-2026-09-19)",
-  "notes": "Canonical Africa hub/church list. Hubs identified by NAME (Decision 0020): country names, denomination or city added only to disambiguate (Paul GTWC office instruction 2026-09-18: 'This is all Africa. You can use the country names or the denomination names'). Each church carries its branch pastor as leaderName/leaderPhone. Where a source file lists several pastors under one branch name (e.g. PSCI's Leeds congregations), the branch appears once with the first-listed pastor; the full pastor lists remain in the source folder.",
+  "notes": "Canonical Africa hub/church list. Hubs identified by NAME (Decision 0020): country names, denomination or city added only to disambiguate (Paul GTWC office instruction 2026-09-18: 'This is all Africa. You can use the country names or the denomination names'). Each church carries its branch pastor as leaderName/leaderPhone. Where a source file lists several pastors under one branch name (e.g. PSCI's Leeds congregations), the branch appears once with the first-listed pastor; the full pastor lists remain in the source folder. Burkina Faso added 2026-09-20 from BENMP_Database_.xlsx (Paul confirmed it belongs on the list): its All Contacts sheet mixes Burkina (+226) and Mali (+223) rows; Burkina churches extracted, one-letter variants merged (LOUMILA->LOUMBILA, BAINKO->BASINKO — flagged to Paul), the Mali rows match the existing Mali hub, and the individual contacts await upload through the wizard.",
   "hubs": [
     {
       "name": "Benin",
@@ -67,6 +67,44 @@
           "name": "Bohicon city church branch",
           "leaderName": "Ps Jules Koffi KPOKA",
           "leaderPhone": "2290166633264"
+        }
+      ]
+    },
+    {
+      "name": "Burkina Faso",
+      "displayName": "Burkina Faso",
+      "leader": "Bishop Samuel Gasper",
+      "country": "Burkina Faso",
+      "churches": [
+        {
+          "name": "SAABA",
+          "leaderName": "Bishop Samuel Gasper",
+          "leaderPhone": "+233 24 499 6677"
+        },
+        {
+          "name": "ZINARE",
+          "leaderName": "Ps Espoir Kengbo",
+          "leaderPhone": "+226 06 59 70 99"
+        },
+        {
+          "name": "LOUMBILA",
+          "leaderName": "Ps Styve Samandoulougu",
+          "leaderPhone": "+226 70 09 48 25"
+        },
+        {
+          "name": "KOUDOUGOU",
+          "leaderName": "",
+          "leaderPhone": ""
+        },
+        {
+          "name": "BASINKO",
+          "leaderName": "Jeannot Traoré (Ps Miguel)",
+          "leaderPhone": "+226 66 88 48 20"
+        },
+        {
+          "name": "SAPONE",
+          "leaderName": "Ps Hugues",
+          "leaderPhone": "+226 70 59 06 85"
         }
       ]
     },

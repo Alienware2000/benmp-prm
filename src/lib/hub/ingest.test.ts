@@ -204,6 +204,49 @@ describe("validateCandidates", () => {
     expect(rows[1].issues.some((i) => i.message.includes("Hub 4"))).toBe(true);
   });
 
+  it("momoRequired=false: empty MoMo passes, WhatsApp stays strict (Decision 0026)", () => {
+    const noMomo = { ...ctx(), momoRequired: false };
+    const rows = validateCandidates(
+      [
+        cand({ momoPhone: "", whatsappPhone: "+254 735 841 428" }),
+        cand({
+          name: "Kofi Boateng",
+          momoPhone: "",
+          whatsappPhone: "garbage",
+        }),
+      ],
+      noMomo,
+    );
+    expect(rows[0].issues).toEqual([]);
+    expect(rows[0].momoPhoneE164).toBeNull();
+    expect(rows[0].whatsappPhoneE164).toBe("+254735841428");
+    expect(rows[1].issues.some((i) => i.field === "whatsappPhone")).toBe(true);
+    expect(rows[1].issues.some((i) => i.field === "momoPhone")).toBe(false);
+  });
+
+  it("momoRequired=false: a non-empty MoMo is still validated as Ghana", () => {
+    const noMomo = { ...ctx(), momoRequired: false };
+    const [row] = validateCandidates(
+      [cand({ momoPhone: "0123456789" })],
+      noMomo,
+    );
+    expect(row.momoPhoneE164).toBeNull();
+    expect(row.issues.some((i) => i.field === "momoPhone")).toBe(true);
+  });
+
+  it("extractCandidates with no MoMo column reads momo as empty", () => {
+    const grid = [
+      ["FULL NAME", "WHATSAPP", "CHURCH"],
+      ["Ama Mensah", "+254735841428", "Agona Nkwanta"],
+    ];
+    const out = extractCandidates(
+      grid,
+      { name: 0, momoPhone: null, whatsappPhone: 1, church: 2 },
+      true,
+    );
+    expect(out[0]).toMatchObject({ momoPhone: "", whatsappPhone: "+254735841428" });
+  });
+
   it("a row can carry several issues at once", () => {
     const [row] = validateCandidates(
       [cand({ name: "Kwame", momoPhone: "12", church: "Nowhere" })],

@@ -281,7 +281,8 @@ export async function insertIngestRows(rows: IngestRowInsert[]): Promise<void> {
 
 export type PartnerInsert = {
   full_name: string;
-  momo_phone_number: string;
+  /** Null in a region that does not collect MoMo (Decision 0026). */
+  momo_phone_number: string | null;
   whatsapp_number: string;
   country: string;
   church: string;
@@ -413,6 +414,25 @@ export async function getHubPartners(hubId: string): Promise<HubPartnerRow[]> {
     if (rows.length < page) break;
   }
   return out;
+}
+
+/** The hub's country label, stamped onto partners it uploads. */
+export async function getHubCountry(hubId: string): Promise<string> {
+  const rows = await rest<{ country: string | null }[]>(
+    `hubs?id=eq.${encodeURIComponent(hubId)}&select=country`,
+  );
+  return rows?.[0]?.country || "Ghana";
+}
+
+/** Whether this region collects a Ghana MoMo number (Decision 0026). */
+export async function getRegionMomoRequired(
+  regionCode: string,
+): Promise<boolean> {
+  const rows = await rest<{ momo_required: boolean }[]>(
+    `regions?code=eq.${encodeURIComponent(regionCode)}&select=momo_required`,
+  );
+  // Unknown region reads as MoMo-required: the strict default is the safe one.
+  return rows?.[0]?.momo_required ?? true;
 }
 
 export type HubSummary = {

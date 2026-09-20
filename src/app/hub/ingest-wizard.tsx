@@ -100,12 +100,15 @@ export function IngestWizard({
   churches,
   hubId,
   existingPartners,
+  momoRequired,
 }: {
   churches: HubChurchOption[];
   /** Lets the preview tell an edit of this hub's own partner from another hub's. */
   hubId: string;
   /** Partners this hub already has, so the preview matches the server exactly. */
   existingPartners: ExistingPartner[];
+  /** Ghana regions collect a MoMo column; other regions skip it (Decision 0026). */
+  momoRequired: boolean;
 }) {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -151,8 +154,9 @@ export function IngestWizard({
       hubId,
       existingPartners,
       existingPhones: new Map(Object.entries(existingPhones)),
+      momoRequired,
     });
-  }, [rows, churches, hubId, existingPartners, existingPhones, step]);
+  }, [rows, churches, hubId, existingPartners, existingPhones, step, momoRequired]);
 
   const issuesByRow = useMemo(() => {
     const m = new Map<number, RowIssue[]>();
@@ -224,7 +228,7 @@ export function IngestWizard({
     if (
       !sheet ||
       cols.name === "" ||
-      cols.momoPhone === "" ||
+      (momoRequired && cols.momoPhone === "") ||
       cols.whatsappPhone === "" ||
       cols.church === ""
     ) {
@@ -232,7 +236,7 @@ export function IngestWizard({
     }
     const map: ColumnMap = {
       name: cols.name,
-      momoPhone: cols.momoPhone,
+      momoPhone: cols.momoPhone === "" ? null : cols.momoPhone,
       whatsappPhone: cols.whatsappPhone,
       church: cols.church,
     };
@@ -370,9 +374,10 @@ export function IngestWizard({
               Upload your hub&apos;s partner list
             </h2>
             <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
-              An Excel file (.xlsx) or CSV with names, MoMo numbers, WhatsApp
-              numbers, and the church each partner belongs to. You will check
-              and correct everything before anything is saved — nothing goes in
+              An Excel file (.xlsx) or CSV with names,
+              {momoRequired ? " MoMo numbers," : ""} WhatsApp numbers, and the
+              church each partner belongs to. You will check and correct
+              everything before anything is saved — nothing goes in
               behind your back.
             </p>
             <div className="mt-5">
@@ -456,7 +461,9 @@ export function IngestWizard({
                   ["whatsappPhone", "WhatsApp numbers column"],
                   ["church", "Church column"],
                 ] as const
-              ).map(([key, label]) => (
+              )
+                .filter(([key]) => momoRequired || key !== "momoPhone")
+                .map(([key, label]) => (
                 <label key={key} className="block">
                   <span className="mb-1.5 block text-[13px] font-semibold text-foreground">
                     {label}
@@ -567,7 +574,7 @@ export function IngestWizard({
                 disabled={
                   busy ||
                   cols.name === "" ||
-                  cols.momoPhone === "" ||
+                  (momoRequired && cols.momoPhone === "") ||
                   cols.whatsappPhone === "" ||
                   cols.church === ""
                 }
@@ -654,7 +661,9 @@ export function IngestWizard({
                   <tr className="bg-muted text-xs font-semibold text-muted-foreground">
                     <th className="px-2 py-2">Row</th>
                     <th className="px-2 py-2">Name</th>
-                    <th className="px-2 py-2">MoMo number</th>
+                    {momoRequired && (
+                      <th className="px-2 py-2">MoMo number</th>
+                    )}
                     <th className="px-2 py-2">WhatsApp number</th>
                     <th className="px-2 py-2">Church</th>
                     <th className="px-2 py-2" />
@@ -668,6 +677,7 @@ export function IngestWizard({
                       churches={churches}
                       issues={issuesByRow.get(r.rowIndex) ?? []}
                       onEdit={editRow}
+                      showMomo={momoRequired}
                     />
                   ))}
                 </tbody>
@@ -763,11 +773,13 @@ function PreviewRow({
   churches,
   issues,
   onEdit,
+  showMomo,
 }: {
   row: EditRow;
   churches: HubChurchOption[];
   issues: RowIssue[];
   onEdit: (rowIndex: number, patch: Partial<EditRow>) => void;
+  showMomo: boolean;
 }) {
   const issueFor = (field: RowIssue["field"]) =>
     issues
@@ -780,7 +792,9 @@ function PreviewRow({
       <tr className="bg-muted/40 text-muted-foreground">
         <td className="px-2 py-1.5 tabular-nums">{row.rowIndex}</td>
         <td className="px-2 py-1.5 line-through">{row.name || "—"}</td>
-        <td className="px-2 py-1.5 line-through">{row.momoPhone || "—"}</td>
+        {showMomo && (
+          <td className="px-2 py-1.5 line-through">{row.momoPhone || "—"}</td>
+        )}
         <td className="px-2 py-1.5 line-through">{row.whatsappPhone || "—"}</td>
         <td className="px-2 py-1.5 line-through">{row.church || "—"}</td>
         <td className="px-2 py-1.5 text-right">
@@ -830,21 +844,23 @@ function PreviewRow({
           />
         </FlaggedCell>
       </td>
-      <td className="px-2 py-1.5">
-        <FlaggedCell message={issueFor("momoPhone")}>
-          <input
-            value={row.momoPhone}
-            inputMode="tel"
-            onChange={(e) =>
-              onEdit(row.rowIndex, { momoPhone: e.target.value })
-            }
-            className={
-              inputBase +
-              (issueFor("momoPhone") ? " border-danger/60" : " border-border")
-            }
-          />
-        </FlaggedCell>
-      </td>
+      {showMomo && (
+        <td className="px-2 py-1.5">
+          <FlaggedCell message={issueFor("momoPhone")}>
+            <input
+              value={row.momoPhone}
+              inputMode="tel"
+              onChange={(e) =>
+                onEdit(row.rowIndex, { momoPhone: e.target.value })
+              }
+              className={
+                inputBase +
+                (issueFor("momoPhone") ? " border-danger/60" : " border-border")
+              }
+            />
+          </FlaggedCell>
+        </td>
+      )}
       <td className="px-2 py-1.5">
         <FlaggedCell message={issueFor("whatsappPhone")}>
           <input

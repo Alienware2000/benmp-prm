@@ -392,8 +392,8 @@ export function IngestWizard({
               An Excel file (.xlsx) or CSV with names,
               {momoRequired ? " MoMo numbers," : ""} WhatsApp numbers, and the
               church each partner belongs to. You will check and correct
-              everything before anything is saved — nothing goes in
-              behind your back.
+              everything before anything is saved — nothing goes in behind your
+              back.
             </p>
             <div className="mt-5">
               <input
@@ -479,30 +479,30 @@ export function IngestWizard({
               )
                 .filter(([key]) => momoRequired || key !== "momoPhone")
                 .map(([key, label]) => (
-                <label key={key} className="block">
-                  <span className="mb-1.5 block text-[13px] font-semibold text-foreground">
-                    {label}
-                  </span>
-                  <select
-                    value={cols[key]}
-                    onChange={(e) =>
-                      setCols((c) => ({
-                        ...c,
-                        [key]:
-                          e.target.value === "" ? "" : Number(e.target.value),
-                      }))
-                    }
-                    className={inputBase + " border-border"}
-                  >
-                    <option value="">Choose...</option>
-                    {Array.from({ length: columnCount }, (_, c) => (
-                      <option key={c} value={c}>
-                        {columnLabel(c)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ))}
+                  <label key={key} className="block">
+                    <span className="mb-1.5 block text-[13px] font-semibold text-foreground">
+                      {label}
+                    </span>
+                    <select
+                      value={cols[key]}
+                      onChange={(e) =>
+                        setCols((c) => ({
+                          ...c,
+                          [key]:
+                            e.target.value === "" ? "" : Number(e.target.value),
+                        }))
+                      }
+                      className={inputBase + " border-border"}
+                    >
+                      <option value="">Choose...</option>
+                      {Array.from({ length: columnCount }, (_, c) => (
+                        <option key={c} value={c}>
+                          {columnLabel(c)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
             </div>
 
             <div className="overflow-x-auto rounded border border-border">
@@ -619,7 +619,7 @@ export function IngestWizard({
                     <span className="font-semibold text-danger">
                       {" "}
                       · {flaggedCount} need{flaggedCount === 1 ? "s" : ""}{" "}
-                      attention
+                      attention — the reason is written under each flagged row
                     </span>
                   ) : (
                     <span className="font-semibold text-success">
@@ -676,9 +676,7 @@ export function IngestWizard({
                   <tr className="bg-muted text-xs font-semibold text-muted-foreground">
                     <th className="px-2 py-2">Row</th>
                     <th className="px-2 py-2">Name</th>
-                    {momoRequired && (
-                      <th className="px-2 py-2">MoMo number</th>
-                    )}
+                    {momoRequired && <th className="px-2 py-2">MoMo number</th>}
                     <th className="px-2 py-2">WhatsApp number</th>
                     <th className="px-2 py-2">Church</th>
                     <th className="px-2 py-2" />
@@ -833,102 +831,136 @@ function PreviewRow({
 
   const flagged = issues.length > 0;
   return (
-    <tr
-      className="odd:bg-background align-top"
-      data-flagged={flagged || undefined}
-    >
-      <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
-          {flagged ? (
-            <TriangleAlert className="h-3.5 w-3.5 text-danger" aria-hidden />
-          ) : (
-            <CircleCheck className="h-3.5 w-3.5 text-success" aria-hidden />
-          )}
-          {row.rowIndex}
-        </span>
-      </td>
-      <td className="px-2 py-1.5">
-        <FlaggedCell message={issueFor("name")}>
-          <input
-            value={row.name}
-            onChange={(e) => onEdit(row.rowIndex, { name: e.target.value })}
-            className={
-              inputBase +
-              (issueFor("name") ? " border-danger/60" : " border-border")
-            }
-          />
-        </FlaggedCell>
-      </td>
-      {showMomo && (
+    <>
+      <tr
+        className="odd:bg-background align-top"
+        data-flagged={flagged || undefined}
+      >
+        <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-muted-foreground">
+          <span
+            className="inline-flex items-center gap-1"
+            title={flagged ? "See the reason under this row" : undefined}
+          >
+            {flagged ? (
+              <TriangleAlert className="h-3.5 w-3.5 text-danger" aria-hidden />
+            ) : (
+              <CircleCheck className="h-3.5 w-3.5 text-success" aria-hidden />
+            )}
+            {row.rowIndex}
+          </span>
+        </td>
         <td className="px-2 py-1.5">
-          <FlaggedCell message={issueFor("momoPhone")}>
+          <FlaggedCell message={issueFor("name")}>
             <input
-              value={row.momoPhone}
-              inputMode="tel"
-              onChange={(e) =>
-                onEdit(row.rowIndex, { momoPhone: e.target.value })
-              }
+              value={row.name}
+              onChange={(e) => onEdit(row.rowIndex, { name: e.target.value })}
               className={
                 inputBase +
-                (issueFor("momoPhone") ? " border-danger/60" : " border-border")
+                (issueFor("name") ? " border-danger/60" : " border-border")
               }
             />
           </FlaggedCell>
         </td>
-      )}
-      <td className="px-2 py-1.5">
-        <FlaggedCell message={issueFor("whatsappPhone")}>
-          <input
-            value={row.whatsappPhone}
-            inputMode="tel"
-            onChange={(e) =>
-              onEdit(row.rowIndex, { whatsappPhone: e.target.value })
-            }
-            className={
-              inputBase +
-              (issueFor("whatsappPhone")
-                ? " border-danger/60"
-                : " border-border")
-            }
-          />
-        </FlaggedCell>
-      </td>
-      <td className="px-2 py-1.5">
-        <FlaggedCell message={issueFor("church")}>
-          <select
-            value={matchedChurch?.name ?? ""}
-            onChange={(e) => onEdit(row.rowIndex, { church: e.target.value })}
-            className={
-              inputBase +
-              (issueFor("church") ? " border-danger/60" : " border-border")
-            }
-          >
-            <option value="" disabled>
-              {row.church
-                ? `“${row.church.slice(0, 28)}” — pick from list`
-                : "Pick church..."}
-            </option>
-            {churches.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.name}
+        {showMomo && (
+          <td className="px-2 py-1.5">
+            <FlaggedCell message={issueFor("momoPhone")}>
+              <input
+                value={row.momoPhone}
+                inputMode="tel"
+                onChange={(e) =>
+                  onEdit(row.rowIndex, { momoPhone: e.target.value })
+                }
+                className={
+                  inputBase +
+                  (issueFor("momoPhone")
+                    ? " border-danger/60"
+                    : " border-border")
+                }
+              />
+            </FlaggedCell>
+          </td>
+        )}
+        <td className="px-2 py-1.5">
+          <FlaggedCell message={issueFor("whatsappPhone")}>
+            <input
+              value={row.whatsappPhone}
+              inputMode="tel"
+              onChange={(e) =>
+                onEdit(row.rowIndex, { whatsappPhone: e.target.value })
+              }
+              className={
+                inputBase +
+                (issueFor("whatsappPhone")
+                  ? " border-danger/60"
+                  : " border-border")
+              }
+            />
+          </FlaggedCell>
+        </td>
+        <td className="px-2 py-1.5">
+          <FlaggedCell message={issueFor("church")}>
+            <select
+              value={matchedChurch?.name ?? ""}
+              onChange={(e) => onEdit(row.rowIndex, { church: e.target.value })}
+              className={
+                inputBase +
+                (issueFor("church") ? " border-danger/60" : " border-border")
+              }
+            >
+              <option value="" disabled>
+                {row.church
+                  ? `“${row.church.slice(0, 28)}” — pick from list`
+                  : "Pick church..."}
               </option>
-            ))}
-          </select>
-        </FlaggedCell>
-      </td>
-      <td className="px-2 py-1.5 text-right">
-        <button
-          type="button"
-          onClick={() => onEdit(row.rowIndex, { removed: true })}
-          title="Leave this row out"
-          className="inline-flex h-8 w-8 items-center justify-center rounded text-muted-foreground hover:bg-danger/10 hover:text-danger"
-        >
-          <Trash2 className="h-4 w-4" aria-hidden />
-        </button>
-      </td>
-    </tr>
+              {churches.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </FlaggedCell>
+        </td>
+        <td className="px-2 py-1.5 text-right">
+          <button
+            type="button"
+            onClick={() => onEdit(row.rowIndex, { removed: true })}
+            title="Leave this row out"
+            className="inline-flex h-8 w-8 items-center justify-center rounded text-muted-foreground hover:bg-danger/10 hover:text-danger"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+          </button>
+        </td>
+      </tr>
+      {flagged && (
+        // The reasons, in full, right under the row and starting at the left
+        // edge — where the eye lands after the triangle. Hover and the tiny
+        // caption under the cell were being missed (an admin read the triangle
+        // next to the row number as "the numbering is wrong").
+        <tr className="bg-danger/5" data-flagged-reason={row.rowIndex}>
+          <td />
+          <td colSpan={showMomo ? 5 : 4} className="px-2 pb-2.5 pt-0">
+            <ul className="space-y-0.5 text-[13px] leading-5 text-danger">
+              {issues.map((i, n) => (
+                <li key={n}>
+                  <span className="font-semibold">{FIELD_LABEL[i.field]}:</span>{" "}
+                  {i.message}
+                </li>
+              ))}
+            </ul>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
+
+/** How the reasons row names each column, in the admin's words. */
+const FIELD_LABEL: Record<RowIssue["field"], string> = {
+  name: "Name",
+  momoPhone: "MoMo number",
+  whatsappPhone: "WhatsApp number",
+  church: "Branch",
+};
 
 /** Red-triangle flag with the reason on hover (and under the field on touch). */
 function FlaggedCell({

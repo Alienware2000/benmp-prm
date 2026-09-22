@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { normalizePhone } from "@/lib/phone";
+import { normalizePhone, normalizeWhatsappPhone } from "@/lib/phone";
 import { normalizeChurchKey } from "@/lib/hub/seed";
 import {
   extractCandidates,
@@ -101,6 +101,7 @@ export function IngestWizard({
   hubId,
   existingPartners,
   momoRequired,
+  whatsappCallingCode,
 }: {
   churches: HubChurchOption[];
   /** Lets the preview tell an edit of this hub's own partner from another hub's. */
@@ -109,6 +110,8 @@ export function IngestWizard({
   existingPartners: ExistingPartner[];
   /** Ghana regions collect a MoMo column; other regions skip it (Decision 0026). */
   momoRequired: boolean;
+  /** The hub's country calling code, so local numbers resolve there (Decision 0027). */
+  whatsappCallingCode: string | null;
 }) {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -155,8 +158,18 @@ export function IngestWizard({
       existingPartners,
       existingPhones: new Map(Object.entries(existingPhones)),
       momoRequired,
+      whatsappCallingCode,
     });
-  }, [rows, churches, hubId, existingPartners, existingPhones, step, momoRequired]);
+  }, [
+    rows,
+    churches,
+    hubId,
+    existingPartners,
+    existingPhones,
+    step,
+    momoRequired,
+    whatsappCallingCode,
+  ]);
 
   const issuesByRow = useMemo(() => {
     const m = new Map<number, RowIssue[]>();
@@ -256,7 +269,9 @@ export function IngestWizard({
       const phones = edit
         .flatMap((r) => [
           normalizePhone(r.momoPhone, "GH"),
-          normalizePhone(r.whatsappPhone),
+          momoRequired
+            ? normalizePhone(r.whatsappPhone)
+            : normalizeWhatsappPhone(r.whatsappPhone, whatsappCallingCode),
         ])
         .filter((p): p is string => p !== null);
       const res = await fetch("/api/hub/ingest/check", {

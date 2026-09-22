@@ -552,3 +552,13 @@ _2026-09-20_
 **Why**: 38 international hub admins received logins on 2026-09-19/20 and upload next; the server re-validates identically to the preview, so without this there was no workaround.
 
 **Said no to**: making MoMo optional everywhere (weakens Ghana data quality where reconciliation depends on it) · a separate wizard per region (Decision 0020's anti-fork rule).
+
+## 0027 — WhatsApp numbers resolve to the hub's own country
+
+_2026-09-22_
+
+**Decided**: for hubs outside the Ghana regions, the wizard reads a WhatsApp number as belonging to the **hub's country** (`hubs.country` → calling code, `src/lib/hub/calling-codes.ts`), not Ghana. Every spreadsheet shape a Ghana sheet produces is accepted for that country too: local form `0999 123 456`, Excel-stripped `+` (`265999123456`), Excel-dropped `0` (`999123456`), plus explicit `+…`/`00…` from any country. Ghana regions are untouched (`momoRequired` true keeps the Ghana reader). A hub whose country has no single calling code (Europe) accepts only numbers that carry their own.
+
+**Why**: the first Malawi upload failed row after row ("error from the numbering"). `validateCandidates` normalized WhatsApp with the Ghana default: `0999123456` silently became `+233999123456` (a wrong number saved as valid), and `265999123456` was rejected outright. The three-column international template has WhatsApp as the ONLY phone, so this blocked every non-Ghana hub whose admin typed numbers the way people type numbers.
+
+**Said no to**: a free-text country picker per row (admins upload their own hub; the hub already knows its country) · accepting any 8-15 digit string as-is (would keep saving local numbers under the wrong country).

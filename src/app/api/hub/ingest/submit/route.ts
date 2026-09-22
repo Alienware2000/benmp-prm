@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { normalizePhone } from "@/lib/phone";
+import { normalizePhone, normalizeWhatsappPhone } from "@/lib/phone";
+import { callingCodeForCountry } from "@/lib/hub/calling-codes";
 import {
   validateCandidates,
   INGEST_LIMITS,
@@ -110,27 +111,32 @@ export async function POST(req: NextRequest) {
     whatsappPhone: r.whatsappPhone,
     church: r.church,
   }));
+  const [momoRequired, hubCountry] = await Promise.all([
+    getRegionMomoRequired(session.regionCode),
+    getHubCountry(session.hubId),
+  ]);
+  const whatsappCallingCode = callingCodeForCountry(hubCountry);
   // The lookup key is E.164, produced by the same normalization the validator
   // itself applies; unparseable phones are flagged by validation, not looked up.
   const phonesToCheck = candidates
     .flatMap((c) => [
       normalizePhone(c.momoPhone, "GH"),
-      normalizePhone(c.whatsappPhone),
+      momoRequired
+        ? normalizePhone(c.whatsappPhone)
+        : normalizeWhatsappPhone(c.whatsappPhone, whatsappCallingCode),
     ])
     .filter((p): p is string => p !== null);
-  const [existingPhones, existingPartners, momoRequired, hubCountry] =
-    await Promise.all([
-      findExistingPhones(phonesToCheck),
-      findHubPartnerNames(session.hubId),
-      getRegionMomoRequired(session.regionCode),
-      getHubCountry(session.hubId),
-    ]);
+  const [existingPhones, existingPartners] = await Promise.all([
+    findExistingPhones(phonesToCheck),
+    findHubPartnerNames(session.hubId),
+  ]);
   const validated = validateCandidates(candidates, {
     churches,
     existingPhones,
     existingPartners,
     hubId: session.hubId,
     momoRequired,
+    whatsappCallingCode,
   });
 
   const flagged = validated.filter((v) => v.issues.length > 0);

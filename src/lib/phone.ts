@@ -96,6 +96,61 @@ export function normalizePhone(
   return null;
 }
 
+/**
+ * WhatsApp number for a hub OUTSIDE Ghana (Decision 0027). Spreadsheets from
+ * international hubs carry numbers in every shape Ghana's do, but for their own
+ * country: "0999 123 456" (local trunk form), "999123456" (Excel dropped the 0),
+ * "265999123456" (Excel dropped the +), "+265 999 123 456", "00265…". With the
+ * hub's calling code known, every shape resolves to that country; without one,
+ * only shapes that carry their own country code are accepted.
+ * Returns E.164 or null. Never throws.
+ */
+export function normalizeWhatsappPhone(
+  raw: string | null | undefined,
+  callingCode: string | null,
+): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("+")) {
+    const digits = trimmed.slice(1).replace(/\D/g, "");
+    return digits.length >= 8 && digits.length <= 15 ? `+${digits}` : null;
+  }
+  let digits = trimmed.replace(/\D/g, "");
+  if (!digits) return null;
+  // "00" is the international dialling prefix in most of the world.
+  if (digits.startsWith("00")) {
+    digits = digits.slice(2);
+    return digits.length >= 8 && digits.length <= 15 ? `+${digits}` : null;
+  }
+  if (callingCode) {
+    // Already carries its own country code (Excel stripped the "+").
+    if (
+      digits.startsWith(callingCode) &&
+      digits.length - callingCode.length >= 7 &&
+      digits.length <= 15
+    ) {
+      return `+${digits}`;
+    }
+    // Local trunk form "0…": drop the 0, prepend the hub's country.
+    if (digits.startsWith("0")) {
+      const nsn = digits.slice(1);
+      return nsn.length >= 7 && nsn.length <= 10
+        ? `+${callingCode}${nsn}`
+        : null;
+    }
+    // Bare national number (a spreadsheet dropped the leading 0).
+    if (digits.length >= 7 && digits.length <= 10) {
+      return `+${callingCode}${digits}`;
+    }
+  }
+  // No calling code known, or a longer number: it must carry its own.
+  return digits.length >= 8 && digits.length <= 15 && !digits.startsWith("0")
+    ? `+${digits}`
+    : null;
+}
+
 /** True when two raw phone strings normalize to the same E.164 number. */
 export function samePhone(
   a: string | null | undefined,

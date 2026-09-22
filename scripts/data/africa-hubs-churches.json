@@ -1,6 +1,6 @@
 {
   "source": "Paul GTWC office WhatsApp spreadsheets, downloaded 2026-09-19 (kept outside git in ~/Dev/Data/pastors-info-2026-09-19)",
-  "notes": "Canonical Africa hub/church list. Hubs identified by NAME (Decision 0020): country names, denomination or city added only to disambiguate (Paul GTWC office instruction 2026-09-18: 'This is all Africa. You can use the country names or the denomination names'). Each church carries its branch pastor as leaderName/leaderPhone. Where a source file lists several pastors under one branch name (e.g. PSCI's Leeds congregations), the branch appears once with the first-listed pastor; the full pastor lists remain in the source folder. Burkina Faso added 2026-09-20 from BENMP_Database_.xlsx (Paul confirmed it belongs on the list): its All Contacts sheet mixes Burkina (+226) and Mali (+223) rows; Burkina churches extracted, one-letter variants merged (LOUMILA->LOUMBILA, BAINKO->BASINKO — flagged to Paul), the Mali rows match the existing Mali hub, and the individual contacts await upload through the wizard.",
+  "notes": "Canonical Africa hub/church list. Hubs identified by NAME (Decision 0020): country names, denomination or city added only to disambiguate (Paul GTWC office instruction 2026-09-18: 'This is all Africa. You can use the country names or the denomination names'). Each church carries its branch pastor as leaderName/leaderPhone. Where a source file lists several pastors under one branch name (e.g. PSCI's Leeds congregations), the branch appears once with the first-listed pastor; the full pastor lists remain in the source folder. Burkina Faso added 2026-09-20 from BENMP_Database_.xlsx (Paul confirmed it belongs on the list): its All Contacts sheet mixes Burkina (+226) and Mali (+223) rows; Burkina churches extracted, one-letter variants merged (LOUMILA->LOUMBILA, BAINKO->BASINKO — flagged to Paul), the Mali rows match the existing Mali hub, and the individual contacts await upload through the wizard. 2026-09-22: Tanzania (Talanta International, 'Tanzanian UDAF' per Paul GTWC) added from DOC-20260914-WA0028.xlsx: 11 branches, hub leader Bishop Nii Adams (Dar Aparche).",
   "hubs": [
     {
       "name": "Benin",
@@ -1731,6 +1731,69 @@
           "name": "São Tomé",
           "leaderName": "Eulalio Clelio Andrade Caetano",
           "leaderPhone": "+239 908 0336"
+        }
+      ]
+    },
+    {
+      "name": "Tanzania",
+      "displayName": "Tanzania",
+      "leader": "Bishop Nii Adams",
+      "country": "Tanzania",
+      "churches": [
+        {
+          "name": "Dar Aparche",
+          "leaderName": "Bishop Nii Adams",
+          "leaderPhone": "+255 755 517 205"
+        },
+        {
+          "name": "Tabata",
+          "leaderName": "Rev Sterling Abiwu",
+          "leaderPhone": "+255 782 070 895"
+        },
+        {
+          "name": "Manzese",
+          "leaderName": "Rev Bismark Ofori",
+          "leaderPhone": "+255 757 000 125"
+        },
+        {
+          "name": "Kigamboni",
+          "leaderName": "Sandra Yatuwa",
+          "leaderPhone": "+255 763 585 853"
+        },
+        {
+          "name": "Muhas",
+          "leaderName": "Ps Anwar Sadat",
+          "leaderPhone": "+255 622 575 962"
+        },
+        {
+          "name": "Morogoro",
+          "leaderName": "Ps Lulu Selelya",
+          "leaderPhone": "+255 767 147 400"
+        },
+        {
+          "name": "Mbeya",
+          "leaderName": "Ps Christopher Sizya",
+          "leaderPhone": "+255 744 642 814"
+        },
+        {
+          "name": "Dodoma",
+          "leaderName": "Rev Lloyd Sowah",
+          "leaderPhone": "+255 688 370 761"
+        },
+        {
+          "name": "Mwanza",
+          "leaderName": "Rev Joshua Yeboah",
+          "leaderPhone": "+255 748 186 470"
+        },
+        {
+          "name": "Monduli",
+          "leaderName": "Ps Jovitha William",
+          "leaderPhone": "+255 612 248 448"
+        },
+        {
+          "name": "Moshi",
+          "leaderName": "Une Mwanjela",
+          "leaderPhone": "+255 656 170 162"
         }
       ]
     },

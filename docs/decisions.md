@@ -537,3 +537,18 @@ _2026-09-19_
 **Why**: this is the third and fourth instance of the Decision 0020 region pattern; regions are data. The one real question was hub identity, and country-first for Africa keeps its 30-hub dropdown readable while Europe's denominations are the only sensible identity for multi-country networks.
 
 **Said no to**: denomination names throughout (long near-duplicate Africa entries) · inventing branch names to keep every duplicate-named congregation (the office's own list is the authority; the wizard validates against what partners will actually write) · seeding the Burkina contacts file as a hub without knowing what it is.
+
+## 0026 — MoMo is a Ghana thing: the wizard's MoMo column is per-region
+
+_2026-09-20_
+
+**Decided**: whether a region's upload wizard collects a Ghana MoMo number is region data (`regions.momo_required`, migration 0013). UD Ghana and UJ Ghana keep today's behavior exactly; Africa and Europe skip the MoMo column — their admins map three columns (name, WhatsApp, church), matching the partner template Paul's office circulated, and partners save with a WhatsApp number only.
+
+1. The strict Ghana-MoMo rule exists because giving reconciliation matches partners by MoMo number — a Ghana-specific mechanism. International partners have no Ghana MoMo wallet; requiring one made Africa/Europe uploads literally impossible (the mapping step could not proceed, and every row would have red-flagged).
+2. When a MoMo value IS present in a no-MoMo region, it is still validated as a Ghana mobile rather than saved unchecked.
+3. `partners.momo_phone_number` was already nullable (migration 0006 anticipated this); only app validation changed.
+4. In passing: partners uploaded by a hub are now stamped with the **hub's own country** instead of a hard-coded "Ghana".
+
+**Why**: 38 international hub admins received logins on 2026-09-19/20 and upload next; the server re-validates identically to the preview, so without this there was no workaround.
+
+**Said no to**: making MoMo optional everywhere (weakens Ghana data quality where reconciliation depends on it) · a separate wizard per region (Decision 0020's anti-fork rule).

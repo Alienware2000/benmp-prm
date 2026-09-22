@@ -11,6 +11,8 @@ import {
   findExistingPhones,
   findHubPartnerNames,
   getHubChurches,
+  getHubCountry,
+  getRegionMomoRequired,
   insertIngestRows,
   insertPartners,
   updatePartners,
@@ -116,15 +118,19 @@ export async function POST(req: NextRequest) {
       normalizePhone(c.whatsappPhone),
     ])
     .filter((p): p is string => p !== null);
-  const [existingPhones, existingPartners] = await Promise.all([
-    findExistingPhones(phonesToCheck),
-    findHubPartnerNames(session.hubId),
-  ]);
+  const [existingPhones, existingPartners, momoRequired, hubCountry] =
+    await Promise.all([
+      findExistingPhones(phonesToCheck),
+      findHubPartnerNames(session.hubId),
+      getRegionMomoRequired(session.regionCode),
+      getHubCountry(session.hubId),
+    ]);
   const validated = validateCandidates(candidates, {
     churches,
     existingPhones,
     existingPartners,
     hubId: session.hubId,
+    momoRequired,
   });
 
   const flagged = validated.filter((v) => v.issues.length > 0);
@@ -176,9 +182,9 @@ export async function POST(req: NextRequest) {
   await insertPartners(
     toInsert.map((v) => ({
       full_name: v.name,
-      momo_phone_number: v.momoPhoneE164!,
+      momo_phone_number: v.momoPhoneE164,
       whatsapp_number: v.whatsappPhoneE164!,
-      country: "Ghana",
+      country: hubCountry,
       church: v.churchName!,
       status: "new",
       source: `hub_ingest_${batchId}`,
@@ -196,7 +202,7 @@ export async function POST(req: NextRequest) {
       hubId: session.hubId,
       fields: {
         full_name: v.name,
-        momo_phone_number: v.momoPhoneE164!,
+        momo_phone_number: v.momoPhoneE164,
         whatsapp_number: v.whatsappPhoneE164!,
         church: v.churchName!,
         church_id: v.churchId!,

@@ -9,6 +9,7 @@ import {
   findHubPartnerNames,
   getHubChurches,
   getHubSummary,
+  getRegionMomoRequired,
 } from "@/lib/hub/db";
 import { IngestWizard } from "./ingest-wizard";
 
@@ -24,15 +25,17 @@ export default async function HubHomePage() {
     store.get(HUB_SESSION_COOKIE)?.value,
     hubSessionSecret(),
   );
-  const [summary, churches, existingPartners] = session
+  const [summary, churches, existingPartners, momoRequired] = session
     ? await Promise.all([
         getHubSummary(session.hubId),
         getHubChurches(session.hubId),
         // Names of partners this hub already has, so the preview can say which rows
         // will update an existing person rather than add a new one.
         findHubPartnerNames(session.hubId),
+        // Ghana regions collect MoMo; other regions skip the column (Decision 0026).
+        getRegionMomoRequired(session.regionCode),
       ])
-    : [null, [], []];
+    : [null, [], [], true];
 
   if (!session || !summary) {
     // The proxy should make this unreachable; fail soft rather than crash.
@@ -59,6 +62,7 @@ export default async function HubHomePage() {
       <IngestWizard
         hubId={session.hubId}
         existingPartners={existingPartners}
+        momoRequired={momoRequired}
         churches={churches.map((c) => ({
           id: c.id,
           name: c.name,

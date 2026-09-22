@@ -21,7 +21,8 @@ import { normalizeChurchKey } from "./seed";
 /** Which uploaded column holds what (0-based). */
 export type ColumnMap = {
   name: number;
-  momoPhone: number;
+  /** Null in a region that does not collect MoMo (Decision 0026). */
+  momoPhone: number | null;
   whatsappPhone: number;
   church: number;
 };
@@ -139,7 +140,8 @@ export function extractCandidates(
   for (let i = start; i < rows.length; i++) {
     const raw = rows[i] ?? [];
     const name = (raw[map.name] ?? "").trim();
-    const momoPhone = (raw[map.momoPhone] ?? "").trim();
+    const momoPhone =
+      map.momoPhone === null ? "" : (raw[map.momoPhone] ?? "").trim();
     const whatsappPhone = (raw[map.whatsappPhone] ?? "").trim();
     const church = (raw[map.church] ?? "").trim();
     if (
@@ -220,6 +222,12 @@ export type ValidationContext = {
   existingPartners?: readonly ExistingPartner[];
   /** E.164 -> where it already exists in the database. */
   existingPhones: ReadonlyMap<string, ExistingPhoneInfo>;
+  /**
+   * Whether this region collects a Ghana MoMo number (Decision 0026). Defaults
+   * to true, matching the Ghana regions the wizard was built for. When false,
+   * an empty MoMo passes and a non-empty one is still validated as Ghana.
+   */
+  momoRequired?: boolean;
 };
 
 /**
@@ -261,12 +269,15 @@ export function validateCandidates(
       }
     }
 
+    const momoRequired = ctx.momoRequired ?? true;
     let momoPhoneE164: string | null = null;
     if (cand.momoPhone === "") {
-      issues.push({
-        field: "momoPhone",
-        message: "MoMo phone number is missing.",
-      });
+      if (momoRequired) {
+        issues.push({
+          field: "momoPhone",
+          message: "MoMo phone number is missing.",
+        });
+      }
     } else {
       momoPhoneE164 = normalizePhone(cand.momoPhone, "GH");
       // Ghana mobiles all start 02x/05x (NSN 2… or 5…). A right-length number

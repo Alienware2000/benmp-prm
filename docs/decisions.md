@@ -545,7 +545,7 @@ _2026-09-20_
 **Decided**: whether a region's upload wizard collects a Ghana MoMo number is region data (`regions.momo_required`, migration 0013). UD Ghana and UJ Ghana keep today's behavior exactly; Africa and Europe skip the MoMo column — their admins map three columns (name, WhatsApp, church), matching the partner template Paul's office circulated, and partners save with a WhatsApp number only.
 
 1. The strict Ghana-MoMo rule exists because giving reconciliation matches partners by MoMo number — a Ghana-specific mechanism. International partners have no Ghana MoMo wallet; requiring one made Africa/Europe uploads literally impossible (the mapping step could not proceed, and every row would have red-flagged).
-2. When a MoMo value IS present in a no-MoMo region, it is still validated as a Ghana mobile rather than saved unchecked.
+2. ~~When a MoMo value IS present in a no-MoMo region, it is still validated as a Ghana mobile.~~ Reversed 2026-09-22: a no-MoMo region has no MoMo column to map, so a value can only arrive through a mapping the admin cannot see (the header guess matched a "Mobile number" column on the first Malawi upload and flagged every row as "not a valid Ghana MoMo number"). The wizard never maps MoMo for such a region, and the server ignores any stray value.
 3. `partners.momo_phone_number` was already nullable (migration 0006 anticipated this); only app validation changed.
 4. In passing: partners uploaded by a hub are now stamped with the **hub's own country** instead of a hard-coded "Ghana".
 

@@ -214,7 +214,7 @@ export function IngestWizard({
       setFileName(data.fileName ?? file.name);
       setSheets(data.sheets);
       setSheetIndex(0);
-      setCols(guessColumns(data.sheets[0]));
+      setCols(guessColumns(data.sheets[0], momoRequired));
       setStep("map");
     } catch {
       setError("Could not reach the server. Try again.");
@@ -249,7 +249,9 @@ export function IngestWizard({
     }
     const map: ColumnMap = {
       name: cols.name,
-      momoPhone: cols.momoPhone === "" ? null : cols.momoPhone,
+      // A region without MoMo can never carry a MoMo mapping, whatever state
+      // the picker was in (the header guess once filled it invisibly).
+      momoPhone: momoRequired && cols.momoPhone !== "" ? cols.momoPhone : null,
       whatsappPhone: cols.whatsappPhone,
       church: cols.church,
     };
@@ -445,7 +447,7 @@ export function IngestWizard({
                   onChange={(e) => {
                     const i = Number(e.target.value);
                     setSheetIndex(i);
-                    setCols(guessColumns(sheets[i]));
+                    setCols(guessColumns(sheets[i], momoRequired));
                   }}
                   className={inputBase + " border-border"}
                 >
@@ -986,7 +988,10 @@ function FlaggedCell({
 }
 
 /** Guess the column mapping from header words; the admin can always override. */
-function guessColumns(sheet: ParsedSheet | undefined): {
+function guessColumns(
+  sheet: ParsedSheet | undefined,
+  momoRequired: boolean,
+): {
   name: number | "";
   momoPhone: number | "";
   whatsappPhone: number | "";
@@ -1018,5 +1023,6 @@ function guessColumns(sheet: ParsedSheet | undefined): {
     }
     if (church === "" && /(church|branch|assembly)/.test(h)) church = i;
   });
+  if (!momoRequired) momoPhone = "";
   return { name, momoPhone, whatsappPhone, church };
 }

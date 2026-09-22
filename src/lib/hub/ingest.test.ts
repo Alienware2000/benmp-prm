@@ -224,14 +224,15 @@ describe("validateCandidates", () => {
     expect(rows[1].issues.some((i) => i.field === "momoPhone")).toBe(false);
   });
 
-  it("momoRequired=false: a non-empty MoMo is still validated as Ghana", () => {
-    const noMomo = { ...ctx(), momoRequired: false };
+  it("momoRequired=false: a stray MoMo value is ignored, never flagged (the Malawi 'Mobile' column)", () => {
+    const noMomo = { ...ctx(), momoRequired: false, whatsappCallingCode: "265" };
     const [row] = validateCandidates(
-      [cand({ momoPhone: "0123456789" })],
+      [cand({ momoPhone: "0999123456", whatsappPhone: "0999123456" })],
       noMomo,
     );
     expect(row.momoPhoneE164).toBeNull();
-    expect(row.issues.some((i) => i.field === "momoPhone")).toBe(true);
+    expect(row.issues).toEqual([]);
+    expect(row.whatsappPhoneE164).toBe("+265999123456");
   });
 
   it("extractCandidates with no MoMo column reads momo as empty", () => {

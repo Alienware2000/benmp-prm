@@ -269,6 +269,14 @@ export function validateCandidates(
       });
     } else {
       momoPhoneE164 = normalizePhone(cand.momoPhone, "GH");
+      // Ghana mobiles all start 02x/05x (NSN 2… or 5…). A right-length number
+      // with an impossible start or a fixed line is not a MoMo wallet.
+      if (
+        momoPhoneE164 &&
+        !/^[25]\d{8}$/.test(momoPhoneE164.slice("+233".length))
+      ) {
+        momoPhoneE164 = null;
+      }
       if (!momoPhoneE164) {
         issues.push({
           field: "momoPhone",

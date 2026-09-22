@@ -1,0 +1,1909 @@
+{
+  "source": "Paul GTWC office WhatsApp spreadsheets, downloaded 2026-09-19 (kept outside git in ~/Dev/Data/pastors-info-2026-09-19)",
+  "notes": "Canonical Africa hub/church list. Hubs identified by NAME (Decision 0020): country names, denomination or city added only to disambiguate (Paul GTWC office instruction 2026-09-18: 'This is all Africa. You can use the country names or the denomination names'). Each church carries its branch pastor as leaderName/leaderPhone. Where a source file lists several pastors under one branch name (e.g. PSCI's Leeds congregations), the branch appears once with the first-listed pastor; the full pastor lists remain in the source folder. Burkina Faso added 2026-09-20 from BENMP_Database_.xlsx (Paul confirmed it belongs on the list): its All Contacts sheet mixes Burkina (+226) and Mali (+223) rows; Burkina churches extracted, one-letter variants merged (LOUMILA->LOUMBILA, BAINKO->BASINKO — flagged to Paul), the Mali rows match the existing Mali hub, and the individual contacts await upload through the wizard.",
+  "hubs": [
+    {
+      "name": "Benin",
+      "displayName": "Benin",
+      "leader": "",
+      "country": "Benin",
+      "churches": [
+        {
+          "name": "Cotonou Cathedral",
+          "leaderName": "Bishop Jesurun Simpson NARTEY",
+          "leaderPhone": "2290162365508"
+        },
+        {
+          "name": "Porto-Novo Cathedral",
+          "leaderName": "Bishop Jeremy MENYISSE",
+          "leaderPhone": "233275824922"
+        },
+        {
+          "name": "Parakou Cathedral",
+          "leaderName": "Ps Stanislas ADANLAWO",
+          "leaderPhone": "2290196031602"
+        },
+        {
+          "name": "Ouidah Cathedral",
+          "leaderName": "Ps Alfred AGBESS",
+          "leaderPhone": "2290197988444"
+        },
+        {
+          "name": "Lokossa Cathedral",
+          "leaderName": "Ps Assomption HINVI",
+          "leaderPhone": "2290197798182"
+        },
+        {
+          "name": "Allada Cathedral",
+          "leaderName": "Ps Ariace NONFON",
+          "leaderPhone": "2290161071980"
+        },
+        {
+          "name": "Bohicon cathedral",
+          "leaderName": "Ps Alabi Christian ADANLAWO",
+          "leaderPhone": "2290191679650"
+        },
+        {
+          "name": "Cadjehoun city church Branch",
+          "leaderName": "Ps Martial DJIMADJA",
+          "leaderPhone": "2290197900400"
+        },
+        {
+          "name": "Cotonou Campus branch",
+          "leaderName": "Ps Jérémie FIHODE",
+          "leaderPhone": "2290140749107"
+        },
+        {
+          "name": "Tankpe Branch",
+          "leaderName": "Ps Thomas TETEH",
+          "leaderPhone": "2290196657167"
+        },
+        {
+          "name": "Parakou campus Branch",
+          "leaderName": "Pasteur Frank TINONGBE",
+          "leaderPhone": "2290166008100"
+        },
+        {
+          "name": "Bohicon city church branch",
+          "leaderName": "Ps Jules Koffi KPOKA",
+          "leaderPhone": "2290166633264"
+        }
+      ]
+    },
+    {
+      "name": "Burkina Faso",
+      "displayName": "Burkina Faso",
+      "leader": "Bishop Samuel Gasper",
+      "country": "Burkina Faso",
+      "churches": [
+        {
+          "name": "SAABA",
+          "leaderName": "Bishop Samuel Gasper",
+          "leaderPhone": "+233 24 499 6677"
+        },
+        {
+          "name": "ZINARE",
+          "leaderName": "Ps Espoir Kengbo",
+          "leaderPhone": "+226 06 59 70 99"
+        },
+        {
+          "name": "LOUMBILA",
+          "leaderName": "Ps Styve Samandoulougu",
+          "leaderPhone": "+226 70 09 48 25"
+        },
+        {
+          "name": "KOUDOUGOU",
+          "leaderName": "",
+          "leaderPhone": ""
+        },
+        {
+          "name": "BASINKO",
+          "leaderName": "Jeannot Traoré (Ps Miguel)",
+          "leaderPhone": "+226 66 88 48 20"
+        },
+        {
+          "name": "SAPONE",
+          "leaderName": "Ps Hugues",
+          "leaderPhone": "+226 70 59 06 85"
+        }
+      ]
+    },
+    {
+      "name": "Cape Verde",
+      "displayName": "Cape Verde",
+      "leader": "",
+      "country": "Cape Verde",
+      "churches": [
+        {
+          "name": "Praia City State Church",
+          "leaderName": "Bishop Abednego Nyarkoh Mensah",
+          "leaderPhone": "2389357446"
+        }
+      ]
+    },
+    {
+      "name": "Central African Republic",
+      "displayName": "Central African Republic",
+      "leader": "",
+      "country": "Central African Republic",
+      "churches": [
+        {
+          "name": "APARCHE",
+          "leaderName": "BISHOP ADOUPO CHRISTIAN",
+          "leaderPhone": "+2250759259813"
+        },
+        {
+          "name": "NZILA",
+          "leaderName": "REV ODIA CHARLES",
+          "leaderPhone": "+23672463132"
+        },
+        {
+          "name": "DAMALA",
+          "leaderName": "MS DENGO",
+          "leaderPhone": "+23672222626"
+        }
+      ]
+    },
+    {
+      "name": "Chad",
+      "displayName": "Chad",
+      "leader": "",
+      "country": "Chad",
+      "churches": [
+        {
+          "name": "Ndjamena branch",
+          "leaderName": "Obed Charway",
+          "leaderPhone": "+235 68755655"
+        },
+        {
+          "name": "Walia Branch",
+          "leaderName": "Divine Noble Kofi Kumi",
+          "leaderPhone": "+235 68887924"
+        },
+        {
+          "name": "Chagoua-Moursal branch",
+          "leaderName": "Lambert Lorougnon",
+          "leaderPhone": "+235 68515010"
+        }
+      ]
+    },
+    {
+      "name": "Congo",
+      "displayName": "Congo",
+      "leader": "",
+      "country": "Congo",
+      "churches": [
+        {
+          "name": "Cathedrale Lifoula (Brazaville)",
+          "leaderName": "Bishop Kenneth Oswald AWUTEY",
+          "leaderPhone": "242064577368"
+        },
+        {
+          "name": "Moungali",
+          "leaderName": "Bishop Kenneth Oswald AWUTEY",
+          "leaderPhone": "242064577368"
+        },
+        {
+          "name": "Massengo",
+          "leaderName": "Ps Exaucé Dany Prince MBOUSSA",
+          "leaderPhone": "242068751949"
+        },
+        {
+          "name": "Bacongo",
+          "leaderName": "Ps Balick Le-Sage LOEMBA MAKAYA",
+          "leaderPhone": "242064710289"
+        },
+        {
+          "name": "Grand Marché",
+          "leaderName": "Bishop Joseph ABOAGYE",
+          "leaderPhone": "242067377742"
+        },
+        {
+          "name": "Siafoumou",
+          "leaderName": "LP Loussemo MASSAMBA",
+          "leaderPhone": "242050194537"
+        },
+        {
+          "name": "Mpaka",
+          "leaderName": "Ps Faal Haldren Horthegha MBEYE",
+          "leaderPhone": "242067353326"
+        },
+        {
+          "name": "Cote Matève",
+          "leaderName": "Ps Achille Casimir MOBOSSIDEY",
+          "leaderPhone": "242065549243"
+        }
+      ]
+    },
+    {
+      "name": "Equatorial Guinea - Bata",
+      "displayName": "Equatorial Guinea - Bata",
+      "leader": "",
+      "country": "Equatorial Guinea",
+      "churches": [
+        {
+          "name": "Capilla El faro Internacional, Bata",
+          "leaderName": "Kwabena Asamoah",
+          "leaderPhone": "240222878501"
+        }
+      ]
+    },
+    {
+      "name": "Equatorial Guinea - Malabo",
+      "displayName": "Equatorial Guinea - Malabo",
+      "leader": "",
+      "country": "Equatorial Guinea",
+      "churches": [
+        {
+          "name": "EQUATORIAL GUINEA, MALABO",
+          "leaderName": "BISHOP OREAL LARTEY",
+          "leaderPhone": "+240222163891"
+        }
+      ]
+    },
+    {
+      "name": "Eswatini",
+      "displayName": "Eswatini",
+      "leader": "",
+      "country": "Eswatini",
+      "churches": [
+        {
+          "name": "Manzini",
+          "leaderName": "Bishop Joseph Aryee",
+          "leaderPhone": "+268 7613 0083"
+        },
+        {
+          "name": "Mbabane",
+          "leaderName": "Pastor Tafadzwa Mafpeka",
+          "leaderPhone": "+268 7602 4337"
+        },
+        {
+          "name": "Siteki",
+          "leaderName": "Pastor Tumelo Nxumalo",
+          "leaderPhone": "+268 7662 8003"
+        },
+        {
+          "name": "Mpaka",
+          "leaderName": "Pastor Sotja Nzima",
+          "leaderPhone": "+268 7648 4275"
+        },
+        {
+          "name": "Malindza",
+          "leaderName": "Pastor Malungelo Tsabedze",
+          "leaderPhone": "+268 7648 1922"
+        },
+        {
+          "name": "Mahlanya",
+          "leaderName": "Lp Clencinah Ladzagla",
+          "leaderPhone": "+268 7699 7780"
+        },
+        {
+          "name": "Kwaluseni",
+          "leaderName": "Pastor Senzo Matsebula",
+          "leaderPhone": "+268 7934 6732"
+        },
+        {
+          "name": "Nhlangano",
+          "leaderName": "Reverend Oscar Gagordo",
+          "leaderPhone": "+268 7684 1857"
+        }
+      ]
+    },
+    {
+      "name": "Gabon - Libreville",
+      "displayName": "Gabon - Libreville",
+      "leader": "",
+      "country": "Gabon",
+      "churches": [
+        {
+          "name": "Belle Eglise derrière l'ambassade du Nigeria",
+          "leaderName": "Bishop Emmanuel KOFI YEBOAH",
+          "leaderPhone": "(241)05929429"
+        },
+        {
+          "name": "Belle Eglise Sablière (Cathedral)",
+          "leaderName": "Reverend Patrick AKESE",
+          "leaderPhone": "(241)06603037"
+        },
+        {
+          "name": "Belle Eglise Ntoum",
+          "leaderName": "Pastor André OLIBA MBELE",
+          "leaderPhone": "(241)62238013"
+        },
+        {
+          "name": "Belle Eglise Mouila",
+          "leaderName": "Pastor Josly MAMBOUNDOU",
+          "leaderPhone": "(241)05571061"
+        },
+        {
+          "name": "Belle Eglise Lambarene",
+          "leaderName": "Pastor Gaetan MOUNGOULOU ANTCHOUWET",
+          "leaderPhone": "(241)77734693"
+        },
+        {
+          "name": "Belle Eglise Kinguele",
+          "leaderName": "MS Gildas MBINI",
+          "leaderPhone": "(241)77792955"
+        },
+        {
+          "name": "Belle Eglise PK9",
+          "leaderName": "Pastor Marien KOUMBA",
+          "leaderPhone": "(241)74043638"
+        },
+        {
+          "name": "Belle Eglise Owendo",
+          "leaderName": "Pastor Dominique Jeff TCHITOMBI PAMBO",
+          "leaderPhone": "(241)77225622"
+        },
+        {
+          "name": "Belle Eglise Cité Church",
+          "leaderName": "Pastor Fernand NZIGOU NZIGOU",
+          "leaderPhone": "(241)77533609"
+        },
+        {
+          "name": "Belle Eglise Nzeng Ayong",
+          "leaderName": "Pastor Jean Claude Michel NKA-ONDO",
+          "leaderPhone": "(241)62343161"
+        },
+        {
+          "name": "Belle Eglise Derrière la pédiatrie",
+          "leaderName": "Pastor Igor Olivier RE-NDOUKE RE-BOULIA QUABEN",
+          "leaderPhone": "(241)76551400"
+        },
+        {
+          "name": "Belle Eglise Akebe",
+          "leaderName": "MS Steen Willis MOUECKOUKOU MABICKA",
+          "leaderPhone": "(241)74780413"
+        },
+        {
+          "name": "Belle Eglise Plein Ciel",
+          "leaderName": "MS Prince TANGUY MAKANGA",
+          "leaderPhone": "(241)74449461"
+        },
+        {
+          "name": "Belle Eglise Moanda",
+          "leaderName": "MS Stephane Micky ONANGA",
+          "leaderPhone": "(241)77896538"
+        }
+      ]
+    },
+    {
+      "name": "Gabon - Port Gentil",
+      "displayName": "Gabon - Port Gentil",
+      "leader": "",
+      "country": "Gabon",
+      "churches": [
+        {
+          "name": "Belle Eglise Aparche Port - Gentil City State",
+          "leaderName": "Bishop Pascal Erasmus MENSAH",
+          "leaderPhone": "(241)77853726"
+        },
+        {
+          "name": "Belle Eglise Salsa",
+          "leaderName": "Pastor Arnaud Roger AUKOULILE",
+          "leaderPhone": "(241)77960033"
+        },
+        {
+          "name": "Belle Eglise Franceville",
+          "leaderName": "Pastor Crowl Milague",
+          "leaderPhone": "(241)60126192"
+        },
+        {
+          "name": "Belle Eglise Oyem",
+          "leaderName": "MS Lewis NZE EBA",
+          "leaderPhone": "(241)77126846"
+        }
+      ]
+    },
+    {
+      "name": "Gambia",
+      "displayName": "Gambia",
+      "leader": "",
+      "country": "Gambia",
+      "churches": [
+        {
+          "name": "Bakau",
+          "leaderName": "Bishop Edward Botwe",
+          "leaderPhone": "+220877344074"
+        },
+        {
+          "name": "Kitty",
+          "leaderName": "Rev Thomas Mendy",
+          "leaderPhone": "+220872663871"
+        },
+        {
+          "name": "Lamin",
+          "leaderName": "Rev Balla Moses Gomez",
+          "leaderPhone": "+220866515255"
+        },
+        {
+          "name": "Kerr Jatta",
+          "leaderName": "Ps David Oluboye",
+          "leaderPhone": "+220833583953"
+        },
+        {
+          "name": "Sanyang",
+          "leaderName": "LP Josephine Mendy",
+          "leaderPhone": "+220833980667"
+        }
+      ]
+    },
+    {
+      "name": "Guinea Conakry",
+      "displayName": "Guinea Conakry",
+      "leader": "",
+      "country": "Guinea Conakry",
+      "churches": [
+        {
+          "name": "Dubreka",
+          "leaderName": "Bishop Eddy Cofie",
+          "leaderPhone": "224662870413"
+        },
+        {
+          "name": "Matoto",
+          "leaderName": "Ps Paul Koivogui",
+          "leaderPhone": "224624710718"
+        },
+        {
+          "name": "Dixinn",
+          "leaderName": "Ms Jean Bongo Guilavogui",
+          "leaderPhone": "224621831164"
+        },
+        {
+          "name": "Coyah",
+          "leaderName": "Ps Abraham Sagno",
+          "leaderPhone": "224625317235"
+        },
+        {
+          "name": "Kindia",
+          "leaderName": "Rev Manfred France",
+          "leaderPhone": "224620479622"
+        },
+        {
+          "name": "Yabara",
+          "leaderName": "Lp Eunice France",
+          "leaderPhone": "224622918634"
+        },
+        {
+          "name": "N'zerekore",
+          "leaderName": "Rev Wonder Ledzo",
+          "leaderPhone": "224623466243"
+        },
+        {
+          "name": "Gbou",
+          "leaderName": "Ps Lucien Camara",
+          "leaderPhone": "233546043780"
+        },
+        {
+          "name": "Macenta",
+          "leaderName": "Ps Jocelyn Oga",
+          "leaderPhone": "224628860715"
+        }
+      ]
+    },
+    {
+      "name": "Guinea-Bissau",
+      "displayName": "Guinea-Bissau",
+      "leader": "",
+      "country": "Guinea-Bissau",
+      "churches": [
+        {
+          "name": "Cathedral -Safim",
+          "leaderName": "Bishop Jeffrey K. Ocran",
+          "leaderPhone": "245 - 966-797-398"
+        },
+        {
+          "name": "Enterramento",
+          "leaderName": "Rev. Ricardo Richard O. Antwi",
+          "leaderPhone": "245 - 966-430-574"
+        },
+        {
+          "name": "Bandim/Bila",
+          "leaderName": "Rev. Inoque Antonio Có",
+          "leaderPhone": "245 - 956-307-893"
+        },
+        {
+          "name": "Cuntum",
+          "leaderName": "Rev. Thomas Togah",
+          "leaderPhone": "245 - 966-873-150"
+        },
+        {
+          "name": "Quelele",
+          "leaderName": "Ptr. Asber Rui Nuntina",
+          "leaderPhone": "245 - 965-536-484"
+        },
+        {
+          "name": "Antula",
+          "leaderName": "LP. Eva Lopez P. António Có",
+          "leaderPhone": "245 - 966-727-326"
+        },
+        {
+          "name": "Bor",
+          "leaderName": "Ptr. Edimilson António Helder Có",
+          "leaderPhone": "245 - 955-805-207"
+        },
+        {
+          "name": "Jaal",
+          "leaderName": "Ptr. Nelio Zidro Dá Silva",
+          "leaderPhone": "245 - 965-713-414"
+        },
+        {
+          "name": "Birro Militar",
+          "leaderName": "Ptr. Justino Augusto Perreira Sá",
+          "leaderPhone": "245 - 955-810-410"
+        },
+        {
+          "name": "Hafia",
+          "leaderName": "LP. Maiza Jú Té",
+          "leaderPhone": "245 - 966-173-693"
+        },
+        {
+          "name": "Lovefirst-Safim",
+          "leaderName": "LP. Delcia Carlos Sá",
+          "leaderPhone": "245 -955- 284-488"
+        },
+        {
+          "name": "Empatcha",
+          "leaderName": "Ptr. César Marcelino N acia",
+          "leaderPhone": "245 - 955-873-641"
+        },
+        {
+          "name": "Pluba",
+          "leaderName": "Ptr. Ianes Goia Balde",
+          "leaderPhone": "245 - 955-711-420"
+        },
+        {
+          "name": "Sao Paulo",
+          "leaderName": "Ptr. Gelson Mbasse",
+          "leaderPhone": "245 - 956-438-414"
+        },
+        {
+          "name": "Lovefest Zona7",
+          "leaderName": "LP. Felismina Rodriguez",
+          "leaderPhone": "245 - 955-581-497"
+        },
+        {
+          "name": "Zona7",
+          "leaderName": "Ptr. Jónió Jorge Gomez",
+          "leaderPhone": "245 - 966-870-346"
+        },
+        {
+          "name": "Bafata Cathedral",
+          "leaderName": "Rev. Emmanuel Ofosu",
+          "leaderPhone": "245 - 965-378-397"
+        },
+        {
+          "name": "Bafata Pista",
+          "leaderName": "LP. Anita Owusu",
+          "leaderPhone": "245 - 969-173-417"
+        },
+        {
+          "name": "Canchungo cathedral",
+          "leaderName": "Rev. Augustine Amoaku",
+          "leaderPhone": "245 - 965-378-396"
+        },
+        {
+          "name": "Behente",
+          "leaderName": "LP.Dorcas Amoaku",
+          "leaderPhone": "245 - 965-253-394"
+        },
+        {
+          "name": "Gabu",
+          "leaderName": "Ptr. Estevao Té",
+          "leaderPhone": "245 - 966-601-833"
+        },
+        {
+          "name": "English Church",
+          "leaderName": "LP. Josephine Ocran",
+          "leaderPhone": "245 - 966-601-411"
+        }
+      ]
+    },
+    {
+      "name": "Kenya",
+      "displayName": "Kenya",
+      "leader": "",
+      "country": "Kenya",
+      "churches": [
+        {
+          "name": "Nairobi Aparche",
+          "leaderName": "BISHOP AUGUSTINE APPIAH",
+          "leaderPhone": "254 735841428"
+        },
+        {
+          "name": "Mombasa Cathdral",
+          "leaderName": "BISHOP DANIE ARTHUR-BAIDOO",
+          "leaderPhone": "254 721719409"
+        },
+        {
+          "name": "Limuru",
+          "leaderName": "BISHOP JOSEPH AMBLE�",
+          "leaderPhone": "254 733889605"
+        },
+        {
+          "name": "Eldoret",
+          "leaderName": "BISHOP DENNIS CUDJOE",
+          "leaderPhone": "254 719365586"
+        },
+        {
+          "name": "Tala Cathedral",
+          "leaderName": "BISHOP CHRISTOS ABBEY",
+          "leaderPhone": "254 719365506"
+        },
+        {
+          "name": "Ruaraka",
+          "leaderName": "JUDY ABIGAIL WISAH",
+          "leaderPhone": "254 733551034"
+        },
+        {
+          "name": "Kabete",
+          "leaderName": "KEVIN KIPKOECH SANG",
+          "leaderPhone": "254 722114597"
+        },
+        {
+          "name": "Arthi River",
+          "leaderName": "STEPHEN NDICHU GITHUKU",
+          "leaderPhone": "254 718446989"
+        },
+        {
+          "name": "Ruiru East",
+          "leaderName": "ROBERT KURIA MWATHI",
+          "leaderPhone": "254 722 277539"
+        },
+        {
+          "name": "Ngong",
+          "leaderName": "LUCAS ADUKE",
+          "leaderPhone": "254 723492382"
+        },
+        {
+          "name": "Thika",
+          "leaderName": "SEBASTIAN KAVOJI",
+          "leaderPhone": "254 703644838"
+        },
+        {
+          "name": "Kisumu Cathedral",
+          "leaderName": "DAN ODUOR OLUOCH",
+          "leaderPhone": "254 720774996"
+        },
+        {
+          "name": "Machakos",
+          "leaderName": "PS ABRAM MUKABANE TSUMA",
+          "leaderPhone": "254 708897822"
+        },
+        {
+          "name": "Ongata Rongai",
+          "leaderName": "GEORGINA ADHIAMBO",
+          "leaderPhone": "254 741445566"
+        },
+        {
+          "name": "Bungoma",
+          "leaderName": "FRANKLIN AGENYELA ACHEGA",
+          "leaderPhone": "254 720774997"
+        },
+        {
+          "name": "Embakasi",
+          "leaderName": "PAUL ONYANGO ONYANGO",
+          "leaderPhone": "254 700119753"
+        },
+        {
+          "name": "Kericho",
+          "leaderName": "SILAS SIMIYU BARASA",
+          "leaderPhone": "254 722153367"
+        },
+        {
+          "name": "Kitale",
+          "leaderName": "DICKSON SEVENI ARULA",
+          "leaderPhone": "254 708049326"
+        },
+        {
+          "name": "Naivasha",
+          "leaderName": "DOUGLAS ATUTI",
+          "leaderPhone": "254 703151239"
+        },
+        {
+          "name": "Love First",
+          "leaderName": "ABRAHAM OTIENO OKUMU",
+          "leaderPhone": "254 700303208"
+        },
+        {
+          "name": "Meru",
+          "leaderName": "ELIUD OTIENO OSUNGA",
+          "leaderPhone": "254 721265394"
+        },
+        {
+          "name": "Jomvu",
+          "leaderName": "JACKSON WAITHAKA OKE",
+          "leaderPhone": "254 724992130"
+        },
+        {
+          "name": "Nyeri",
+          "leaderName": "OBED YEBOAH",
+          "leaderPhone": "254 707973544"
+        },
+        {
+          "name": "Kisii",
+          "leaderName": "SAMUEL MUTURU WAFULA",
+          "leaderPhone": "254 704958855"
+        },
+        {
+          "name": "Kilifi",
+          "leaderName": "JIMMY RONO MBITHE",
+          "leaderPhone": "254 114634614"
+        }
+      ]
+    },
+    {
+      "name": "Lesotho",
+      "displayName": "Lesotho",
+      "leader": "",
+      "country": "Lesotho",
+      "churches": [
+        {
+          "name": "Maseru",
+          "leaderName": "Bishop Khauhelo Mokobocho",
+          "leaderPhone": "26659098676"
+        }
+      ]
+    },
+    {
+      "name": "Liberia",
+      "displayName": "Liberia",
+      "leader": "",
+      "country": "Liberia",
+      "churches": [
+        {
+          "name": "LOWER VIRGINIA",
+          "leaderName": "Bishop FRANK OFORI ADJEI",
+          "leaderPhone": "233 24 436 9037"
+        },
+        {
+          "name": "HOTEL BUCHANAN",
+          "leaderName": "Lady Pastor CECELIA NYAMEDE DENNIS BROWN",
+          "leaderPhone": "231 88 649 8782"
+        },
+        {
+          "name": "BARNESVILLE",
+          "leaderName": "Lady Pastor ELIZABETH A. BRIGHT",
+          "leaderPhone": "231 88 673 9618"
+        },
+        {
+          "name": "KENNY TOWN",
+          "leaderName": "Pastor ALFRED HUTTON ADDY",
+          "leaderPhone": "231 88 686 2821"
+        },
+        {
+          "name": "HARBEL",
+          "leaderName": "Pastor EDDIEBLAY DANIEL TANNOR",
+          "leaderPhone": "231 77 669 7770"
+        },
+        {
+          "name": "ZWEDRU",
+          "leaderName": "Pastor EDWARD SEGBENU DOMPREH",
+          "leaderPhone": "231 88 086 3446"
+        },
+        {
+          "name": "VOINJAMA",
+          "leaderName": "Pastor ISAAC ATOKPLE-FIADZOE",
+          "leaderPhone": "233 24 604 3981"
+        },
+        {
+          "name": "SINKOR AIRFIELD",
+          "leaderName": "Pastor ISAAC FORKPAH",
+          "leaderPhone": "231 88 619 0559"
+        },
+        {
+          "name": "NEW GEORGIA",
+          "leaderName": "Pastor ISAAC OPOKU NKOOM",
+          "leaderPhone": "231 88 652 6283"
+        },
+        {
+          "name": "WEALA",
+          "leaderName": "Pastor PRINCE M. ZARLO JR.",
+          "leaderPhone": "232 88 019 0191"
+        },
+        {
+          "name": "ROBERTSPORT",
+          "leaderName": "Pastor SAMUEL BOATENG",
+          "leaderPhone": "233 24 156 3860"
+        },
+        {
+          "name": "KAKATA",
+          "leaderName": "Pastor SAMUEL BUILSAH",
+          "leaderPhone": "231 55 589 1975"
+        },
+        {
+          "name": "GBARNGA",
+          "leaderName": "Rev ARNOLD ELLIS-DONKOH",
+          "leaderPhone": "231 77 780 3850"
+        },
+        {
+          "name": "SUAKOKO",
+          "leaderName": "Rev ARNOLD ELLIS-DONKOH",
+          "leaderPhone": "232 77 780 3850"
+        },
+        {
+          "name": "BUCHANAN",
+          "leaderName": "Rev DAVE TOE BROWN",
+          "leaderPhone": "231 88 634 9706"
+        },
+        {
+          "name": "NEW BUCHANAN",
+          "leaderName": "Rev DAVE TOE BROWN",
+          "leaderPhone": "232 88 634 9706"
+        },
+        {
+          "name": "GANTA",
+          "leaderName": "Rev JOHN KOFI BONNEY",
+          "leaderPhone": "231 77 780 3834"
+        },
+        {
+          "name": "PALM SRPING",
+          "leaderName": "Rev MICHAEL TEJAN",
+          "leaderPhone": "231 77 017 2180"
+        },
+        {
+          "name": "DUPORT ROAD",
+          "leaderName": "Rev MIHALY GAIZER",
+          "leaderPhone": "231 77 756 0509"
+        },
+        {
+          "name": "FENDELL",
+          "leaderName": "Rev NOEL NYARKO",
+          "leaderPhone": "231 88 121 1895"
+        }
+      ]
+    },
+    {
+      "name": "Malawi",
+      "displayName": "Malawi",
+      "leader": "",
+      "country": "Malawi",
+      "churches": [
+        {
+          "name": "Lilongwe",
+          "leaderName": "Bishop Kwesi Woode",
+          "leaderPhone": "265995471801"
+        },
+        {
+          "name": "LUANAR",
+          "leaderName": "Mother Baara Woode",
+          "leaderPhone": "265995417825"
+        },
+        {
+          "name": "Mzuzu",
+          "leaderName": "Bishop Paul Mbah",
+          "leaderPhone": "233249792011"
+        },
+        {
+          "name": "Kasungu",
+          "leaderName": "Ps Emmanuel Banda",
+          "leaderPhone": "265999807376"
+        },
+        {
+          "name": "Blantyre",
+          "leaderName": "Ps Joseph Gondwe",
+          "leaderPhone": "265883821851"
+        }
+      ]
+    },
+    {
+      "name": "Mali",
+      "displayName": "Mali",
+      "leader": "",
+      "country": "Mali",
+      "churches": [
+        {
+          "name": "Bamako Cathedral",
+          "leaderName": "Pastor Taré Diarra",
+          "leaderPhone": "22367488554"
+        },
+        {
+          "name": "Hamdallaye ACI 2000",
+          "leaderName": "Lp Rosalie Agoudavi E. Apéafa",
+          "leaderPhone": "22373548467"
+        },
+        {
+          "name": "Kati",
+          "leaderName": "Pastor Wolasse Gbeve",
+          "leaderPhone": "22367774653"
+        }
+      ]
+    },
+    {
+      "name": "Mozambique",
+      "displayName": "Mozambique",
+      "leader": "",
+      "country": "Mozambique",
+      "churches": [
+        {
+          "name": "Maputo Aparche",
+          "leaderName": "Bishop Frank Otchere",
+          "leaderPhone": "258825167217"
+        },
+        {
+          "name": "Inhambane Cathedral",
+          "leaderName": "Bishop Rodino Nhabanga",
+          "leaderPhone": "258847868613"
+        },
+        {
+          "name": "Matola Tchumene Cathedral",
+          "leaderName": "Jacob Sevene",
+          "leaderPhone": "258845438060"
+        },
+        {
+          "name": "Xai-Xai Cathedral",
+          "leaderName": "Nádio Nhapasso",
+          "leaderPhone": "258841086397"
+        },
+        {
+          "name": "Beira Cathedral",
+          "leaderName": "Dawood Baidoo",
+          "leaderPhone": "258846716782"
+        },
+        {
+          "name": "Tete Cathedral",
+          "leaderName": "Dércio Namutucua",
+          "leaderPhone": "258843971427"
+        },
+        {
+          "name": "Nampula Cathedral",
+          "leaderName": "Enoque Flávio Mabica",
+          "leaderPhone": "258849169937"
+        },
+        {
+          "name": "Matola Rio",
+          "leaderName": "Jorge Jone",
+          "leaderPhone": "258846205605"
+        },
+        {
+          "name": "Boane",
+          "leaderName": "David Ackun-wood",
+          "leaderPhone": "258847279645"
+        },
+        {
+          "name": "Katembe",
+          "leaderName": "João Coelho",
+          "leaderPhone": "258849413144"
+        },
+        {
+          "name": "Zimpeto",
+          "leaderName": "Pedro Nhanengue",
+          "leaderPhone": "258844112005"
+        },
+        {
+          "name": "Museu",
+          "leaderName": "Egas Daniel",
+          "leaderPhone": "258846194591"
+        },
+        {
+          "name": "Machava",
+          "leaderName": "Egidio Alsson Zefanias",
+          "leaderPhone": "258847794259"
+        },
+        {
+          "name": "Chockwe",
+          "leaderName": "João Carlos",
+          "leaderPhone": "258850410998"
+        },
+        {
+          "name": "Maxixe",
+          "leaderName": "Herculano Gurreta",
+          "leaderPhone": "258846124321"
+        },
+        {
+          "name": "Massinga",
+          "leaderName": "Nelson Mangaze",
+          "leaderPhone": "258841026837"
+        },
+        {
+          "name": "Vilanculos",
+          "leaderName": "Adelson Mucussete",
+          "leaderPhone": "258846186062"
+        },
+        {
+          "name": "Chimoio",
+          "leaderName": "Daniel Gergelim",
+          "leaderPhone": "258843919184"
+        },
+        {
+          "name": "Quelimane",
+          "leaderName": "Noel Pequenino",
+          "leaderPhone": "258870319806"
+        },
+        {
+          "name": "Jangamo",
+          "leaderName": "Brito Malevo",
+          "leaderPhone": "258845408229"
+        },
+        {
+          "name": "Cumbana",
+          "leaderName": "Albino Bande",
+          "leaderPhone": "258864083029"
+        },
+        {
+          "name": "Inharrime",
+          "leaderName": "Miguel Cumbe",
+          "leaderPhone": "258845446112"
+        },
+        {
+          "name": "Morrumbene",
+          "leaderName": "Geraldo Matsinhe",
+          "leaderPhone": "258848857087"
+        },
+        {
+          "name": "ADPP",
+          "leaderName": "Helena da Graça",
+          "leaderPhone": "258848076983"
+        },
+        {
+          "name": "Paindane",
+          "leaderName": "Valdimiro Cumbe",
+          "leaderPhone": "258842545731"
+        },
+        {
+          "name": "Josina Machel",
+          "leaderName": "Sarmento Samuel",
+          "leaderPhone": "258848515599"
+        },
+        {
+          "name": "Nhaguiviga",
+          "leaderName": "Marcos Ilídio",
+          "leaderPhone": "258870725200"
+        },
+        {
+          "name": "Agostinho Neto",
+          "leaderName": "Guedes Ricardo",
+          "leaderPhone": "258842067957"
+        }
+      ]
+    },
+    {
+      "name": "Namibia",
+      "displayName": "Namibia",
+      "leader": "",
+      "country": "Namibia",
+      "churches": [
+        {
+          "name": "KATIMA MULILO",
+          "leaderName": "REV KARLOS KAUMUNIKA",
+          "leaderPhone": "+264816196837"
+        },
+        {
+          "name": "DRC",
+          "leaderName": "LP FLORENCE VETJOZA",
+          "leaderPhone": "+264816834121"
+        },
+        {
+          "name": "OKAHANDJA",
+          "leaderName": "PS UKUU KATUUO",
+          "leaderPhone": "+264816572439"
+        },
+        {
+          "name": "ONDANGWA",
+          "leaderName": "PS FANUEL NGOLO",
+          "leaderPhone": "+264817897008"
+        },
+        {
+          "name": "OSHAKATI",
+          "leaderName": "PS LINUS SAMUEL",
+          "leaderPhone": "+264813924117"
+        },
+        {
+          "name": "SWAKOPMUND",
+          "leaderName": "REV BENJAMIN VETJOZA",
+          "leaderPhone": "+264816733497"
+        },
+        {
+          "name": "WALVIS BAY",
+          "leaderName": "REV SAMUEL YEBOAH",
+          "leaderPhone": "+264818432509"
+        },
+        {
+          "name": "WINDHOEK",
+          "leaderName": "BISHOP ANDY JUMAH",
+          "leaderPhone": "+264814582775"
+        },
+        {
+          "name": "WANAHEDA",
+          "leaderName": "LP UNO KATJINGISIUA",
+          "leaderPhone": "+264812156825"
+        },
+        {
+          "name": "NAMSOV",
+          "leaderName": "PS JAZZ HIIKO",
+          "leaderPhone": "+264818227655"
+        }
+      ]
+    },
+    {
+      "name": "Niger",
+      "displayName": "Niger",
+      "leader": "",
+      "country": "Niger",
+      "churches": [
+        {
+          "name": "Niamey Aparche",
+          "leaderName": "Andrews Anyomi",
+          "leaderPhone": "22785640414"
+        }
+      ]
+    },
+    {
+      "name": "Nigeria",
+      "displayName": "Nigeria",
+      "leader": "",
+      "country": "Nigeria",
+      "churches": [
+        {
+          "name": "Lagos Aparche",
+          "leaderName": "Bishop Alex Kofi-Opata",
+          "leaderPhone": "234809724 0190"
+        },
+        {
+          "name": "Jos",
+          "leaderName": "Bishop Tennyson Ojeisekhoba",
+          "leaderPhone": "234803738 0254"
+        },
+        {
+          "name": "Abeokuta",
+          "leaderName": "Bishop Felix Bediako",
+          "leaderPhone": "234 9061409447"
+        },
+        {
+          "name": "Ibadan",
+          "leaderName": "Bishop Adedayo Adeniji",
+          "leaderPhone": "2348023170669"
+        },
+        {
+          "name": "Kuje",
+          "leaderName": "Bishop Martin Moro",
+          "leaderPhone": "2348021176454"
+        },
+        {
+          "name": "Abuja City Church",
+          "leaderName": "ES Otonye Ekefre",
+          "leaderPhone": "2349061409447"
+        },
+        {
+          "name": "Jikowyi",
+          "leaderName": "Pastor Damilola Buari",
+          "leaderPhone": "447551702719"
+        },
+        {
+          "name": "Ago",
+          "leaderName": "Bishop Adeolu Adepoju",
+          "leaderPhone": "2348145774007"
+        },
+        {
+          "name": "Enugu",
+          "leaderName": "Ms Damilare Oruku",
+          "leaderPhone": "2348109262763"
+        },
+        {
+          "name": "Portharcourt Aparche",
+          "leaderName": "Bishop Peter Okerke",
+          "leaderPhone": "2348119692344"
+        },
+        {
+          "name": "Epe",
+          "leaderName": "Pastor Christian Inowwan",
+          "leaderPhone": "2349047390733"
+        },
+        {
+          "name": "Choba",
+          "leaderName": "Pastor Ejiro Okotete",
+          "leaderPhone": "2348138124593"
+        },
+        {
+          "name": "Portharcourt City",
+          "leaderName": "Pastor Kelechi Okereke",
+          "leaderPhone": "2348119692344"
+        },
+        {
+          "name": "Ilasa",
+          "leaderName": "Chioma Okoye",
+          "leaderPhone": "2347043859502"
+        },
+        {
+          "name": "Oke-Afa",
+          "leaderName": "Divine Okehkeh",
+          "leaderPhone": "2349067387886"
+        },
+        {
+          "name": "Lekki",
+          "leaderName": "Pastor Ebuka Itanyi",
+          "leaderPhone": "447384122433"
+        },
+        {
+          "name": "Enugu City Church",
+          "leaderName": "Bishop Jason Kofi-Opata",
+          "leaderPhone": "233206653712"
+        },
+        {
+          "name": "Owerri",
+          "leaderName": "Pastor Chimezie Iwuala",
+          "leaderPhone": "2348130543360"
+        },
+        {
+          "name": "Calabar",
+          "leaderName": "Pastor Enoch Isaiah",
+          "leaderPhone": "234 803 051 8838"
+        },
+        {
+          "name": "Bayelsa",
+          "leaderName": "LP Nemi Edmund Tamnabo",
+          "leaderPhone": "2347076297481"
+        },
+        {
+          "name": "RSU",
+          "leaderName": "Woyengiemomoemi Alagba",
+          "leaderPhone": "2349046474503"
+        },
+        {
+          "name": "Igantius",
+          "leaderName": "Amara Otti",
+          "leaderPhone": "2348142570800"
+        },
+        {
+          "name": "Lagos West",
+          "leaderName": "Pastor Emmanuel Shamakinwa",
+          "leaderPhone": "2349025716249"
+        },
+        {
+          "name": "Benin City",
+          "leaderName": "Pastor Wisdom Ehigiator",
+          "leaderPhone": "2347066266296"
+        }
+      ]
+    },
+    {
+      "name": "Rwanda",
+      "displayName": "Rwanda",
+      "leader": "",
+      "country": "Rwanda",
+      "churches": [
+        {
+          "name": "Jesus Saviour of thw World Cathedral",
+          "leaderName": "Bishop Joseph Adjei",
+          "leaderPhone": "250 781 181 370"
+        },
+        {
+          "name": "Huye Cathedral",
+          "leaderName": "Rev Ransford Darko",
+          "leaderPhone": "250 789 077 923"
+        },
+        {
+          "name": "Musanze Cathedral",
+          "leaderName": "Rev Enoch Awuah",
+          "leaderPhone": "250 784 667 137"
+        }
+      ]
+    },
+    {
+      "name": "Senegal",
+      "displayName": "Senegal",
+      "leader": "",
+      "country": "Senegal",
+      "churches": [
+        {
+          "name": "Apacrhe - Poimen Church",
+          "leaderName": "Bishop Joshua DORMEDIAME",
+          "leaderPhone": "00221 787970074"
+        },
+        {
+          "name": "Foire - Poimen Church",
+          "leaderName": "Reverend Bright MAKAFUI HENYO",
+          "leaderPhone": "00221 771257417"
+        },
+        {
+          "name": "Pikine - Poimen Church",
+          "leaderName": "Pastor Elvis Leonel ZANGA",
+          "leaderPhone": "00221 775110621"
+        }
+      ]
+    },
+    {
+      "name": "Seychelles",
+      "displayName": "Seychelles",
+      "leader": "",
+      "country": "Seychelles",
+      "churches": [
+        {
+          "name": "BEL AIR",
+          "leaderName": "BISHOP NEE NUNOO",
+          "leaderPhone": "2482804466"
+        },
+        {
+          "name": "GLACIS",
+          "leaderName": "REV. EDEM HOGGAR",
+          "leaderPhone": "2482804465"
+        },
+        {
+          "name": "POINT AU SEL",
+          "leaderName": "REV. JOSEPH AGGREY-MILLS",
+          "leaderPhone": "2482823470"
+        },
+        {
+          "name": "ANSE BOILEAU",
+          "leaderName": "REV. GODFRED OTOO",
+          "leaderPhone": "2482828264"
+        },
+        {
+          "name": "ENGLISH RIVER",
+          "leaderName": "PS.LAURENT NOURICE",
+          "leaderPhone": "2482641235"
+        }
+      ]
+    },
+    {
+      "name": "South Africa - Serious Christian",
+      "displayName": "South Africa - Serious Christian",
+      "leader": "",
+      "country": "South Africa",
+      "churches": [
+        {
+          "name": "PARKLANDS",
+          "leaderName": "NAPOLEON ESSIEN",
+          "leaderPhone": "27715237024"
+        },
+        {
+          "name": "UCT CAMPUS CHURCH",
+          "leaderName": "Bs NAPOLEON ESSIEN / MICHELLE GADZIKWA",
+          "leaderPhone": "27715237024 / 27651070769"
+        },
+        {
+          "name": "MTHATHA",
+          "leaderName": "FELIX ZAMUKULUNGA MBELE",
+          "leaderPhone": "27719096238"
+        },
+        {
+          "name": "PORT ELIZABETH",
+          "leaderName": "FREDDY SELEBOGO",
+          "leaderPhone": "27763636316"
+        },
+        {
+          "name": "NMMU CAMPUS CHURCH",
+          "leaderName": "FREDDY SELEBOGO",
+          "leaderPhone": "27763636316"
+        },
+        {
+          "name": "QUEENSTOWN",
+          "leaderName": "GODFREY NGOBENI",
+          "leaderPhone": "27727511919"
+        },
+        {
+          "name": "KHAYELITSHA",
+          "leaderName": "LUVOLWETHU TIVI",
+          "leaderPhone": "27735745803"
+        },
+        {
+          "name": "UITENHAGE",
+          "leaderName": "CALVIN MUKONONYANGA",
+          "leaderPhone": "27611631278"
+        },
+        {
+          "name": "MALMESBURY",
+          "leaderName": "ANDA JASS",
+          "leaderPhone": "27670054227"
+        },
+        {
+          "name": "EAST LONDON",
+          "leaderName": "EDWARD KOFI APPIAH",
+          "leaderPhone": "27714905737"
+        },
+        {
+          "name": "CPUT CAMPUS CHURCH",
+          "leaderName": "JOE ILUNGA DISELA",
+          "leaderPhone": "27784678832"
+        },
+        {
+          "name": "SOMERSET EAST",
+          "leaderName": "LESIBA MABUELA",
+          "leaderPhone": "27822584409"
+        },
+        {
+          "name": "MOUNT FRERE",
+          "leaderName": "SACRAMENT DWANGU",
+          "leaderPhone": "27796334319"
+        },
+        {
+          "name": "BELLVILLE",
+          "leaderName": "Bs NAPOLEON ESSIEN / TIMOTHY THEMBEKILE MENZIWE",
+          "leaderPhone": "27715237024 / 27763124289"
+        },
+        {
+          "name": "KING WILLIAMS TOWN",
+          "leaderName": "MATHEMBA XAKAMA",
+          "leaderPhone": "27781883718"
+        },
+        {
+          "name": "DURBANVILLE",
+          "leaderName": "SIBUSISO MKHABELA",
+          "leaderPhone": "27713597988"
+        },
+        {
+          "name": "PIETERMARITZBURG",
+          "leaderName": "DANIEL HARLLEY",
+          "leaderPhone": "27722991606"
+        },
+        {
+          "name": "SWEETWATERS",
+          "leaderName": "ZOLILE NTSHONA",
+          "leaderPhone": "27827762310"
+        },
+        {
+          "name": "DURBAN",
+          "leaderName": "DAVID OKINE",
+          "leaderPhone": "27769567069"
+        },
+        {
+          "name": "MPOPHOMENI",
+          "leaderName": "SIPHELELE DLAMINI",
+          "leaderPhone": "27678306488"
+        },
+        {
+          "name": "SWEETWATER",
+          "leaderName": "SPHIWE MTHEMBU",
+          "leaderPhone": "27840278185"
+        },
+        {
+          "name": "IMBALI",
+          "leaderName": "SETHU FALTEIN",
+          "leaderPhone": "27835968547"
+        },
+        {
+          "name": "KIMBERLY",
+          "leaderName": "MPHO MATSAUNG",
+          "leaderPhone": "27820807627"
+        },
+        {
+          "name": "BLOEMFONTEIN",
+          "leaderName": "MASENTLE MANGOEJANE",
+          "leaderPhone": "27722907425"
+        },
+        {
+          "name": "BHONGWENI",
+          "leaderName": "LWANDO SENZELA",
+          "leaderPhone": "27760807075"
+        }
+      ]
+    },
+    {
+      "name": "South Africa - Strong Christian",
+      "displayName": "South Africa - Strong Christian",
+      "leader": "",
+      "country": "South Africa",
+      "churches": [
+        {
+          "name": "AKASIA CAMPUS CHURCH",
+          "leaderName": "PS MESHACK MOHLABA",
+          "leaderPhone": "27799555476"
+        },
+        {
+          "name": "ATTRIDGEVILLE",
+          "leaderName": "PS DAKALO NETSHIYA",
+          "leaderPhone": "27614964881"
+        },
+        {
+          "name": "CENTURION CAMPUS CHURCH",
+          "leaderName": "BISHOP PETER MOKGANYA",
+          "leaderPhone": "27724698135"
+        },
+        {
+          "name": "GEZINA",
+          "leaderName": "PS BABATIDE LEMMY OMOYINMI",
+          "leaderPhone": "27782243111"
+        },
+        {
+          "name": "OLIVEN",
+          "leaderName": "LP MPUSENG THUBELO",
+          "leaderPhone": "27730636057"
+        },
+        {
+          "name": "PRETORIA APARCHE",
+          "leaderName": "REV VICTOR ANNOR",
+          "leaderPhone": "27722371765"
+        },
+        {
+          "name": "SILVER LAKES",
+          "leaderName": "PS NELSON MMISELO MAGASE",
+          "leaderPhone": "27713124022"
+        },
+        {
+          "name": "MAFIKENG",
+          "leaderName": "LP LESEGO PAULINE RAKGALAKANE",
+          "leaderPhone": "27760433931"
+        },
+        {
+          "name": "SOSHANGUVE VV",
+          "leaderName": "REV PUMEZO BABALO NYAMELA",
+          "leaderPhone": "27729517231"
+        },
+        {
+          "name": "SOSHANGUVE X6",
+          "leaderName": "REV PUMEZO BABALO NYAMELA",
+          "leaderPhone": "27729517231"
+        },
+        {
+          "name": "BRITZ",
+          "leaderName": "PS THABANG MOLOI",
+          "leaderPhone": "27832891984"
+        },
+        {
+          "name": "HEBRON",
+          "leaderName": "PS SONWABILE VINCENT NDABAZANDILE",
+          "leaderPhone": "27789892611"
+        },
+        {
+          "name": "KGABALATSANE",
+          "leaderName": "PS GLADWIN . MATLALA",
+          "leaderPhone": "27606586033"
+        },
+        {
+          "name": "KLIPGAT",
+          "leaderName": "MS NKOTSANE EPHRAIM MALEPE",
+          "leaderPhone": "27795571106"
+        },
+        {
+          "name": "GA-MOTHIBA",
+          "leaderName": "LP SHIRLEY NTOMBI MASHISHI",
+          "leaderPhone": "27798193041"
+        },
+        {
+          "name": "BLOODRIVER",
+          "leaderName": "PS TEBOGO ALDRICH MOJAPELO",
+          "leaderPhone": "27817417289"
+        },
+        {
+          "name": "BURGERSFORT",
+          "leaderName": "PS KARABO LETAGENG",
+          "leaderPhone": "27646765698"
+        },
+        {
+          "name": "GAHLAHLA",
+          "leaderName": "PS MOSA ENOCH NGOASHENG",
+          "leaderPhone": "27614713974"
+        },
+        {
+          "name": "LEBOWAKGOMO",
+          "leaderName": "PS KGASHANE ELIAS MONYEPAO",
+          "leaderPhone": "27788510300"
+        },
+        {
+          "name": "PHALABORWA",
+          "leaderName": "PS MAAKE OUPA",
+          "leaderPhone": "27719981908"
+        },
+        {
+          "name": "POLOKWANE",
+          "leaderName": "REV CALWICK KHOMOTSO MOLOTO",
+          "leaderPhone": "27764592495"
+        },
+        {
+          "name": "UNIVERSITY OF LIMPOPO",
+          "leaderName": "MS RENOLDA MASHA",
+          "leaderPhone": "27715478046"
+        },
+        {
+          "name": "VENDA",
+          "leaderName": "LP AKHONA THULARE",
+          "leaderPhone": "27848456707"
+        },
+        {
+          "name": "BENONI",
+          "leaderName": "PS COMFORT DAVU",
+          "leaderPhone": "27710437737"
+        },
+        {
+          "name": "BRAAM",
+          "leaderName": "PS LAWRENCE GADZIKWA",
+          "leaderPhone": "27722940663"
+        },
+        {
+          "name": "BRIXTON JHB",
+          "leaderName": "LP LINDA GAVAZA GAGLO",
+          "leaderPhone": "27837097145"
+        },
+        {
+          "name": "FOURWAYS",
+          "leaderName": "REV GLEN SINWAMALI",
+          "leaderPhone": "27721389817"
+        },
+        {
+          "name": "GERMISTON",
+          "leaderName": "BISHOP XOLA MPUPU",
+          "leaderPhone": "27789659496"
+        },
+        {
+          "name": "MIDRAND",
+          "leaderName": "PS MPHO OCTOVIAS SELEPE",
+          "leaderPhone": "27794526522"
+        },
+        {
+          "name": "RANDBURG",
+          "leaderName": "REV MANDLA CHARLES WESLEY MHAMBI",
+          "leaderPhone": "264814320005"
+        },
+        {
+          "name": "EMBALENHLE",
+          "leaderName": "PS XITSHEMBISO MUTARINI",
+          "leaderPhone": "27836898905"
+        },
+        {
+          "name": "PHOLA",
+          "leaderName": "MS MQONDISI MAGAGULA",
+          "leaderPhone": "27609918574"
+        },
+        {
+          "name": "WITBANK CITY",
+          "leaderName": "MS MQONDISI MAGAGULA",
+          "leaderPhone": "27609918574"
+        },
+        {
+          "name": "DELMAS",
+          "leaderName": "LP MERRANDER BAKER",
+          "leaderPhone": "270738416025"
+        },
+        {
+          "name": "GROBLERSDAL",
+          "leaderName": "PS MELFORD MASHILOANE",
+          "leaderPhone": "270792629951"
+        },
+        {
+          "name": "CAROLINA",
+          "leaderName": "LP MAENODI MPHAHLELE",
+          "leaderPhone": "27799875244"
+        },
+        {
+          "name": "EMAKHAZENI",
+          "leaderName": "PS GETJETJE MACKENZIE MPHAHLELE",
+          "leaderPhone": "27791905511"
+        },
+        {
+          "name": "EMALAHLENI",
+          "leaderName": "MS PEBETSE CAROLINE MONGAE",
+          "leaderPhone": "27659857586"
+        },
+        {
+          "name": "MIDDLEBURG",
+          "leaderName": "REV PHINDA MAMBA",
+          "leaderPhone": "27658023028"
+        },
+        {
+          "name": "NELSPRUIT",
+          "leaderName": "PS THEMBA DAN MHLONGO",
+          "leaderPhone": "27798200105"
+        },
+        {
+          "name": "WATERVALBOVEN",
+          "leaderName": "PS DAVID MATHIPA",
+          "leaderPhone": "27765219308"
+        },
+        {
+          "name": "MAMELODI",
+          "leaderName": "PS JOSEPH BONGA",
+          "leaderPhone": "27789058869"
+        },
+        {
+          "name": "KWAMHLANGA",
+          "leaderName": "PS LUNGILE NDIMANDE",
+          "leaderPhone": "27717477826"
+        },
+        {
+          "name": "MOLOTO",
+          "leaderName": "PS KARABO KGOMO",
+          "leaderPhone": "277826317021"
+        },
+        {
+          "name": "HAMANSKRAAL",
+          "leaderName": "PS THABANG SITHOLE",
+          "leaderPhone": "27659875019"
+        },
+        {
+          "name": "KEKANA GARDENS",
+          "leaderName": "PS JOSHUA KWENA MOITSI",
+          "leaderPhone": "27645381385"
+        },
+        {
+          "name": "BELABELA",
+          "leaderName": "PS PHILLIP MAJEKE",
+          "leaderPhone": "27719939590"
+        },
+        {
+          "name": "RADIUM",
+          "leaderName": "MS GRACE MAWELA",
+          "leaderPhone": "27727827973"
+        },
+        {
+          "name": "ORCHARDS",
+          "leaderName": "REV ISAAC SHUENYANE",
+          "leaderPhone": "27722313006"
+        }
+      ]
+    },
+    {
+      "name": "São Tomé",
+      "displayName": "São Tomé",
+      "leader": "",
+      "country": "São Tomé",
+      "churches": [
+        {
+          "name": "São Tomé",
+          "leaderName": "Eulalio Clelio Andrade Caetano",
+          "leaderPhone": "+239 908 0336"
+        }
+      ]
+    },
+    {
+      "name": "Togo",
+      "displayName": "Togo",
+      "leader": "",
+      "country": "Togo",
+      "churches": [
+        {
+          "name": "Lome Cathedral",
+          "leaderName": "Bishop Francis Tsikata-Akatto",
+          "leaderPhone": "22891878933"
+        },
+        {
+          "name": "Akato Cathedral",
+          "leaderName": "Rev. Joel Agbessi",
+          "leaderPhone": "22890258112"
+        },
+        {
+          "name": "Djagble Cathedral",
+          "leaderName": "Rev. Paul Marie Gnaba",
+          "leaderPhone": "22893321450"
+        },
+        {
+          "name": "Segbe Branch",
+          "leaderName": "Ps. Nourreddine Gbadamassi",
+          "leaderPhone": "22891573248"
+        },
+        {
+          "name": "Baguida Branch",
+          "leaderName": "Ps. Jeremy Kondo-Abalo Pakpanadon",
+          "leaderPhone": "22896426133"
+        },
+        {
+          "name": "Agoe Branch",
+          "leaderName": "Ps. Jacques Ple",
+          "leaderPhone": "22891526667"
+        },
+        {
+          "name": "Akepe Cathedral",
+          "leaderName": "Bishop Alfred Adigbo",
+          "leaderPhone": "233249350552"
+        },
+        {
+          "name": "Kpalime Cathedral",
+          "leaderName": "Rev Patrick Abofla",
+          "leaderPhone": "22899505428"
+        },
+        {
+          "name": "Tsevie Cathedral",
+          "leaderName": "Pastor Pastor Jonas Kokouvi Djagba",
+          "leaderPhone": "28891887849"
+        },
+        {
+          "name": "Tsevie Town Church",
+          "leaderName": "Pastor Edward Dag Siayor",
+          "leaderPhone": "22892314761"
+        },
+        {
+          "name": "Kara Cathedral",
+          "leaderName": "Pastor Thomas Shalom Kugbeadzor",
+          "leaderPhone": "22891133826"
+        },
+        {
+          "name": "Glei Branch",
+          "leaderName": "Pastor Elikem Mensah",
+          "leaderPhone": "233245442313"
+        },
+        {
+          "name": "Vakposito Branch",
+          "leaderName": "Pastor Felicien Yawo Holu",
+          "leaderPhone": "22893397887"
+        }
+      ]
+    },
+    {
+      "name": "Uganda & South Sudan",
+      "displayName": "Uganda & South Sudan",
+      "leader": "",
+      "country": "Uganda & South Sudan",
+      "churches": [
+        {
+          "name": "NTINDA",
+          "leaderName": "BISHOP PAUL GUSTAV OFFEI-MANU",
+          "leaderPhone": "256 757 680 852"
+        },
+        {
+          "name": "ENTEBBE",
+          "leaderName": "REV. HENRY SIISI ACQUAAH-HARRISON",
+          "leaderPhone": "256 789 944 894"
+        },
+        {
+          "name": "JINJA",
+          "leaderName": "PS. ANAS BENJAMIN FIIFI-ODOOM",
+          "leaderPhone": "256 780 934 739"
+        },
+        {
+          "name": "KISAASI",
+          "leaderName": "REV. NICHOLUS ABISINGUZA",
+          "leaderPhone": "256 754 023 529"
+        },
+        {
+          "name": "BUGONGA",
+          "leaderName": "PS. HANNINGTON KWIKIRIZA",
+          "leaderPhone": "256 785 659 218"
+        },
+        {
+          "name": "MUTUNGO",
+          "leaderName": "REV. WILHELM OSABUTEY",
+          "leaderPhone": "256 701 234 449"
+        },
+        {
+          "name": "MENGO",
+          "leaderName": "PS. RONALD SSERUFUSA",
+          "leaderPhone": "256 772 008 868"
+        },
+        {
+          "name": "BUGOLOBI",
+          "leaderName": "PS. LAWRENCE TOTIMEH",
+          "leaderPhone": "256 785 141 187"
+        },
+        {
+          "name": "SSONDE",
+          "leaderName": "PS. FRED MPAGI",
+          "leaderPhone": "256 704 672 139"
+        },
+        {
+          "name": "KATOOKE",
+          "leaderName": "REV. DENNIS WASAJJA",
+          "leaderPhone": "256 753 819 167"
+        },
+        {
+          "name": "LUZIRA",
+          "leaderName": "PS. MIKE JACKSON SSEBATTA",
+          "leaderPhone": "256 705 318 490"
+        },
+        {
+          "name": "NAMASUBA",
+          "leaderName": "REV. GEORGE NESTA KWOFIE",
+          "leaderPhone": "256 784 886 987"
+        },
+        {
+          "name": "KYENGERA",
+          "leaderName": "PS. ALEX EYRAM AZASOO",
+          "leaderPhone": "256 741 208 040"
+        },
+        {
+          "name": "GULU",
+          "leaderName": "REV. FELIX AMEYAW-BEDIAKO",
+          "leaderPhone": "256 782 853 318"
+        },
+        {
+          "name": "MBARARA",
+          "leaderName": "PS. ARON KYOLANGA",
+          "leaderPhone": "256 751 082 492"
+        },
+        {
+          "name": "JUBA",
+          "leaderName": "REV. EDWARD OWUSU NYARKO",
+          "leaderPhone": "233 268 167 302"
+        },
+        {
+          "name": "WAU",
+          "leaderName": "MS. DANIEL ELIAS MBORIUNDO",
+          "leaderPhone": "211 925 754 500"
+        },
+        {
+          "name": "YEI",
+          "leaderName": "MS. STEPHEN JOHN LOKETO",
+          "leaderPhone": "211 923 054 240"
+        }
+      ]
+    }
+  ]
+}

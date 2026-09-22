@@ -149,6 +149,88 @@ describe("parseNamedHubSeed", () => {
   });
 });
 
+describe("church objects with branch pastors (Decision 0025)", () => {
+  it("parses object churches and normalizes leader fields", () => {
+    const out = parseNamedHubSeed({
+      hubs: [
+        {
+          name: "Togo",
+          churches: [
+            { name: "Lome Cathedral", leaderName: " Bishop Francis ", leaderPhone: "22891878933 " },
+            "Akato Cathedral",
+          ],
+        },
+      ],
+    });
+    expect(out.churchCount).toBe(2);
+    expect(out.hubs[0].churches[0]).toEqual({
+      name: "Lome Cathedral",
+      leaderName: "Bishop Francis",
+      leaderPhone: "22891878933",
+    });
+    expect(out.hubs[0].churches[1]).toEqual({
+      name: "Akato Cathedral",
+      leaderName: "",
+      leaderPhone: "",
+    });
+  });
+
+  it("rejects duplicate church names across mixed shapes, and bad leader types", () => {
+    expect(() =>
+      parseNamedHubSeed({
+        hubs: [{ name: "X", churches: [{ name: "Kanimo" }, "KANIMO"] }],
+      }),
+    ).toThrow(/duplicate church/);
+    expect(() =>
+      parseNamedHubSeed({
+        hubs: [{ name: "X", churches: [{ name: "Kanimo", leaderPhone: 5 }] }],
+      }),
+    ).toThrow(/leader fields/);
+  });
+
+  it("carries an optional hub country", () => {
+    const out = parseNamedHubSeed({
+      hubs: [{ name: "Benin", country: "Benin ", churches: ["Cotonou"] }],
+    });
+    expect(out.hubs[0].country).toBe("Benin");
+  });
+});
+
+describe("the real Africa and Europe seed files", () => {
+  it("Africa parses to 31 hubs and 331 churches, every church named", () => {
+    const doc = JSON.parse(
+      readFileSync(
+        join(__dirname, "../../../scripts/data/africa-hubs-churches.json"),
+        "utf8",
+      ),
+    );
+    const out = parseNamedHubSeed(doc);
+    expect(out.hubs).toHaveLength(31);
+    expect(out.churchCount).toBe(331);
+    expect(out.hubs.every((h) => h.country !== "")).toBe(true);
+  });
+
+  it("Europe parses to 7 hubs and 219 churches", () => {
+    const doc = JSON.parse(
+      readFileSync(
+        join(__dirname, "../../../scripts/data/europe-hubs-churches.json"),
+        "utf8",
+      ),
+    );
+    const out = parseNamedHubSeed(doc);
+    expect(out.hubs.map((h) => h.name).sort()).toEqual([
+      "CIDC",
+      "GTSL",
+      "JGG",
+      "Living Waters",
+      "MSCI",
+      "PSCI",
+      "Rose of Sharon",
+    ]);
+    expect(out.churchCount).toBe(219);
+  });
+});
+
 describe("the real UJ Ghana seed file", () => {
   const doc = JSON.parse(
     readFileSync(
@@ -167,7 +249,7 @@ describe("the real UJ Ghana seed file", () => {
     const by = new Map(
       parseNamedHubSeed(doc).hubs.map((h) => [
         h.name,
-        h.churches.map(normalizeChurchKey),
+        h.churches.map((c) => normalizeChurchKey(c.name)),
       ]),
     );
     // Gballa -> Walewale only, Yankazia -> Gushegu only, Nanori -> Nalerigu only.

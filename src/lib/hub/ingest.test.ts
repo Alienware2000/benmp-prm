@@ -100,8 +100,16 @@ describe("validateCandidates", () => {
     const rows = validateCandidates(
       [
         cand({ momoPhone: "0244123456", whatsappPhone: "0244123456" }),
-        cand({ momoPhone: "244123457", whatsappPhone: "+44 7700 900123" }),
-        cand({ momoPhone: "0596123456", whatsappPhone: "+1 214 555 0123" }),
+        cand({
+          name: "Kofi Boateng",
+          momoPhone: "244123457",
+          whatsappPhone: "+44 7700 900123",
+        }),
+        cand({
+          name: "Efua Sam",
+          momoPhone: "0596123456",
+          whatsappPhone: "+1 214 555 0123",
+        }),
       ],
       ctx(),
     );

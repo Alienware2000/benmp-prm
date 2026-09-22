@@ -713,6 +713,8 @@ where the number is non-null) and `unique(region_id, name_key)`. UD's "hub 8" an
 | `hub_id`   | uuid fk | → `hubs`                                                       |
 | `name`     | text    | Title Case display form.                                       |
 | `name_key` | text    | Normalized (upper, single-spaced) for matching. **Unique per hub** (`unique(hub_id, name_key)`); the same name may exist in other hubs. |
+| `leader_name`  | text nullable | Branch pastor (Decision 0025, migration 0012). Empty for UD/UJ until supplied. |
+| `leader_phone` | text nullable | Branch pastor's WhatsApp, as submitted. |
 
 ### `hub_accounts`
 

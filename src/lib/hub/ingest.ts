@@ -10,12 +10,13 @@
  *
  * Two phone numbers per row:
  *   - momoPhone: Ghana MoMo/mobile, strictly validated (02x/05x, 9 NSN digits).
- *   - whatsappPhone: international WhatsApp number, validated loosely as E.164.
+ *   - whatsappPhone: WhatsApp number. Ghana regions read it as Ghanaian; other
+ *     hubs read it as their own country's via whatsappCallingCode (Decision 0027).
  *
  * Duplicate names within one upload are rejected. The same phone number may
  * be listed for more than one name.
  */
-import { normalizePhone } from "../phone";
+import { normalizePhone, normalizeWhatsappPhone } from "../phone";
 import { normalizeChurchKey } from "./seed";
 
 /** Which uploaded column holds what (0-based). */
@@ -228,6 +229,14 @@ export type ValidationContext = {
    * an empty MoMo passes and a non-empty one is still validated as Ghana.
    */
   momoRequired?: boolean;
+  /**
+   * Calling code (digits, no "+") of the hub's country, for hubs outside Ghana
+   * (Decision 0027). Lets a local-form WhatsApp number ("0999 123 456") resolve
+   * to the hub's own country instead of Ghana. Ignored when momoRequired is
+   * true (Ghana regions keep Ghana rules). null = numbers must carry their own
+   * country code.
+   */
+  whatsappCallingCode?: string | null;
 };
 
 /**
@@ -304,12 +313,20 @@ export function validateCandidates(
         message: "WhatsApp number is missing.",
       });
     } else {
-      whatsappPhoneE164 = normalizePhone(cand.whatsappPhone);
+      // Ghana regions read WhatsApp numbers as Ghanaian; every other hub reads
+      // them as its own country's (Decision 0027).
+      const cc = momoRequired ? null : (ctx.whatsappCallingCode ?? null);
+      whatsappPhoneE164 = momoRequired
+        ? normalizePhone(cand.whatsappPhone)
+        : normalizeWhatsappPhone(cand.whatsappPhone, cc);
       if (!whatsappPhoneE164) {
         issues.push({
           field: "whatsappPhone",
-          message:
-            "Not a valid WhatsApp number. Use 0244123456 or +233 244 123 456.",
+          message: momoRequired
+            ? "Not a valid WhatsApp number. Use 0244123456 or +233 244 123 456."
+            : cc
+              ? `Not a valid WhatsApp number. Use the local form (0…) or +${cc} followed by the number.`
+              : "Not a valid WhatsApp number. Include the country code, e.g. +44 7700 900123.",
         });
       }
     }

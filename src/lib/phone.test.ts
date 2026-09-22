@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   normalizePhone,
   normalizePhoneForCallingCode,
+  normalizeWhatsappPhone,
   samePhone,
 } from "./phone";
 
@@ -104,5 +105,40 @@ describe("normalizePhoneForCallingCode", () => {
     expect(normalizePhoneForCallingCode("N/A", "267", [8])).toBeNull();
     expect(normalizePhoneForCallingCode("", "267", [8])).toBeNull();
     expect(normalizePhoneForCallingCode(null, "267", [8])).toBeNull();
+  });
+});
+
+describe("normalizeWhatsappPhone (hubs outside Ghana, Decision 0027)", () => {
+  // The Malawi admin's sheet: every shape resolves to Malawi (+265), never Ghana.
+  it("reads the local trunk form as the hub's own country", () => {
+    expect(normalizeWhatsappPhone("0999 123 456", "265")).toBe("+265999123456");
+    expect(normalizeWhatsappPhone("0888123456", "265")).toBe("+265888123456");
+  });
+
+  it("accepts a number whose + Excel stripped", () => {
+    expect(normalizeWhatsappPhone("265999123456", "265")).toBe("+265999123456");
+    expect(normalizeWhatsappPhone("265 999 123 456", "265")).toBe("+265999123456");
+  });
+
+  it("accepts a bare national number whose leading 0 Excel dropped", () => {
+    expect(normalizeWhatsappPhone("999123456", "265")).toBe("+265999123456");
+  });
+
+  it("keeps an explicit + or 00 international number from any country", () => {
+    expect(normalizeWhatsappPhone("+254 735 841 428", "265")).toBe("+254735841428");
+    expect(normalizeWhatsappPhone("00254735841428", "265")).toBe("+254735841428");
+    expect(normalizeWhatsappPhone("+44 7700 900123", null)).toBe("+447700900123");
+  });
+
+  it("without a calling code, local-form numbers are rejected rather than guessed", () => {
+    expect(normalizeWhatsappPhone("0999123456", null)).toBeNull();
+    expect(normalizeWhatsappPhone("265999123456", null)).toBe("+265999123456");
+  });
+
+  it("rejects junk", () => {
+    expect(normalizeWhatsappPhone("N/A", "265")).toBeNull();
+    expect(normalizeWhatsappPhone("12345", "265")).toBeNull();
+    expect(normalizeWhatsappPhone("", "265")).toBeNull();
+    expect(normalizeWhatsappPhone(null, "265")).toBeNull();
   });
 });

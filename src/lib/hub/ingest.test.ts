@@ -259,3 +259,43 @@ describe("validateCandidates", () => {
     ]);
   });
 });
+
+describe("validateCandidates: WhatsApp numbers resolve to the hub's country (Decision 0027)", () => {
+  const malawi = { ...ctx(), momoRequired: false, whatsappCallingCode: "265" };
+
+  it("a Malawi hub's local-form and +-stripped numbers both pass as Malawi", () => {
+    const rows = validateCandidates(
+      [
+        cand({ momoPhone: "", whatsappPhone: "0999 123 456" }),
+        cand({ name: "Kofi Boateng", momoPhone: "", whatsappPhone: "265888123456" }),
+      ],
+      malawi,
+    );
+    expect(rows.map((r) => r.whatsappPhoneE164)).toEqual([
+      "+265999123456",
+      "+265888123456",
+    ]);
+    expect(rows.every((r) => r.issues.length === 0)).toBe(true);
+  });
+
+  it("Ghana regions still read WhatsApp numbers as Ghanaian", () => {
+    const [row] = validateCandidates(
+      [cand({ whatsappPhone: "0244123456" })],
+      { ...ctx(), momoRequired: true, whatsappCallingCode: "265" },
+    );
+    expect(row.whatsappPhoneE164).toBe("+233244123456");
+  });
+
+  it("a hub with no known calling code (Europe) needs the country code in the number", () => {
+    const europe = { ...ctx(), momoRequired: false, whatsappCallingCode: null };
+    const rows = validateCandidates(
+      [
+        cand({ momoPhone: "", whatsappPhone: "07700 900123" }),
+        cand({ name: "Kofi Boateng", momoPhone: "", whatsappPhone: "+44 7700 900123" }),
+      ],
+      europe,
+    );
+    expect(rows[0].issues.some((i) => i.field === "whatsappPhone")).toBe(true);
+    expect(rows[1].whatsappPhoneE164).toBe("+447700900123");
+  });
+});

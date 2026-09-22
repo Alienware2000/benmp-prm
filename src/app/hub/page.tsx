@@ -8,9 +8,11 @@ import {
 import {
   findHubPartnerNames,
   getHubChurches,
+  getHubCountry,
   getHubSummary,
   getRegionMomoRequired,
 } from "@/lib/hub/db";
+import { callingCodeForCountry } from "@/lib/hub/calling-codes";
 import { IngestWizard } from "./ingest-wizard";
 
 export const dynamic = "force-dynamic";
@@ -25,17 +27,20 @@ export default async function HubHomePage() {
     store.get(HUB_SESSION_COOKIE)?.value,
     hubSessionSecret(),
   );
-  const [summary, churches, existingPartners, momoRequired] = session
-    ? await Promise.all([
-        getHubSummary(session.hubId),
-        getHubChurches(session.hubId),
-        // Names of partners this hub already has, so the preview can say which rows
-        // will update an existing person rather than add a new one.
-        findHubPartnerNames(session.hubId),
-        // Ghana regions collect MoMo; other regions skip the column (Decision 0026).
-        getRegionMomoRequired(session.regionCode),
-      ])
-    : [null, [], [], true];
+  const [summary, churches, existingPartners, momoRequired, hubCountry] =
+    session
+      ? await Promise.all([
+          getHubSummary(session.hubId),
+          getHubChurches(session.hubId),
+          // Names of partners this hub already has, so the preview can say which rows
+          // will update an existing person rather than add a new one.
+          findHubPartnerNames(session.hubId),
+          // Ghana regions collect MoMo; other regions skip the column (Decision 0026).
+          getRegionMomoRequired(session.regionCode),
+          // WhatsApp numbers resolve to the hub's own country (Decision 0027).
+          getHubCountry(session.hubId),
+        ])
+      : [null, [], [], true, "Ghana"];
 
   if (!session || !summary) {
     // The proxy should make this unreachable; fail soft rather than crash.
@@ -63,6 +68,7 @@ export default async function HubHomePage() {
         hubId={session.hubId}
         existingPartners={existingPartners}
         momoRequired={momoRequired}
+        whatsappCallingCode={callingCodeForCountry(hubCountry)}
         churches={churches.map((c) => ({
           id: c.id,
           name: c.name,

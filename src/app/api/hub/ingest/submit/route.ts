@@ -54,7 +54,10 @@ export async function POST(req: NextRequest) {
     hubSessionSecret(),
   );
   if (!session) {
-    return NextResponse.json({ ok: false, error: "Not signed in." }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: "Not signed in." },
+      { status: 401 },
+    );
   }
 
   const body = (await req.json().catch(() => null)) as {
@@ -103,18 +106,20 @@ export async function POST(req: NextRequest) {
     name: c.name,
     nameKey: c.name_key,
   }));
-  const candidates: CandidateRow[] = accepted.map((r) => ({
-    rowIndex: r.rowIndex,
-    raw: r.raw,
-    name: r.name,
-    momoPhone: r.momoPhone,
-    whatsappPhone: r.whatsappPhone,
-    church: r.church,
-  }));
   const [momoRequired, hubCountry] = await Promise.all([
     getRegionMomoRequired(session.regionCode),
     getHubCountry(session.hubId),
   ]);
+  const candidates: CandidateRow[] = accepted.map((r) => ({
+    rowIndex: r.rowIndex,
+    raw: r.raw,
+    name: r.name,
+    // A region without MoMo has no MoMo column to map; any value here came
+    // from a mapping the admin could not see, never from an intention.
+    momoPhone: momoRequired ? r.momoPhone : "",
+    whatsappPhone: r.whatsappPhone,
+    church: r.church,
+  }));
   const whatsappCallingCode = callingCodeForCountry(hubCountry);
   // The lookup key is E.164, produced by the same normalization the validator
   // itself applies; unparseable phones are flagged by validation, not looked up.

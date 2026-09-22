@@ -287,6 +287,10 @@ export function validateCandidates(
           message: "MoMo phone number is missing.",
         });
       }
+    } else if (!momoRequired) {
+      // No MoMo column exists for this region (Decision 0026); a stray value
+      // can only come from a hidden mapping, so it is ignored, never flagged.
+      momoPhoneE164 = null;
     } else {
       momoPhoneE164 = normalizePhone(cand.momoPhone, "GH");
       // Ghana mobiles all start 02x/05x (NSN 2… or 5…). A right-length number

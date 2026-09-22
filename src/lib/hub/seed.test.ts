@@ -197,7 +197,7 @@ describe("church objects with branch pastors (Decision 0025)", () => {
 });
 
 describe("the real Africa and Europe seed files", () => {
-  it("Africa parses to 31 hubs and 331 churches, every church named", () => {
+  it("Africa parses to 32 hubs and 342 churches, every church named", () => {
     const doc = JSON.parse(
       readFileSync(
         join(__dirname, "../../../scripts/data/africa-hubs-churches.json"),
@@ -205,8 +205,8 @@ describe("the real Africa and Europe seed files", () => {
       ),
     );
     const out = parseNamedHubSeed(doc);
-    expect(out.hubs).toHaveLength(31);
-    expect(out.churchCount).toBe(331);
+    expect(out.hubs).toHaveLength(32);
+    expect(out.churchCount).toBe(342);
     expect(out.hubs.every((h) => h.country !== "")).toBe(true);
   });
 

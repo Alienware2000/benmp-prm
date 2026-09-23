@@ -13,10 +13,24 @@
 // ---------------------------------------------------------------------------
 // Geography mapping
 // ---------------------------------------------------------------------------
+export type Geography =
+  | "Ghana"
+  | "Africa"
+  | "United Kingdom"
+  | "Europe"
+  | "North America"
+  | "South America"
+  | "Pacific/Asia";
 
-export type Geography = "Ghana" | "Africa" | "Europe" | "North America" | "Others";
-
-export const GEOGRAPHIES: Geography[] = ["Ghana", "Africa", "Europe", "North America", "Others"];
+export const GEOGRAPHIES: Geography[] = [
+  "Ghana",
+  "Africa",
+  "United Kingdom",
+  "Europe",
+  "North America",
+  "South America",
+  "Pacific/Asia",
+];
 
 /** African countries excluding Ghana (Ghana is its own group). */
 const AFRICAN_COUNTRIES = new Set([
@@ -33,13 +47,21 @@ const AFRICAN_COUNTRIES = new Set([
   "Central African Republic", "Sao Tome and Principe",
 ]);
 
+const UK_COUNTRIES = new Set([
+  "United Kingdom", "UK", "England", "Scotland", "Wales", "Northern Ireland",
+]);
+
+/** European countries excluding UK (UK is its own group). */
 const EUROPEAN_COUNTRIES = new Set([
-  "United Kingdom", "UK", "England", "Scotland", "Wales", "Ireland",
-  "Germany", "France", "Italy", "Spain", "Portugal", "Netherlands",
-  "Belgium", "Switzerland", "Austria", "Sweden", "Norway", "Denmark",
-  "Finland", "Iceland", "Poland", "Czech Republic", "Hungary", "Romania",
-  "Bulgaria", "Greece", "Croatia", "Slovenia", "Slovakia", "Estonia",
-  "Latvia", "Lithuania", "Luxembourg", "Malta", "Cyprus",
+  "Ireland", "Germany", "France", "Italy", "Spain", "Portugal",
+  "Netherlands", "Belgium", "Switzerland", "Austria", "Sweden",
+  "Norway", "Denmark", "Finland", "Iceland", "Poland", "Czech Republic",
+  "Hungary", "Romania", "Bulgaria", "Greece", "Croatia", "Slovenia",
+  "Slovakia", "Estonia", "Latvia", "Lithuania", "Luxembourg", "Malta",
+  "Cyprus", "Russia", "Ukraine", "Belarus", "Moldova", "Serbia",
+  "Bosnia and Herzegovina", "Montenegro", "North Macedonia", "Albania",
+  "Norway", "Andorra", "Liechtenstein", "Monaco", "San Marino",
+  "Vatican City", "Faroe Islands", "Isle of Man", "Jersey", "Guernsey",
 ]);
 
 const NORTH_AMERICAN_COUNTRIES = new Set([
@@ -47,6 +69,31 @@ const NORTH_AMERICAN_COUNTRIES = new Set([
   "Greenland", "Bermuda", "Bahamas", "Jamaica", "Trinidad and Tobago",
   "Barbados", "Saint Lucia", "Grenada", "Saint Vincent and the Grenadines",
   "Dominica", "Antigua and Barbuda", "Saint Kitts and Nevis",
+  "Dominican Republic", "Haiti", "Cuba", "Puerto Rico",
+  "Saint Martin", "Anguilla", "British Virgin Islands",
+  "Cayman Islands", "Turks and Caicos Islands",
+]);
+
+const SOUTH_AMERICAN_COUNTRIES = new Set([
+  "Brazil", "Argentina", "Colombia", "Peru", "Venezuela", "Chile",
+  "Ecuador", "Bolivia", "Paraguay", "Uruguay", "Guyana", "Suriname",
+  "French Guiana", "Falkland Islands",
+]);
+
+const PACIFIC_ASIA_COUNTRIES = new Set([
+  "Australia", "New Zealand", "China", "Japan", "South Korea",
+  "North Korea", "India", "Pakistan", "Bangladesh", "Sri Lanka",
+  "Nepal", "Bhutan", "Maldives", "Afghanistan", "Iran", "Iraq",
+  "Saudi Arabia", "UAE", "United Arab Emirates", "Qatar", "Kuwait",
+  "Bahrain", "Oman", "Yemen", "Jordan", "Lebanon", "Syria",
+  "Israel", "Palestine", "Turkey", "Georgia", "Armenia", "Azerbaijan",
+  "Kazakhstan", "Uzbekistan", "Turkmenistan", "Kyrgyzstan", "Tajikistan",
+  "Thailand", "Vietnam", "Cambodia", "Laos", "Myanmar", "Malaysia",
+  "Singapore", "Indonesia", "Philippines", "Brunei", "Timor-Leste",
+  "Papua New Guinea", "Fiji", "Solomon Islands", "Vanuatu",
+  "Samoa", "Tonga", "Kiribati", "Tuvalu", "Nauru", "Palau",
+  "Micronesia", "Marshall Islands", "Cook Islands", "Niue",
+  "Taiwan", "Hong Kong", "Macao",
 ]);
 
 export function toGeography(country: string | null | undefined): Geography {
@@ -54,9 +101,12 @@ export function toGeography(country: string | null | undefined): Geography {
   const c = country.trim();
   if (c.toLowerCase() === "ghana") return "Ghana";
   if (AFRICAN_COUNTRIES.has(c)) return "Africa";
+  if (UK_COUNTRIES.has(c)) return "United Kingdom";
   if (EUROPEAN_COUNTRIES.has(c)) return "Europe";
   if (NORTH_AMERICAN_COUNTRIES.has(c)) return "North America";
-  return "Others";
+  if (SOUTH_AMERICAN_COUNTRIES.has(c)) return "South America";
+  if (PACIFIC_ASIA_COUNTRIES.has(c)) return "Pacific/Asia";
+  return "Ghana"; // unknown country → Ghana (per user instruction: unassigned counts as Ghana)
 }
 
 // ---------------------------------------------------------------------------

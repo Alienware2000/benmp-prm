@@ -28,6 +28,7 @@ export type DbGivingPayment = {
   amount_minor: number | string;
   currency: string | null;
   paid_at: string | null;
+  raw_row?: Record<string, unknown> | null;
 };
 
 export type GivingEntry = {
@@ -70,10 +71,17 @@ export type GivingFilters = {
 export function toEntries(
   payments: DbGivingPayment[],
   branchByPhone: Map<string, { branch: string; name: string; country: string }>,
+  branchByPartnerId: Map<string, { branch: string; name: string; country: string }> = new Map(),
 ): GivingEntry[] {
   return payments.map((p) => {
     const phone = normalizePhone(p.payer_phone_e164);
-    const match = phone ? branchByPhone.get(phone) : undefined;
+    const matchedPartnerId =
+      typeof p.raw_row?.matched_partner_id === "string"
+        ? p.raw_row.matched_partner_id
+        : null;
+    const match =
+      (phone ? branchByPhone.get(phone) : undefined) ??
+      (matchedPartnerId ? branchByPartnerId.get(matchedPartnerId) : undefined);
     const paidAt = p.paid_at ?? "";
     return {
       reference: p.reference,
@@ -233,17 +241,66 @@ export async function loadPartnersForGivingPhones(
   return map;
 }
 
+export async function loadPartnersForGivingMatchedIds(
+  ids: string[],
+  fetcher: Fetcher = supabaseRestFetcher(),
+): Promise<Map<string, { branch: string; name: string; country: string }>> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return new Map();
+
+  const rows: Array<{
+    id: string;
+    full_name: string | null;
+    church: string | null;
+    country: string | null;
+  }> = [];
+  for (let index = 0; index < unique.length; index += 100) {
+    const chunk = unique.slice(index, index + 100);
+    const list = chunk.map((id) => encodeURIComponent(id)).join(",");
+    const matches = await fetcher<{
+      id: string;
+      full_name: string | null;
+      church: string | null;
+      country: string | null;
+    }>(`partners?select=id,full_name,church,country&id=in.(${list})&limit=1000`);
+    rows.push(...matches);
+  }
+
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        branch: branchLabel(row.church),
+        name: (row.full_name ?? "").trim(),
+        country: (row.country ?? "").trim(),
+      },
+    ]),
+  );
+}
+
 export async function loadGivingLedger(
   fetcher: Fetcher = supabaseRestFetcher(),
 ): Promise<GivingEntry[]> {
   const payments = await fetcher<DbGivingPayment>(
-    "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at&status=eq.Successful&order=paid_at.desc&limit=5000",
+    "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at,raw_row&status=eq.Successful&order=paid_at.desc&limit=5000",
   );
-  const branchByPhone = await loadPartnersForGivingPhones(
-    payments.map((payment) => payment.payer_phone_e164 ?? "").filter(Boolean),
-    fetcher,
-  );
-  return toEntries(payments, branchByPhone);
+  const [branchByPhone, branchByPartnerId] = await Promise.all([
+    loadPartnersForGivingPhones(
+      payments.map((payment) => payment.payer_phone_e164 ?? "").filter(Boolean),
+      fetcher,
+    ),
+    loadPartnersForGivingMatchedIds(
+      payments
+        .map((payment) =>
+          typeof payment.raw_row?.matched_partner_id === "string"
+            ? payment.raw_row.matched_partner_id
+            : "",
+        )
+        .filter(Boolean),
+      fetcher,
+    ),
+  ]);
+  return toEntries(payments, branchByPhone, branchByPartnerId);
 }
 
 /** Branches present in the ledger, for the filter dropdown (always includes UNATTRIBUTED if used). */

@@ -113,7 +113,6 @@ export function BreakdownPanel({
               </thead>
               <tbody>
                 {data.byGeography
-                  .filter((g) => g.amountMinor > 0 || g.partnerCount > 0)
                   .map((g) => (
                     <tr
                       key={g.geography}

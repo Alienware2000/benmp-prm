@@ -95,6 +95,32 @@ describe("toEntries", () => {
     expect(entries[0].attributed).toBe(true);
   });
 
+  it("resolves branch by matched partner id for name-only bank uploads", () => {
+    const [entry] = toEntries(
+      [
+        {
+          reference: "ecobank:1",
+          payer_name: "Bank Giver",
+          payer_phone_e164: null,
+          amount_minor: 10_000,
+          currency: "GHS",
+          paid_at: "2026-09-01T00:00:00.000Z",
+          raw_row: { matched_partner_id: "partner-1" },
+        },
+      ],
+      new Map(),
+      new Map([
+        [
+          "partner-1",
+          { branch: "Qodesh", name: "Bank Giver", country: "Ghana" },
+        ],
+      ]),
+    );
+
+    expect(entry.branch).toBe("Qodesh");
+    expect(entry.attributed).toBe(true);
+  });
+
   it("buckets unmatched giving as unattributed rather than dropping it", () => {
     expect(entries[2].branch).toBe(UNATTRIBUTED);
     expect(entries[2].attributed).toBe(false);

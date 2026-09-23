@@ -39,13 +39,8 @@ export function decideHubRoute(
   }
 
   // A hub session is corralled into the hub area: it never reaches /poc or the
-  // staff APIs. The dashboard root (/) is the exception — it shows live partner
-  // data from Supabase (src/lib/data/dashboard-partners.ts) and is meant for all
-  // signed-in users. Any other stray path lands on the hub home.
-  if (!inHubArea) {
-    if (pathname === "/") return { kind: "next" };
-    return { kind: "redirect", to: "/hub" };
-  }
+  // staff APIs, and any stray path lands on the hub home.
+  if (!inHubArea) return { kind: "redirect", to: "/hub" };
 
   // Initial password must be replaced before anything else works.
   if (session.mustChange && !PASSWORD_PATHS.has(pathname)) {

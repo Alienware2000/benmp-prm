@@ -373,3 +373,19 @@ export function isPaidInMonth(
     (contribution) => contribution.partnerId === partnerId && contribution.paidAt.slice(0, 7) === month,
   );
 }
+
+export function parseJsonArray(raw: string | null | undefined): unknown[] {
+  const text = (raw ?? "").trim();
+  if (!text) return [];
+  const parsed = JSON.parse(text) as unknown;
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+export function parseJsonObject(raw: string | null | undefined): Record<string, unknown> {
+  const text = (raw ?? "").trim();
+  if (!text) return {};
+  const parsed = JSON.parse(text) as unknown;
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+    ? (parsed as Record<string, unknown>)
+    : {};
+}

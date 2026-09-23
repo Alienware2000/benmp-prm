@@ -7,6 +7,8 @@ import {
   normalizePartnerName,
   parseEcobankRows,
   parseMomoRows,
+  parseJsonArray,
+  parseJsonObject,
   type PartnerForPaymentMatch,
 } from "./payment-upload";
 
@@ -342,5 +344,17 @@ describe("payment upload persistence mapping", () => {
         "2026-09",
       ),
     ).toBe(false);
+  });
+});
+
+describe("payment upload JSON helpers", () => {
+  it("treats blank JSON array input as empty instead of throwing", () => {
+    expect(parseJsonArray("")).toEqual([]);
+    expect(parseJsonArray(null)).toEqual([]);
+  });
+
+  it("treats blank JSON object input as empty instead of throwing", () => {
+    expect(parseJsonObject("")).toEqual({});
+    expect(parseJsonObject(null)).toEqual({});
   });
 });

@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   MessageCircleMore,
   PhoneCall,
+  ClipboardCheck,
   Upload,
 } from "lucide-react";
 import Link from "next/link";
@@ -14,6 +15,7 @@ const TABS = [
   { href: "/poc", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/poc/giving", label: "Giving", Icon: HandCoins },
   { href: "/poc/giving/upload", label: "Upload", Icon: Upload },
+  { href: "/poc/giving/review", label: "Review", Icon: ClipboardCheck },
   { href: "/poc/messages", label: "Messages", Icon: MessageCircleMore },
   { href: "/poc/calls", label: "Calls", Icon: PhoneCall },
 ] as const;
@@ -42,7 +44,7 @@ export function WorkspaceNav({ mobile = false }: { mobile?: boolean }) {
         aria-label="Workspace sections"
         className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-8px_30px_rgba(17,24,39,0.08)] backdrop-blur md:hidden"
       >
-        <div className="mx-auto grid max-w-md grid-cols-5">
+        <div className="mx-auto grid max-w-lg grid-cols-6">
           {TABS.map(({ href, label, Icon }) => {
             const active = isActive(pathname, href);
             return (

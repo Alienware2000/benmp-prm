@@ -30,6 +30,12 @@ type PartnerRow = {
   country: string | null;
 };
 
+type ImportRow = { id: string };
+
+function paymentReference(row: NormalizedPaymentRow): string {
+  return `${row.source}:${row.providerReference}`;
+}
+
 function env() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -98,6 +104,81 @@ async function insertPayments(rows: ReturnType<typeof buildPaymentRows>): Promis
     method: "POST",
     headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
     body: JSON.stringify(rows),
+  });
+}
+
+async function createImportBatch({
+  provider,
+  filename,
+  rowCount,
+  matchedCount,
+  ambiguousCount,
+}: {
+  provider: string;
+  filename: string;
+  rowCount: number;
+  matchedCount: number;
+  ambiguousCount: number;
+}): Promise<string> {
+  const rows = await rest<ImportRow[]>("payment_imports?select=id", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify([
+      {
+        provider,
+        filename,
+        status: "processed",
+        row_count: rowCount,
+        matched_count: matchedCount,
+        ambiguous_count: ambiguousCount,
+      },
+    ]),
+  });
+  return rows[0].id;
+}
+
+async function insertImportRows({
+  importId,
+  matches,
+}: {
+  importId: string;
+  matches: ReturnType<typeof matchNormalizedRows>;
+}): Promise<void> {
+  if (matches.length === 0) return;
+  await rest<void>("payment_import_rows?on_conflict=payment_reference", {
+    method: "POST",
+    headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+    body: JSON.stringify(
+      matches.map((match) => ({
+        import_id: importId,
+        partner_id: match.partner?.id ?? null,
+        payment_reference: paymentReference(match.row),
+        raw_row: match.row.rawRow,
+        normalized_row: serializeRow(match.row),
+        match_status: match.status === "auto" ? "promoted" : "needs_review",
+        match_confidence: match.status === "auto" ? 100 : 0,
+        notes: match.reason,
+        resolved_at: match.status === "auto" ? new Date().toISOString() : null,
+      })),
+    ),
+  });
+}
+
+async function updateImportRowStatus(
+  paymentReferences: string[],
+  status: "promoted" | "dismissed" | "needs_review",
+  partnerId?: string | null,
+): Promise<void> {
+  if (paymentReferences.length === 0) return;
+  const list = paymentReferences.map((ref) => encodeURIComponent(ref)).join(",");
+  await rest<void>(`payment_import_rows?payment_reference=in.(${list})`, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      match_status: status,
+      ...(partnerId !== undefined ? { partner_id: partnerId } : {}),
+      resolved_at: status === "needs_review" ? null : new Date().toISOString(),
+    }),
   });
 }
 
@@ -196,6 +277,16 @@ export async function POST(req: NextRequest) {
       }
 
       await insertPayments(buildPaymentRows(accepted));
+      await updateImportRowStatus(
+        accepted.map(({ row }) => paymentReference(row)),
+        "promoted",
+      );
+      await updateImportRowStatus(
+        rows
+          .filter((row) => decisions[row.sourceRowId]?.action === "dismiss")
+          .map(paymentReference),
+        "dismissed",
+      );
       revalidateTag("poc-giving", "max");
       return NextResponse.json({
         ok: true,
@@ -228,9 +319,17 @@ export async function POST(req: NextRequest) {
       const accepted = matches
         .filter((match) => match.status === "auto")
         .map((match) => ({ row: match.row, partner: match.partner }));
+      const reviewMatches = matches.filter((match) => match.status === "review");
+      const importId = await createImportBatch({
+        provider: source,
+        filename: file.name || `${source}-upload`,
+        rowCount: parsed.rows.length,
+        matchedCount: accepted.length,
+        ambiguousCount: reviewMatches.length,
+      });
+      await insertImportRows({ importId, matches });
       await insertPayments(buildPaymentRows(accepted));
       revalidateTag("poc-giving", "max");
-      const reviewMatches = matches.filter((match) => match.status === "review");
       return NextResponse.json({
         ok: true,
         counts: {

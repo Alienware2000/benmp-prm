@@ -207,47 +207,51 @@ export function ClickableMetricTile({
   value: string;
   detail: string;
   Icon: LucideIcon;
-  tone: "teal" | "green" | "yellow" | "coral" | "blue";
+  tone: "teal" | "green" | "yellow" | "coral" | "blue" | "purple";
   onClick: () => void;
   active: boolean;
 }) {
   const tones: Record<string, string> = {
-    teal: "bg-[#e9f7fe] text-[#028782] ring-[#b7e4f7]",
-    blue: "bg-[#eef7fa] text-[#45acfd] ring-[#b7d8f5]",
-    green: "bg-[#f1f8ef] text-[#5b9d3a] ring-[#c8e8b8]",
-    purple: "bg-[#d4ebf6] text-[#9b6fd9] ring-[#c8d8f0]",
-    yellow: "bg-[#fef6e7] text-[#d4a017] ring-[#f0d878]",
-    coral: "bg-[#fce8e8] text-[#d4453a] ring-[#e8b8b8]",
+    teal: "text-white bg-[radial-gradient(circle_at_88%_20%,rgba(255,255,255,.17),transparent_24%),linear-gradient(135deg,#078f84_0%,#087477_100%)] ring-transparent",
+    green: "text-[#073b4c] bg-[radial-gradient(circle_at_88%_18%,rgba(255,255,255,.65),transparent_25%),linear-gradient(135deg,#c9f6dc_0%,#b7edff_100%)] ring-[#a8e8d2]",
+    yellow: "text-[#17344a] bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,.55),transparent_28%),linear-gradient(135deg,#fff0bd_0%,#ffd477_100%)] ring-[#f4d17b]",
+    purple: "text-[#302064] bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,.62),transparent_28%),linear-gradient(135deg,#e8ddff_0%,#d8c7ff_100%)] ring-[#d3c2fa]",
+    blue: "text-[#073b4c] bg-[radial-gradient(circle_at_88%_18%,rgba(255,255,255,.65),transparent_25%),linear-gradient(135deg,#b7edff_0%,#a9d5ff_100%)] ring-[#a9d3f3]",
+    coral: "text-[#073b4c] bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,.62),transparent_28%),linear-gradient(135deg,#ffeaf2_0%,#ffd6e5_100%)] ring-[#f4c6d7]",
   };
   const tileBg: Record<string, string> = {
-    teal: "bg-[#e9f7fe]",
-    blue: "bg-[#eef7fa]",
-    green: "bg-[#f1f8ef]",
-    purple: "bg-[#d4ebf6]",
-    yellow: "bg-[#fef6e7]",
-    coral: "bg-[#fce8e8]",
+    teal: "bg-[radial-gradient(circle_at_88%_20%,rgba(255,255,255,.17),transparent_24%),linear-gradient(135deg,#078f84_0%,#087477_100%)]",
+    green: "bg-[radial-gradient(circle_at_88%_18%,rgba(255,255,255,.65),transparent_25%),linear-gradient(135deg,#c9f6dc_0%,#b7edff_100%)]",
+    yellow: "bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,.55),transparent_28%),linear-gradient(135deg,#fff0bd_0%,#ffd477_100%)]",
+    purple: "bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,.62),transparent_28%),linear-gradient(135deg,#e8ddff_0%,#d8c7ff_100%)]",
+    blue: "bg-[radial-gradient(circle_at_88%_18%,rgba(255,255,255,.65),transparent_25%),linear-gradient(135deg,#b7edff_0%,#a9d5ff_100%)]",
+    coral: "bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,.62),transparent_28%),linear-gradient(135deg,#ffeaf2_0%,#ffd6e5_100%)]",
   };
   return (
     <button
       onClick={onClick}
-      className={`min-w-0 rounded-lg border p-4 text-left shadow-sm transition ${
+      className={`relative min-h-[160px] min-w-0 overflow-hidden rounded-[18px] border p-5 text-left shadow-[0_2px_8px_rgba(16,42,67,0.07)] transition-all duration-180 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(16,42,67,0.09)] ${
         active
           ? "border-foreground ring-2 ring-foreground/10"
-          : "border-border hover:border-foreground/30"
-      } ${tileBg[tone] ?? "bg-surface"}`}
+          : "border-transparent hover:border-foreground/20"
+      } ${tileBg[tone] ?? "bg-surface"} ${tones[tone]?.split(" ").find(c => c.startsWith("text-")) ?? ""}`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+      <span
+        className="pointer-events-none absolute -right-11 -bottom-21 h-[170px] w-[170px] rounded-full bg-white/18"
+        aria-hidden
+      />
+      <div className="relative flex items-start justify-between gap-3">
+        <p className={`text-[13px] font-bold ${tones[tone]?.split(" ").find(c => c.startsWith("text-")) ?? "text-muted-foreground"}`}>{label}</p>
         <span
-          className={`grid h-9 w-9 flex-none place-items-center rounded-md ring-1 ${tones[tone]}`}
+          className={`grid h-10 w-10 flex-none place-items-center rounded-[12px] bg-white/22 ring-1 ring-white/25 ${tones[tone]?.split(" ").find(c => c.startsWith("text-")) ?? ""}`}
         >
           <Icon className="h-[18px] w-[18px]" aria-hidden />
         </span>
       </div>
-      <p className="mt-4 truncate text-2xl font-bold tabular-nums text-foreground sm:text-[26px]">
+      <p className="relative z-1 mt-[18px] text-[30px] font-extrabold leading-none tracking-[-0.035em]">
         {value}
       </p>
-      <p className="mt-2 border-t border-border pt-2 text-[11px] leading-5 text-muted-foreground">
+      <p className="relative z-1 mt-3 border-t border-white/15 pt-2 text-[12px] opacity-78">
         {detail}
       </p>
     </button>
@@ -316,7 +320,7 @@ export function DashboardTilesSection({ tiles }: { tiles: DashboardTiles }) {
           value={cumValue}
           detail={cumDetail}
           Icon={TrendingUp}
-          tone="blue"
+          tone="purple"
           onClick={() =>
             setActiveTile(activeTile === "cumulative" ? null : "cumulative")
           }

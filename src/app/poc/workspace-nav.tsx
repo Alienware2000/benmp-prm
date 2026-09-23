@@ -93,14 +93,14 @@ export function WorkspaceNav({ mobile = false }: { mobile?: boolean }) {
             className={
               "relative flex min-h-16 items-center gap-2 px-4 text-sm font-semibold transition-colors " +
               (active
-                ? "text-brand"
-                : "text-muted-foreground hover:text-foreground")
+                ? "text-[#073b4c] font-bold"
+                : "text-[#607789] font-medium hover:text-[#073b4c]")
             }
           >
             <Icon className="h-4 w-4" aria-hidden />
             {label}
             {active && (
-              <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-accent" />
+              <span className="absolute inset-x-4 bottom-0 h-[3px] rounded-full bg-[#16b89a]" />
             )}
           </Link>
         );

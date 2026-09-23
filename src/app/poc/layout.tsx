@@ -6,15 +6,15 @@ import { WorkspaceNav } from "./workspace-nav";
 export default function PocLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-border bg-surface/96 backdrop-blur shadow-[0_2px_8px_rgba(16,42,67,0.07)]">
         <div className="mx-auto flex min-h-16 max-w-6xl items-center gap-5 px-4 sm:px-6">
           <Link href="/poc" className="flex min-w-0 items-center gap-2.5 py-2">
-            <span className="relative grid h-9 w-9 flex-none place-items-center rounded-lg bg-brand text-sm font-bold text-white shadow-sm">
+            <span className="relative grid h-9 w-9 flex-none place-items-center rounded-[11px] bg-gradient-to-br from-[#10a995] to-[#087b88] text-sm font-bold text-white shadow-[0_7px_18px_rgba(0,0,0,0.14)]">
               B
-              <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-accent" />
+              <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-[#f5ad22]" />
             </span>
             <span className="min-w-0 leading-tight">
-              <span className="block truncate text-sm font-bold text-foreground">
+              <span className="block truncate text-sm font-bold text-[#073b4c]">
                 BENMP Partners
               </span>
               <span className="hidden text-[11px] text-muted-foreground sm:block">

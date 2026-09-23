@@ -2,49 +2,56 @@
 
 :root {
   color-scheme: only light;
-  --background: #e6f4f4;
-  --foreground: #172126;
+  /* Navy/teal brand foundation */
+  --navy-950: #06283d;
+  --navy-900: #073b4c;
+  --navy-800: #0b5263;
+  --teal-600: #0f9d8a;
+  --teal-500: #16b89a;
+  /* Accents */
+  --blue-500: #3b9ff6;
+  --blue-100: #e8f4ff;
+  --green-500: #32c978;
+  --green-100: #e7faef;
+  --amber-500: #f5ad22;
+  --amber-100: #fff5d9;
+  --violet-500: #8464e8;
+  --violet-100: #f0ebff;
+  --rose-500: #ec5c8d;
+  --rose-100: #ffeaf2;
+  --cyan-100: #e5f8fa;
+  /* Semantic tokens (mapped to the new palette) */
+  --background: #f4f8fa;
+  --foreground: #102a43;
   --surface: #ffffff;
   --muted: #edf1f2;
-  --muted-foreground: #657178;
-  --border: #d4e8e8;
-  --sidebar: #013445;
-  --sidebar-muted: #073f4c;
-  --brand: #017c81;
-  --brand-strong: #016a70;
-  --accent: #ffd87a;
-  --accent-foreground: #1d272b;
-  --primary: #017c81;
+  --muted-foreground: #62798a;
+  --border: #dce8ed;
+  --sidebar: #06283d;
+  --sidebar-muted: #073b4c;
+  --brand: #0f9d8a;
+  --brand-strong: #087987;
+  --accent: #f5ad22;
+  --accent-foreground: #17344a;
+  --primary: #0f9d8a;
   --primary-foreground: #ffffff;
-  --success: #087f5b;
-  --warning: #b45309;
-  --danger: #be123c;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-border: var(--border);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-muted: var(--sidebar-muted);
-  --color-brand: var(--brand);
-  --color-brand-strong: var(--brand-strong);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-danger: var(--danger);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --success: #32c978;
+  --warning: #f5ad22;
+  --danger: #ec5c8d;
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(16, 42, 67, 0.07);
+  --shadow-md: 0 8px 24px rgba(16, 42, 67, 0.09);
+  /* Radii */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(59, 159, 246, 0.10), transparent 28%),
+    radial-gradient(circle at 10% 35%, rgba(22, 184, 154, 0.07), transparent 25%),
+    var(--background);
   color: var(--foreground);
 }
 
@@ -74,6 +81,6 @@ textarea {
 }
 
 ::selection {
-  background: rgba(180, 83, 9, 0.18);
+  background: rgba(15, 157, 138, 0.18);
   color: inherit;
 }

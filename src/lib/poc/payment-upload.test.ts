@@ -45,6 +45,7 @@ describe("payment upload parsers", () => {
         Date: "2026-09-03 10:12:00",
         Status: "Successful",
         Type: "Transfer",
+        From: "FRI:233244123456/MSISDN",
         "From account": "0244123456",
         "From name": "APOSTLE PETER NSOWAH APOSTLE PETER NSOWAH",
         "To message": "BENMP",
@@ -73,6 +74,38 @@ describe("payment upload parsers", () => {
       payerPhoneOrAccount: "+233244123456",
       providerReference: "1001",
     });
+  });
+
+  it("falls back to From account when the MoMo From column has no phone", () => {
+    const result = parseMomoRows([
+      {
+        Id: "1003",
+        Date: "2026-09-03 10:12:00",
+        Status: "Successful",
+        From: "",
+        "From account": "0244123456",
+        "From name": "Apostle Peter Nsowah",
+        Amount: "50.00",
+      },
+    ]);
+
+    expect(result.rows[0].payerPhoneOrAccount).toBe("+233244123456");
+  });
+
+  it("uses the MoMo From MSISDN before the shorter From account id", () => {
+    const result = parseMomoRows([
+      {
+        Id: "1004",
+        Date: "2026-09-03 10:12:00",
+        Status: "Successful",
+        From: "FRI:233244123456/MSISDN",
+        "From account": "12345678",
+        "From name": "Apostle Peter Nsowah",
+        Amount: "50.00",
+      },
+    ]);
+
+    expect(result.rows[0].payerPhoneOrAccount).toBe("+233244123456");
   });
 
   it("parses Ecobank credit rows and ignores debit rows", () => {
@@ -153,6 +186,70 @@ describe("payment upload matching", () => {
     expect(match.status).toBe("auto");
     expect(match.partner?.id).toBe("peter-id");
     expect(match.reason).toBe("Exact phone match");
+  });
+
+  it("auto-matches Ghana phone numbers by the last 9 digits across country-code formats", () => {
+    const [match] = matchNormalizedRows(
+      [
+        {
+          source: "momo",
+          sourceRowId: "row-1",
+          transactionDate: "2026-09-03T00:00:00.000Z",
+          amountMinor: 5000,
+          currency: "GHS",
+          payerName: "Different Display Name",
+          payerPhoneOrAccount: "FRI:233244123456/MSISDN",
+          providerReference: "row-1",
+          rawRow: {},
+        },
+      ],
+      [
+        {
+          id: "local-id",
+          fullName: "Stored Partner",
+          momoPhoneNumber: "0244123456",
+          whatsappNumber: null,
+          church: null,
+          country: "Ghana",
+        },
+      ],
+    );
+
+    expect(match.status).toBe("auto");
+    expect(match.partner?.id).toBe("local-id");
+    expect(match.reason).toBe("Exact phone match");
+  });
+
+  it("auto-matches unique first-and-last names when middle names differ", () => {
+    const [match] = matchNormalizedRows(
+      [
+        {
+          source: "ecobank",
+          sourceRowId: "row-1",
+          transactionDate: "2026-09-03T00:00:00.000Z",
+          amountMinor: 5000,
+          currency: "GHS",
+          payerName: "BISHOP JOHN KWAME MENSAH",
+          payerPhoneOrAccount: null,
+          providerReference: "row-1",
+          rawRow: {},
+        },
+      ],
+      [
+        {
+          id: "john-id",
+          fullName: "Rev John Mensah",
+          momoPhoneNumber: null,
+          whatsappNumber: null,
+          church: null,
+          country: "Ghana",
+        },
+      ],
+    );
+
+    expect(match.status).toBe("auto");
+    expect(match.partner?.id).toBe("john-id");
+    expect(match.reason).toBe("Unique first-last name match");
   });
 
   it("auto-matches exact normalized names only when unique", () => {

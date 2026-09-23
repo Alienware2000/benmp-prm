@@ -418,6 +418,7 @@ Uploads the fixed MoMo CSV or Ecobank XLS statement format from `/poc/giving/upl
 Multipart form fields:
 
 - `action`: `preview` or `commit`.
+- Preferred `action`: `import` — one-click parse + safe-match insert + unresolved rows returned for review.
 - `source`: `momo` or `ecobank`.
 - `file`: statement file.
 - `decisions`: JSON object for `commit`, keyed by normalized row id. Each value is `{ action: "match", partnerId }`, `{ action: "create", name }`, or `{ action: "dismiss" }`.

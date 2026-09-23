@@ -1,19 +1,14 @@
 import {
   BellRing,
-  CircleDollarSign,
   HeartHandshake,
   Megaphone,
   MessageCircleMore,
   PhoneCall,
-  UserPlus,
-  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { headlineAnswers, formatGhs } from "@/lib/poc/answers";
-import {
-  countDirectoryPartnersCached,
-  loadReconciliationCached,
-} from "@/lib/poc/cached-data";
+import { loadReconciliationCached } from "@/lib/poc/cached-data";
+import { getDashboardTiles } from "@/lib/poc/dashboard-metrics";
 import { giverInsightGroups } from "@/lib/poc/giver-insights";
 import {
   filterReconciliationByPeriod,
@@ -21,6 +16,7 @@ import {
 } from "@/lib/poc/reporting-period";
 import { normalizePhone } from "@/lib/phone";
 import { PocShell } from "./nav";
+import { DashboardTilesSection } from "./breakdown-panel";
 import {
   PartnersTable,
   type PartnerRow,
@@ -57,44 +53,6 @@ function withPeriod(
   return query ? `${href}?${query}` : href;
 }
 
-function MetricCard({
-  label,
-  value,
-  detail,
-  Icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  detail: React.ReactNode;
-  Icon: typeof Users;
-  tone: "teal" | "green" | "yellow" | "coral";
-}) {
-  const tones = {
-    teal: "bg-cyan-50 text-brand ring-cyan-100",
-    green: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-    yellow: "bg-amber-50 text-amber-700 ring-amber-100",
-    coral: "bg-rose-50 text-rose-700 ring-rose-100",
-  };
-  return (
-    <article className="min-w-0 rounded-lg border border-border bg-surface p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-        <span
-          className={`grid h-9 w-9 flex-none place-items-center rounded-md ring-1 ${tones[tone]}`}
-        >
-          <Icon className="h-[18px] w-[18px]" aria-hidden />
-        </span>
-      </div>
-      <p className="mt-4 truncate text-2xl font-bold tabular-nums text-foreground sm:text-[26px]">
-        {value}
-      </p>
-      <p className="mt-2 border-t border-border pt-2 text-[11px] leading-5 text-muted-foreground">
-        {detail}
-      </p>
-    </article>
-  );
-}
 
 function QuickAction({
   href,
@@ -134,7 +92,7 @@ export default async function PocPage({
   const from = (sp.from ?? "").slice(0, 10);
   const to = (sp.to ?? "").slice(0, 10);
   const completeResult = await loadReconciliationCached();
-  const totalPartners = await countDirectoryPartnersCached();
+  const tiles = await getDashboardTiles();
   const availablePeriod = reportingPeriod(completeResult);
   const result = filterReconciliationByPeriod(completeResult, { from, to });
   const period = reportingPeriod(result);
@@ -158,19 +116,6 @@ export default async function PocPage({
   };
 
   const activeGivers = answers.registeredPaidCount + answers.unregisteredCount;
-  const giftCount =
-    result.registeredPaid.reduce(
-      (count, giver) => count + giver.payments.length,
-      0,
-    ) +
-    result.paidUnregistered.reduce(
-      (count, giver) => count + giver.payments.length,
-      0,
-    ) +
-    result.statementRows.length;
-  const average = giftCount
-    ? formatGhs(Math.round(answers.totalCollectedMinor / giftCount))
-    : "0";
 
   const toolbar = (
     <PeriodFilter
@@ -194,43 +139,7 @@ export default async function PocPage({
         >
           Giving overview
         </h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <MetricCard
-            label="Total partners"
-            value={totalPartners.toLocaleString("en-US")}
-            detail="In the partner directory (hub-admin ingested)"
-            Icon={Users}
-            tone="teal"
-          />
-          <MetricCard
-            label="Active givers"
-            value={activeGivers.toLocaleString("en-US")}
-            detail="Identifiable people with a recorded gift this period"
-            Icon={UserPlus}
-            tone="yellow"
-          />
-          <MetricCard
-            label="Giving received"
-            value={`GHS ${answers.totalCollectedGhs}`}
-            detail={`${giftCount.toLocaleString("en-US")} gifts · average GHS ${average}`}
-            Icon={CircleDollarSign}
-            tone="green"
-          />
-          <MetricCard
-            label="New givers"
-            value={answers.unregisteredCount.toLocaleString("en-US")}
-            detail="Gave but are not yet linked to a partner profile"
-            Icon={UserPlus}
-            tone="yellow"
-          />
-          <MetricCard
-            label="Need follow-up"
-            value={answers.unpaidCount.toLocaleString("en-US")}
-            detail="Registered partners with no gift in this period"
-            Icon={BellRing}
-            tone="coral"
-          />
-        </div>
+        <DashboardTilesSection tiles={tiles} />
       </section>
 
       <section className="mt-7" aria-labelledby="actions-heading">

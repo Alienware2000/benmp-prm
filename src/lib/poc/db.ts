@@ -101,6 +101,22 @@ export function supabaseRestFetcher(): Fetcher {
   };
 }
 
+/**
+ * Paginated fetch — Supabase/PostgREST caps results at its max_rows setting
+ * (often 1000) even when you request limit=50000. This helper pages through
+ * all rows using offset/limit.
+ */
+export async function fetchAll<T>(fetcher: Fetcher, baseQuery: string): Promise<T[]> {
+  const pageSize = 1000;
+  const allRows: T[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const rows = await fetcher<T>(`${baseQuery}&limit=${pageSize}&offset=${offset}`);
+    allRows.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return allRows;
+}
+
 export type DbOptOut = { phone_e164: string | null };
 
 /** Row shape for the sent_messages audit table (supabase/poc/schema.sql). */
@@ -292,8 +308,9 @@ export async function loadReconciliation(
   // is also empty (no MoMo statement imported yet); with zero payments every
   // partner lands in registeredUnpaid, which is correct.
   const [partners, pays] = await Promise.all([
-    fetcher<DbRegistration>(
-      "partners?select=id,full_name,whatsapp_number,momo_phone_number&limit=50000",
+    fetchAll<DbRegistration>(
+      fetcher,
+      "partners?select=id,full_name,whatsapp_number,momo_phone_number&order=id.asc",
     ).then((rows) =>
       rows.map((r) => ({
         id: r.id,
@@ -302,8 +319,9 @@ export async function loadReconciliation(
         phone_e164: r.whatsapp_number ?? r.momo_phone_number ?? null,
       })),
     ),
-    fetcher<DbPayment>(
-      "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at,status&status=eq.Successful&limit=5000",
+    fetchAll<DbPayment>(
+      fetcher,
+      "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at,status&status=eq.Successful&order=paid_at.desc",
     ),
   ]);
   return reconcile(mapRegistrations(partners), mapPayments(pays));

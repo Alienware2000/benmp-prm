@@ -59,7 +59,9 @@ async function rest<T>(pathAndQuery: string, init?: RequestInit): Promise<T> {
     throw new Error(`Supabase ${pathAndQuery}: ${response.status} ${await response.text()}`);
   }
   if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  const text = await response.text();
+  if (!text.trim()) return undefined as T;
+  return JSON.parse(text) as T;
 }
 
 function toPartner(row: PartnerRow): PartnerForPaymentMatch {

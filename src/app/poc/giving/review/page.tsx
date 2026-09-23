@@ -26,13 +26,14 @@ async function loadInitialReview(): Promise<{ rows: ReviewRow[]; partnerOptions:
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return { rows: [], partnerOptions: [] };
   const headers = { apikey: key, Authorization: `Bearer ${key}` };
-  const [rowsRes, partnersRes] = await Promise.all([
+  const [rowsRes, ...partnerPages] = await Promise.all([
     fetch(`${url}/rest/v1/payment_import_rows?select=id,payment_reference,normalized_row,raw_row,notes,created_at&match_status=eq.needs_review&order=created_at.desc&limit=500`, { headers, cache: "no-store" }),
-    fetch(`${url}/rest/v1/partners?select=id,full_name,momo_phone_number,whatsapp_number,church&order=full_name.asc&limit=50000`, { headers, cache: "no-store" }),
+    // First page of partners (1000 rows); the client component fetches full list via loadPartners()
+    fetch(`${url}/rest/v1/partners?select=id,full_name,momo_phone_number,whatsapp_number,church&order=full_name.asc&limit=1000&offset=0`, { headers, cache: "no-store" }),
   ]);
   const rows = rowsRes.ok ? ((await rowsRes.json()) as ReviewRow[]) : [];
-  const partners = partnersRes.ok
-    ? ((await partnersRes.json()) as Array<{ id: string; full_name: string; momo_phone_number: string | null; whatsapp_number: string | null; church: string | null }>).map((p) => ({
+  const partners = partnerPages[0].ok
+    ? ((await partnerPages[0].json()) as Array<{ id: string; full_name: string; momo_phone_number: string | null; whatsapp_number: string | null; church: string | null }>).map((p) => ({
         id: p.id,
         name: p.full_name,
         phone: p.momo_phone_number ?? p.whatsapp_number,

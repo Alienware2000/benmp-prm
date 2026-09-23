@@ -262,7 +262,7 @@ import type { DashboardTiles } from "@/lib/poc/dashboard-metrics";
 import { CircleDollarSign, TrendingUp, UserCheck, Users } from "lucide-react";
 
 export function DashboardTilesSection({ tiles }: { tiles: DashboardTiles }) {
-  const [activeTile, setActiveTile] = useState<"month" | "cumulative" | null>(
+  const [activeTile, setActiveTile] = useState<"month" | "cumulative" | "partners" | null>(
     null,
   );
 
@@ -279,6 +279,9 @@ export function DashboardTilesSection({ tiles }: { tiles: DashboardTiles }) {
       ? "All time · click for breakdown by geography and month"
       : "No contributions recorded yet";
 
+  const partnerByGeo = tiles.cumulative.byGeography;
+  const totalPartners = partnerByGeo.reduce((s, g) => s + g.partnerCount, 0);
+
   return (
     <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -286,11 +289,13 @@ export function DashboardTilesSection({ tiles }: { tiles: DashboardTiles }) {
         <ClickableMetricTile
           label="Total BENMP Partners"
           value={tiles.totalPartners.toLocaleString("en-US")}
-          detail="In the partner directory"
+          detail="In the partner directory · click for region breakdown"
           Icon={Users}
           tone="teal"
-          onClick={() => setActiveTile(null)}
-          active={false}
+          onClick={() =>
+            setActiveTile(activeTile === "partners" ? null : "partners")
+          }
+          active={activeTile === "partners"}
         />
         {/* Tile 2: Active BENMP Partners */}
         <ClickableMetricTile
@@ -328,7 +333,53 @@ export function DashboardTilesSection({ tiles }: { tiles: DashboardTiles }) {
         />
       </div>
 
-      {activeTile && (
+      {activeTile === "partners" && (
+        <div className="mt-3 rounded-lg border border-border bg-surface p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-bold text-foreground">
+            Partners by region — {totalPartners.toLocaleString("en-US")} total
+          </h3>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                <th className="py-2 pr-4 font-medium">Region</th>
+                <th className="py-2 pr-4 text-right font-medium">Partners</th>
+                <th className="py-2 text-right font-medium">Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              {partnerByGeo
+                .filter((g) => g.partnerCount > 0)
+                .sort((a, b) => b.partnerCount - a.partnerCount)
+                .map((g) => (
+                  <tr key={g.geography} className="border-b border-border/50">
+                    <td className="py-2 pr-4 font-medium text-foreground">
+                      {g.geography}
+                    </td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-foreground">
+                      {g.partnerCount.toLocaleString("en-US")}
+                    </td>
+                    <td className="py-2 text-right tabular-nums text-muted-foreground">
+                      {totalPartners > 0
+                        ? ((g.partnerCount / totalPartners) * 100).toFixed(1)
+                        : 0}%
+                    </td>
+                  </tr>
+                ))}
+              <tr className="font-bold">
+                <td className="py-2 pr-4 text-foreground">Total</td>
+                <td className="py-2 pr-4 text-right tabular-nums text-foreground">
+                  {totalPartners.toLocaleString("en-US")}
+                </td>
+                <td className="py-2 text-right tabular-nums text-muted-foreground">
+                  100%
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTile !== "partners" && activeTile && (
         <BreakdownPanel
           mostRecentMonth={tiles.mostRecentMonth}
           cumulative={tiles.cumulative}

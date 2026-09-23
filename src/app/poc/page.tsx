@@ -15,6 +15,7 @@ import {
   reportingPeriod,
 } from "@/lib/poc/reporting-period";
 import { normalizePhone } from "@/lib/phone";
+import { filterOutAdmins, loadAdmins } from "@/lib/poc/admin-exclusion";
 import { PocShell } from "./nav";
 import { DashboardTilesSection } from "./breakdown-panel";
 import {
@@ -106,8 +107,15 @@ export default async function PocPage({
   const availablePeriod = reportingPeriod(completeResult);
   const result = filterReconciliationByPeriod(completeResult, { from, to });
   const period = reportingPeriod(result);
+  const admins = await loadAdmins();
+  const rawInsightGroups = giverInsightGroups(result, { limit: 20 });
+  const insightGroups = {
+    top: filterOutAdmins(rawInsightGroups.top, admins),
+    consistent: filterOutAdmins(rawInsightGroups.consistent, admins),
+    ordinary: filterOutAdmins(rawInsightGroups.ordinary, admins),
+  };
   const answers = headlineAnswers(result);
-  const insightGroups = giverInsightGroups(result, { limit: 20 });
+  const activeGivers = answers.registeredPaidCount + answers.unregisteredCount;
 
   const toPartnerRow = (
     giver: (typeof insightGroups)["top"][number],
@@ -125,7 +133,6 @@ export default async function PocPage({
     ordinary: insightGroups.ordinary.map(toPartnerRow),
   };
 
-  const activeGivers = answers.registeredPaidCount + answers.unregisteredCount;
 
   const toolbar = (
     <PeriodFilter

@@ -1,7 +1,9 @@
+import { normalizePhone } from "@/lib/phone";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import {
   buildPaymentRows,
+  ghanaLastNineKey,
   parseJsonObject,
   type NormalizedPaymentRow,
   type PartnerForPaymentMatch,
@@ -115,6 +117,18 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const contentType = req.headers.get("content-type") ?? "";
+
+    // Accept-all: JSON payload with { action: "accept_all" }
+    if (contentType.includes("application/json")) {
+      const body = (await req.json()) as { action?: string };
+      if (body.action === "accept_all") {
+        return await handleAcceptAll();
+      }
+      return NextResponse.json({ ok: false, error: "Unknown JSON action." }, { status: 400 });
+    }
+
+    // Single-row: FormData
     const form = await req.formData();
     const id = String(form.get("id") ?? "");
     const rowJson = String(form.get("row") ?? "");
@@ -145,4 +159,110 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Review save failed." }, { status: 500 });
   }
+}
+
+/**
+ * Accept all: create a partner for each unmatched row (using payer name + phone
+ * for deduplication), promote every row into payments, and mark them resolved.
+ * Rows whose payer name matches an existing partner (by exact name or last-9 phone)
+ * are linked to that partner instead of creating a duplicate.
+ */
+async function handleAcceptAll(): Promise<NextResponse> {
+  const [reviewRows, existingPartners] = await Promise.all([
+    rest<ReviewRow[]>(
+      "payment_import_rows?select=id,payment_reference,normalized_row,raw_row,notes,created_at&match_status=eq.needs_review&order=created_at.desc&limit=5000",
+    ),
+    loadPartners(),
+  ]);
+
+  if (reviewRows.length === 0) {
+    return NextResponse.json({ ok: true, created: 0, promoted: 0 });
+  }
+
+  // Build lookup maps from existing partners
+  const partnerByLast9 = new Map<string, PartnerForPaymentMatch>();
+  const partnerByName = new Map<string, PartnerForPaymentMatch>();
+  for (const p of existingPartners) {
+    for (const phone of [p.momoPhoneNumber, p.whatsappNumber]) {
+      const normalized = normalizePhone(phone);
+      if (normalized) {
+        const last9 = ghanaLastNineKey(normalized);
+        if (last9 && !partnerByLast9.has(last9)) partnerByLast9.set(last9, p);
+      }
+    }
+    const nameKey = p.fullName.trim().toLowerCase();
+    if (nameKey && !partnerByName.has(nameKey)) partnerByName.set(nameKey, p);
+  }
+
+  // Deduplicate new partners by name (lowercased) to avoid creating duplicates
+  const newPartnersByName = new Map<string, PartnerForPaymentMatch>();
+  const payments: Array<{ row: NormalizedPaymentRow; partner: PartnerForPaymentMatch }> = [];
+  const promotedIds: string[] = [];
+
+  for (const reviewRow of reviewRows) {
+    const row = reviewRow.normalized_row;
+    const payerName = (row.payerName ?? "").trim() || "Unknown Giver";
+
+    // Try to match existing partner by phone or name
+    let partner: PartnerForPaymentMatch | undefined;
+    const phone = normalizePhone(row.payerPhoneOrAccount);
+    if (phone) {
+      const last9 = ghanaLastNineKey(phone);
+      if (last9) partner = partnerByLast9.get(last9);
+    }
+    if (!partner) {
+      const nameKey = payerName.toLowerCase();
+      partner = partnerByName.get(nameKey);
+    }
+
+    // If no existing match, create or reuse a new partner for this name
+    if (!partner) {
+      partner = newPartnersByName.get(payerName.toLowerCase());
+      if (!partner) {
+        partner = await createPartner(payerName);
+        // Add to lookups so later rows with same name or phone find this partner
+        partnerByName.set(payerName.toLowerCase(), partner);
+        newPartnersByName.set(payerName.toLowerCase(), partner);
+        if (partner.momoPhoneNumber || partner.whatsappNumber) {
+          for (const phone of [partner.momoPhoneNumber, partner.whatsappNumber]) {
+            const normalized = normalizePhone(phone);
+            if (normalized) {
+              const last9 = ghanaLastNineKey(normalized);
+              if (last9 && !partnerByLast9.has(last9)) partnerByLast9.set(last9, partner);
+            }
+          }
+        }
+      }
+    }
+
+    payments.push({ row, partner });
+    promotedIds.push(reviewRow.id);
+  }
+
+  // Insert all payments (ignore duplicates)
+  if (payments.length > 0) {
+    await rest<void>("payments?on_conflict=reference", {
+      method: "POST",
+      headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+      body: JSON.stringify(buildPaymentRows(payments)),
+    });
+  }
+
+  // Mark all review rows as promoted
+  for (let i = 0; i < promotedIds.length; i += 100) {
+    const chunk = promotedIds.slice(i, i + 100);
+    const list = chunk.map((id) => encodeURIComponent(id)).join(",");
+    await rest<void>(`payment_import_rows?id=in.(${list})`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ match_status: "promoted", resolved_at: new Date().toISOString() }),
+    });
+  }
+
+  revalidateTag("poc-giving", "max");
+  return NextResponse.json({
+    ok: true,
+    promoted: promotedIds.length,
+    created: newPartnersByName.size,
+  });
 }

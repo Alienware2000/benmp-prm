@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, LoaderCircle, RefreshCw } from "lucide-react";
+import { CheckCircle2, LoaderCircle, RefreshCw, UserPlus } from "lucide-react";
 
 type ReviewRow = {
   id: string;
@@ -43,6 +43,7 @@ export function GivingReviewClient({
   const [partners, setPartners] = useState<PartnerOption[]>(initialPartnerOptions);
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
   const [busy, setBusy] = useState(false);
+  const [acceptingAll, setAcceptingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
@@ -85,6 +86,22 @@ export function GivingReviewClient({
     }
   }
 
+  async function acceptAll() {
+    if (rows.length === 0) return;
+    setAcceptingAll(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/poc/giving/review", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "accept_all" }) });
+      const body = await readJson(response);
+      if (!response.ok || !body.ok) throw new Error(body.error ?? "Could not accept all rows.");
+      setRows([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not accept all rows.");
+    } finally {
+      setAcceptingAll(false);
+    }
+  }
+
   return (
     <section className="rounded-lg border border-border bg-surface p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
@@ -92,9 +109,14 @@ export function GivingReviewClient({
           <h2 className="text-base font-bold">Pending uploaded rows</h2>
           <p className="mt-1 text-xs text-muted-foreground">{rows.length.toLocaleString("en-US")} rows need review.</p>
         </div>
-        <button type="button" onClick={load} className="inline-flex h-10 items-center gap-2 rounded-md border border-border px-3 text-sm font-semibold">
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={acceptAll} disabled={acceptingAll || rows.length === 0} className="inline-flex h-10 items-center gap-2 rounded-md bg-brand px-3 text-sm font-semibold text-white disabled:opacity-60">
+            {acceptingAll ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />} Accept all
+          </button>
+          <button type="button" onClick={load} className="inline-flex h-10 items-center gap-2 rounded-md border border-border px-3 text-sm font-semibold">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </button>
+        </div>
       </div>
       {error && <p className="mt-3 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
       {busy && <p className="mt-3 text-sm text-muted-foreground">Loading…</p>}

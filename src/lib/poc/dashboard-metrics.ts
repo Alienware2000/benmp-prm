@@ -1,7 +1,7 @@
 /**
  * Dashboard metrics for the POC overview — the 4 headline tiles.
  *
- * Reads directly from the Supabase partners + contributions tables via
+ * Reads directly from the Supabase partners + POC payments tables via
  * PostgREST (same service-role pattern as src/lib/hub/db.ts). All money is
  * integer minor units; GHS and USD are both displayed.
  *
@@ -9,6 +9,8 @@
  *   Ghana | Africa | Europe | North America | Others
  * Partners with no country (NULL/empty) are counted as Ghana.
  */
+
+import { ghanaLastNineKey } from "./payment-upload";
 
 // ---------------------------------------------------------------------------
 // Geography mapping
@@ -167,41 +169,49 @@ export type DashboardTiles = {
 // Fetchers
 // ---------------------------------------------------------------------------
 
-type PartnerRow = { id: string; country: string | null; last_contribution_date: string | null };
-type ContributionRow = {
+export type DashboardPartnerRow = {
   id: string;
-  partner_id: string | null;
+  country: string | null;
+  last_contribution_date: string | null;
+  momo_phone_number: string | null;
+  whatsapp_number: string | null;
+};
+export type DashboardPaymentRow = {
+  reference: string;
+  payer_phone_e164: string | null;
   amount_minor: number;
-  currency: string;
-  contribution_date: string;
+  currency: string | null;
+  paid_at: string | null;
+  status: string | null;
+  raw_row?: Record<string, unknown> | null;
 };
 
-async function fetchAllPartners(): Promise<PartnerRow[]> {
+async function fetchAllPartners(): Promise<DashboardPartnerRow[]> {
   if (!SUPABASE_URL || !KEY) return [];
-  const out: PartnerRow[] = [];
+  const out: DashboardPartnerRow[] = [];
   for (let offset = 0; ; offset += 1000) {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/partners?select=id,country,last_contribution_date&order=id.asc&limit=1000&offset=${offset}`,
+      `${SUPABASE_URL}/rest/v1/partners?select=id,country,last_contribution_date,momo_phone_number,whatsapp_number&order=id.asc&limit=1000&offset=${offset}`,
       { headers: restHeaders(), cache: "no-store" },
     );
     if (!res.ok) break;
-    const rows = (await res.json()) as PartnerRow[];
+    const rows = (await res.json()) as DashboardPartnerRow[];
     out.push(...rows);
     if (rows.length < 1000) break;
   }
   return out;
 }
 
-async function fetchAllContributions(): Promise<ContributionRow[]> {
+async function fetchAllPayments(): Promise<DashboardPaymentRow[]> {
   if (!SUPABASE_URL || !KEY) return [];
-  const out: ContributionRow[] = [];
+  const out: DashboardPaymentRow[] = [];
   for (let offset = 0; ; offset += 1000) {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/contributions?select=id,partner_id,amount_minor,currency,contribution_date&status=eq.succeeded&order=contribution_date.desc&limit=1000&offset=${offset}`,
+      `${SUPABASE_URL}/rest/v1/payments?select=reference,payer_phone_e164,amount_minor,currency,paid_at,status,raw_row&status=eq.Successful&order=paid_at.desc&limit=1000&offset=${offset}`,
       { headers: restHeaders(), cache: "no-store" },
     );
     if (!res.ok) break;
-    const rows = (await res.json()) as ContributionRow[];
+    const rows = (await res.json()) as DashboardPaymentRow[];
     out.push(...rows);
     if (rows.length < 1000) break;
   }
@@ -220,25 +230,28 @@ function emptyGeoBreakdown(): Map<Geography, GeographyBreakdown> {
   return m;
 }
 
-export async function getDashboardTiles(): Promise<DashboardTiles> {
-  const [partners, contributions] = await Promise.all([
-    fetchAllPartners(),
-    fetchAllContributions(),
-  ]);
-
+export function buildDashboardTiles({
+  partners,
+  payments,
+}: {
+  partners: DashboardPartnerRow[];
+  payments: DashboardPaymentRow[];
+}): DashboardTiles {
   // Build partner geography map
   const partnerGeo = new Map<string, Geography>();
+  const partnerIdByLastNine = new Map<string, string>();
   for (const p of partners) {
     partnerGeo.set(p.id, toGeography(p.country));
+    for (const phone of [p.momo_phone_number, p.whatsapp_number]) {
+      const key = ghanaLastNineKey(phone);
+      if (key && !partnerIdByLastNine.has(key)) partnerIdByLastNine.set(key, p.id);
+    }
   }
 
   // Tile 1: Total partners
   const totalPartners = partners.length;
 
-  // Tile 2: Active partners (given at least once — last_contribution_date not null)
-  const activePartners = partners.filter(
-    (p) => p.last_contribution_date !== null,
-  ).length;
+  const paidPartnerIds = new Set<string>();
 
   // Aggregate contributions
   const cumByGeo = emptyGeoBreakdown();
@@ -253,24 +266,33 @@ export async function getDashboardTiles(): Promise<DashboardTiles> {
     partnerCountByGeo.set(g, (partnerCountByGeo.get(g) ?? 0) + 1);
   }
 
-  for (const c of contributions) {
-    const geo = c.partner_id
-      ? (partnerGeo.get(c.partner_id) ?? "Ghana") // unassigned partner → Ghana
-      : "Ghana"; // unassigned giving (no partner_id) → Ghana
-    const amount = c.amount_minor;
+  for (const payment of payments) {
+    const matchedPartnerIdFromRaw =
+      typeof payment.raw_row?.matched_partner_id === "string"
+        ? payment.raw_row.matched_partner_id
+        : null;
+    const lastNine = ghanaLastNineKey(payment.payer_phone_e164);
+    const partnerId = matchedPartnerIdFromRaw ?? (lastNine ? partnerIdByLastNine.get(lastNine) : null);
+    if (partnerId) paidPartnerIds.add(partnerId);
+    const geo = partnerId ? (partnerGeo.get(partnerId) ?? "Ghana") : "Ghana";
+    const amount = Number(payment.amount_minor);
     cumulativeMinor += amount;
-    cumulativeCurrency = c.currency || "GHS";
+    cumulativeCurrency = payment.currency || "GHS";
 
     const cum = cumByGeo.get(geo)!;
     cum.amountMinor += amount;
 
-    const month = c.contribution_date.slice(0, 7); // YYYY-MM
+    const month = (payment.paid_at ?? "").slice(0, 7); // YYYY-MM
+    if (!month) continue;
     if (!monthMap.has(month)) {
       monthMap.set(month, emptyGeoBreakdown());
     }
     const m = monthMap.get(month)!;
     m.get(geo)!.amountMinor += amount;
   }
+
+  // Tile 2: Active partners (paid at least once in the POC payments ledger)
+  const activePartners = paidPartnerIds.size;
 
   // Set partner counts in cumulative geography breakdown
   for (const [geo, count] of partnerCountByGeo) {
@@ -310,4 +332,12 @@ export async function getDashboardTiles(): Promise<DashboardTiles> {
       byMonth,
     },
   };
+}
+
+export async function getDashboardTiles(): Promise<DashboardTiles> {
+  const [partners, payments] = await Promise.all([
+    fetchAllPartners(),
+    fetchAllPayments(),
+  ]);
+  return buildDashboardTiles({ partners, payments });
 }

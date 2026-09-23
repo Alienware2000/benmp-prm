@@ -75,6 +75,18 @@ describe("reconcile", () => {
     expect(result.paidUnregistered).toHaveLength(0);
   });
 
+  it("matches MoMo MSISDN statement phones by the last 9 Ghana digits", () => {
+    const result = reconcile(
+      [reg("p1", "Ama Serwaa", "0244123456")],
+      [pay("r1", "FRI:233244123456/MSISDN", 6000)],
+    );
+
+    expect(result.registeredPaid).toHaveLength(1);
+    expect(result.registeredPaid[0].registration.id).toBe("p1");
+    expect(result.paidUnregistered).toHaveLength(0);
+    expect(result.registeredUnpaid).toHaveLength(0);
+  });
+
   it("treats a payment with an unusable phone as unregistered (never dropped)", () => {
     const result = reconcile([reg("p1", "Ama Serwaa", "0244123456")], [pay("r1", null, 5000, "Cash Gift")]);
     expect(result.paidUnregistered).toHaveLength(1);

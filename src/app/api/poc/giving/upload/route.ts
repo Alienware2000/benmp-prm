@@ -145,11 +145,15 @@ async function insertImportRows({
   matches: ReturnType<typeof matchNormalizedRows>;
 }): Promise<void> {
   if (matches.length === 0) return;
-  await rest<void>("payment_import_rows?on_conflict=payment_reference", {
+  const refs = matches.map((match) => paymentReference(match.row));
+  const existingRefs = await existingImportPaymentReferences(refs);
+  const newMatches = matches.filter((match) => !existingRefs.has(paymentReference(match.row)));
+  if (newMatches.length === 0) return;
+  await rest<void>("payment_import_rows", {
     method: "POST",
-    headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+    headers: { Prefer: "return=minimal" },
     body: JSON.stringify(
-      matches.map((match) => ({
+      newMatches.map((match) => ({
         import_id: importId,
         partner_id: match.partner?.id ?? null,
         payment_reference: paymentReference(match.row),
@@ -162,6 +166,20 @@ async function insertImportRows({
       })),
     ),
   });
+}
+
+async function existingImportPaymentReferences(refs: string[]): Promise<Set<string>> {
+  if (refs.length === 0) return new Set();
+  const existing = new Set<string>();
+  for (let index = 0; index < refs.length; index += 100) {
+    const chunk = refs.slice(index, index + 100);
+    const list = chunk.map((ref) => encodeURIComponent(ref)).join(",");
+    const rows = await rest<Array<{ payment_reference: string | null }>>(
+      `payment_import_rows?select=payment_reference&payment_reference=in.(${list})&limit=1000`,
+    );
+    for (const row of rows) if (row.payment_reference) existing.add(row.payment_reference);
+  }
+  return existing;
 }
 
 async function updateImportRowStatus(

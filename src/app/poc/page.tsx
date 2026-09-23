@@ -54,28 +54,38 @@ function withPeriod(
 }
 
 
+const ACTION_STYLES = [
+  { bg: "bg-gradient-to-br from-[#e4fbf3] to-[#c9f4e4] border-[#b7ead8]", icon: "text-[#079779]" },
+  { bg: "bg-gradient-to-br from-[#e7f4ff] to-[#d2eaff] border-[#c1ddf5]", icon: "text-[#177ed1]" },
+  { bg: "bg-gradient-to-br from-[#f0eaff] to-[#dfd2ff] border-[#d7c7fa]", icon: "text-[#6941d9]" },
+  { bg: "bg-gradient-to-br from-[#ffeaf2] to-[#ffd6e5] border-[#f4c6d7]", icon: "text-[#d93670]" },
+];
+
 function QuickAction({
   href,
   label,
   detail,
   Icon,
+  index = 0,
 }: {
   href: string;
   label: string;
   detail: string;
   Icon: typeof HeartHandshake;
+  index?: number;
 }) {
+  const style = ACTION_STYLES[index % ACTION_STYLES.length]!;
   return (
     <Link
       href={href}
-      className="group grid min-h-[116px] grid-rows-[42px_auto] rounded-lg border border-border bg-surface p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md"
+      className={`group relative grid min-h-[132px] grid-rows-[42px_auto] overflow-hidden rounded-[18px] border p-5 shadow-[0_2px_8px_rgba(16,42,67,0.07)] transition-all duration-180 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(16,42,67,0.09)] ${style.bg}`}
     >
-      <span className="grid h-10 w-10 place-items-center rounded-md bg-brand/10 text-brand transition group-hover:bg-brand group-hover:text-white">
+      <span className={`grid h-[42px] w-[42px] place-items-center rounded-[13px] bg-white/58 ${style.icon}`}>
         <Icon className="h-5 w-5" aria-hidden />
       </span>
-      <span className="mt-3 min-w-0">
-        <b className="block text-sm text-foreground">{label}</b>
-        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+      <span className="mt-4 min-w-0">
+        <b className="block text-[15px] font-bold text-[#06283d]">{label}</b>
+        <span className="mt-1.5 block text-xs leading-5 text-muted-foreground">
           {detail}
         </span>
       </span>
@@ -145,7 +155,7 @@ export default async function PocPage({
       <section className="mt-7" aria-labelledby="actions-heading">
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
-            <h2 id="actions-heading" className="text-base font-bold">
+            <h2 id="actions-heading" className="text-base font-bold tracking-[-0.025em] text-[#06283d]">
               What would you like to do?
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -153,42 +163,45 @@ export default async function PocPage({
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <QuickAction
             href={withPeriod("/poc/messages", from, to, { task: "thank" })}
             label="Thank givers"
             detail={`${activeGivers.toLocaleString("en-US")} people gave`}
             Icon={HeartHandshake}
+            index={0}
           />
           <QuickAction
             href={withPeriod("/poc/messages", from, to, { task: "remind" })}
             label="Send reminders"
             detail={`${answers.unpaidCount.toLocaleString("en-US")} people to review`}
             Icon={BellRing}
+            index={1}
           />
           <QuickAction
             href={withPeriod("/poc/messages", from, to, { task: "update" })}
             label="Ministry update"
             detail="Choose a group and add media"
             Icon={Megaphone}
+            index={2}
           />
           <QuickAction
             href={withPeriod("/poc/calls", from, to)}
             label="Call partners"
             detail="Top and repeat givers"
             Icon={PhoneCall}
+            index={3}
           />
         </div>
       </section>
-
       <section className="mt-7">
-        <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
+        <div className="rounded-[18px] border border-[#f2ddb0] bg-[radial-gradient(circle_at_100%_0%,rgba(255,208,87,0.20),transparent_30%),linear-gradient(135deg,#fff9e8,#fff1dc)] p-[18px] shadow-[0_2px_8px_rgba(16,42,67,0.07)]">
           <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-md bg-accent/25 text-accent-foreground">
+            <span className="grid h-9 w-9 place-items-center rounded-[12px] bg-[#ffb52d] text-white">
               <MessageCircleMore className="h-[18px] w-[18px]" aria-hidden />
             </span>
             <div>
-              <h2 className="text-sm font-bold">Needs attention</h2>
+              <h2 className="text-sm font-bold text-[#06283d]">Needs attention</h2>
               <p className="text-[11px] text-muted-foreground">
                 The most useful next steps from current records
               </p>
@@ -197,21 +210,21 @@ export default async function PocPage({
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             <Link
               href={withPeriod("/poc/messages", from, to, { task: "thank" })}
-              className="flex min-h-12 items-center justify-between gap-3 rounded-md bg-background px-3 py-2.5 text-sm hover:text-brand"
+              className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(238,211,162,0.72)] bg-white/72 px-3 py-2.5 text-sm transition hover:-translate-y-px hover:bg-white hover:text-[#079779]"
             >
               <span>Review new giver acknowledgements</span>
               <b className="tabular-nums">{answers.unregisteredCount}</b>
             </Link>
             <Link
               href={withPeriod("/poc/messages", from, to, { task: "remind" })}
-              className="flex min-h-12 items-center justify-between gap-3 rounded-md bg-background px-3 py-2.5 text-sm hover:text-brand"
+              className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(238,211,162,0.72)] bg-white/72 px-3 py-2.5 text-sm transition hover:-translate-y-px hover:bg-white hover:text-[#079779]"
             >
               <span>Review partners with no gift</span>
               <b className="tabular-nums">{answers.unpaidCount}</b>
             </Link>
             <Link
               href={withPeriod("/poc/giving", from, to)}
-              className="flex min-h-12 items-center justify-between gap-3 rounded-md bg-background px-3 py-2.5 text-sm hover:text-brand"
+              className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(238,211,162,0.72)] bg-white/72 px-3 py-2.5 text-sm transition hover:-translate-y-px hover:bg-white hover:text-[#079779]"
             >
               <span>Check unattributed bank rows</span>
               <b className="tabular-nums">{answers.statementRowCount}</b>
@@ -222,7 +235,7 @@ export default async function PocPage({
 
       <section className="mt-7" aria-labelledby="groups-heading">
         <div className="mb-3">
-          <h2 id="groups-heading" className="text-base font-bold">
+          <h2 id="groups-heading" className="text-base font-bold tracking-[-0.025em] text-[#06283d]">
             Giver groups
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">

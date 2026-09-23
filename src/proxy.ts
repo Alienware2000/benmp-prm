@@ -12,10 +12,12 @@ import {
  * App-wide gate.
  *
  * Three jobs:
- *  1. The pre-POC MVP shell (/, /partners, /giving, ...) must not show AT ALL — it runs on
- *     mock demo data and would read as fake numbers to a visitor. Everything that isn't the
- *     POC console or the login flow redirects to /poc, for everyone, signed in or not. The
- *     old routes stay in the codebase as the post-POC MVP foundation; they are just
+ *  1. The pre-POC MVP shell (/partners, /giving, ...) must not show AT ALL — it runs on
+ *     mock demo data and would read as fake numbers to a visitor. Everything that isn't
+ *     the POC console, the dashboard root (/), or the login flow redirects to /poc, for
+ *     everyone, signed in or not. The dashboard root now reads live Supabase partner data
+ *     (src/lib/data/dashboard-partners.ts) and is gated by the same POC session as /poc.
+ *     The old routes stay in the codebase as the post-POC MVP foundation; they are just
  *     unroutable until that work resumes.
  *  2. Password gate for the POC console — a proper in-app login (not the browser's
  *     Basic-auth popup). `/poc` and `/api/poc/*` require a valid session cookie set by
@@ -69,8 +71,14 @@ export async function proxy(request: NextRequest) {
   }
   // kind === "not-hub": no hub session, path outside the hub area — staff rules apply.
 
-  // Everything that isn't the POC (the old mock MVP shell) collapses to the console.
-  if (!pathname.startsWith("/poc") && !pathname.startsWith("/api/poc")) {
+  // Everything that isn't the POC or the dashboard root (the old mock MVP shell)
+  // collapses to the console. The dashboard at / now reads live Supabase partner
+  // data (src/lib/data/dashboard-partners.ts) and is gated by the POC session below.
+  if (
+    pathname !== "/" &&
+    !pathname.startsWith("/poc") &&
+    !pathname.startsWith("/api/poc")
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/poc";
     url.search = "";

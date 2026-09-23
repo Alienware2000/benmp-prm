@@ -224,6 +224,41 @@ export async function POST(req: NextRequest) {
     const [parsed, partners] = await Promise.all([parseUploadedRows(file, source), loadPartners()]);
     const matches = matchNormalizedRows(parsed.rows, partners);
 
+    if (action === "import") {
+      const accepted = matches
+        .filter((match) => match.status === "auto")
+        .map((match) => ({ row: match.row, partner: match.partner }));
+      await insertPayments(buildPaymentRows(accepted));
+      revalidateTag("poc-giving", "max");
+      const reviewMatches = matches.filter((match) => match.status === "review");
+      return NextResponse.json({
+        ok: true,
+        counts: {
+          insertedOrAlreadyPresent: accepted.length,
+          autoMatched: accepted.length,
+          manualMatched: 0,
+          created: 0,
+          dismissed: 0,
+          deferred: reviewMatches.length,
+          rejected: parsed.rejects.length,
+          skipped: parsed.skipped.length,
+        },
+        rows: reviewMatches.map((match) => ({
+          row: serializeRow(match.row),
+          status: match.status,
+          reason: match.reason,
+          partner: match.partner,
+          candidates: match.candidates,
+        })),
+        partnerOptions: partners.map((partner) => ({
+          id: partner.id,
+          name: partner.fullName,
+          phone: partner.momoPhoneNumber ?? partner.whatsappNumber,
+          church: partner.church,
+        })),
+      });
+    }
+
     if (action === "preview") {
       return NextResponse.json({
         ok: true,

@@ -54,6 +54,8 @@ type CommitResponse = {
     rejected: number;
     skipped: number;
   };
+  rows?: PreviewRow[];
+  partnerOptions?: PreviewResponse["partnerOptions"];
 };
 
 type Decision =
@@ -120,7 +122,7 @@ export function GivingUploadClient() {
     [preview],
   );
 
-  async function send(action: "preview" | "commit") {
+  async function send(action: "preview" | "commit" | "import") {
     if (!file) {
       setError("Choose a statement file first.");
       return;
@@ -140,6 +142,17 @@ export function GivingUploadClient() {
       if (action === "preview") {
         setPreview(body as PreviewResponse);
         setDecisions({});
+      } else if (action === "import") {
+        const commitBody = body as CommitResponse;
+        setCommitted(commitBody);
+        setPreview(null);
+        const reviewFromResponse = commitBody.rows ?? [];
+        if (reviewFromResponse.length > 0) {
+          const now = new Date().toISOString();
+          const queued = reviewFromResponse.map((row) => ({ ...row, queuedAt: now }));
+          const existingIds = new Set(pendingReview.map((row) => row.row.sourceRowId));
+          savePending([...pendingReview, ...queued.filter((row) => !existingIds.has(row.row.sourceRowId))]);
+        }
       } else {
         const commitBody = body as CommitResponse;
         setCommitted(commitBody);
@@ -232,15 +245,15 @@ export function GivingUploadClient() {
           <button
             type="button"
             disabled={busy}
-            onClick={() => send("preview")}
+            onClick={() => send("import")}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-brand px-4 text-sm font-semibold text-white disabled:opacity-60"
           >
             {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
-            Preview upload
+            Upload and import
           </button>
         </div>
         <p className="mt-3 text-xs leading-5 text-muted-foreground">
-          MoMo uses the fixed CSV columns and matches by payer number first. Ecobank imports credit rows only and extracts donor names from narration.
+          MoMo and Ecobank files import safe matches immediately. Unmatched or ambiguous rows move into the review queue below.
         </p>
       </section>
 

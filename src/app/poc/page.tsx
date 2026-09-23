@@ -10,7 +10,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { headlineAnswers, formatGhs } from "@/lib/poc/answers";
-import { loadReconciliationCached } from "@/lib/poc/cached-data";
+import {
+  countDirectoryPartnersCached,
+  loadReconciliationCached,
+} from "@/lib/poc/cached-data";
 import { giverInsightGroups } from "@/lib/poc/giver-insights";
 import {
   filterReconciliationByPeriod,
@@ -131,6 +134,7 @@ export default async function PocPage({
   const from = (sp.from ?? "").slice(0, 10);
   const to = (sp.to ?? "").slice(0, 10);
   const completeResult = await loadReconciliationCached();
+  const totalPartners = await countDirectoryPartnersCached();
   const availablePeriod = reportingPeriod(completeResult);
   const result = filterReconciliationByPeriod(completeResult, { from, to });
   const period = reportingPeriod(result);
@@ -192,11 +196,18 @@ export default async function PocPage({
         </h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard
-            label="Active BENMP partners"
-            value={activeGivers.toLocaleString("en-US")}
-            detail="Identifiable people with a recorded gift"
+            label="Total partners"
+            value={totalPartners.toLocaleString("en-US")}
+            detail="In the partner directory (hub-admin ingested)"
             Icon={Users}
             tone="teal"
+          />
+          <MetricCard
+            label="Active givers"
+            value={activeGivers.toLocaleString("en-US")}
+            detail="Identifiable people with a recorded gift this period"
+            Icon={UserPlus}
+            tone="yellow"
           />
           <MetricCard
             label="Giving received"

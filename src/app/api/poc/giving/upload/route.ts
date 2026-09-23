@@ -137,13 +137,79 @@ function serializeRow(row: NormalizedPaymentRow) {
     payerName: row.payerName,
     payerPhoneOrAccount: row.payerPhoneOrAccount,
     providerReference: row.providerReference,
+    rawRow: row.rawRow,
   };
+}
+
+function isNormalizedPaymentRow(value: unknown): value is NormalizedPaymentRow {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "source" in value &&
+    "sourceRowId" in value &&
+    "transactionDate" in value &&
+    "amountMinor" in value &&
+    "currency" in value &&
+    "providerReference" in value &&
+    "rawRow" in value
+  );
 }
 
 export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
     const action = String(form.get("action") ?? "preview");
+    if (action === "commitDeferred") {
+      const rowsJson = String(form.get("rows") ?? "[]");
+      const decisions = JSON.parse(String(form.get("decisions") ?? "{}")) as Record<string, CommitDecision>;
+      const rows = (JSON.parse(rowsJson) as unknown[]).filter(isNormalizedPaymentRow);
+      const partners = await loadPartners();
+      const partnersById = new Map(partners.map((partner) => [partner.id, partner]));
+      const accepted: Array<{ row: NormalizedPaymentRow; partner: PartnerForPaymentMatch | null }> = [];
+      let dismissed = 0;
+      let created = 0;
+      let manualMatched = 0;
+      let deferred = 0;
+
+      for (const row of rows) {
+        const decision = decisions[row.sourceRowId];
+        if (!decision) {
+          deferred += 1;
+          continue;
+        }
+        if (decision.action === "dismiss") {
+          dismissed += 1;
+          continue;
+        }
+        if (decision.action === "match") {
+          const partner = partnersById.get(decision.partnerId);
+          if (!partner) throw new Error("Selected partner was not found.");
+          accepted.push({ row, partner });
+          manualMatched += 1;
+        } else if (decision.action === "create") {
+          const partner = await createPartner(decision.name || row.payerName || "New Partner");
+          accepted.push({ row, partner });
+          created += 1;
+        }
+      }
+
+      await insertPayments(buildPaymentRows(accepted));
+      revalidateTag("poc-giving", "max");
+      return NextResponse.json({
+        ok: true,
+        counts: {
+          insertedOrAlreadyPresent: accepted.length,
+          autoMatched: 0,
+          manualMatched,
+          created,
+          dismissed,
+          deferred,
+          rejected: 0,
+          skipped: 0,
+        },
+      });
+    }
+
     const source = String(form.get("source") ?? "") as PaymentSource;
     const file = form.get("file");
     if (source !== "momo" && source !== "ecobank") {
@@ -192,6 +258,7 @@ export async function POST(req: NextRequest) {
     const partnersById = new Map(partners.map((partner) => [partner.id, partner]));
     const accepted: Array<{ row: NormalizedPaymentRow; partner: PartnerForPaymentMatch | null }> = [];
     let dismissed = 0;
+    let deferred = 0;
     let created = 0;
     let manualMatched = 0;
     let autoMatched = 0;
@@ -203,7 +270,11 @@ export async function POST(req: NextRequest) {
         continue;
       }
       const decision = decisions[match.row.sourceRowId];
-      if (!decision || decision.action === "dismiss") {
+      if (!decision) {
+        deferred += 1;
+        continue;
+      }
+      if (decision.action === "dismiss") {
         dismissed += 1;
         continue;
       }
@@ -230,6 +301,7 @@ export async function POST(req: NextRequest) {
         manualMatched,
         created,
         dismissed,
+        deferred,
         rejected: parsed.rejects.length,
         skipped: parsed.skipped.length,
       },

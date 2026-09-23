@@ -429,6 +429,7 @@ Rules:
 - Safe exact phone matches auto-apply, including Ghana last-9-digit comparisons across `024...`, `23324...`, `+23324...`, and statement `FRI:23324.../MSISDN` shapes.
 - Unique normalized full-name matches and unique first-name + last-name matches auto-apply after titles are stripped.
 - Ambiguous or unmatched rows are reviewed by staff: match existing, create partner, or dismiss.
+- Upload commit is non-blocking: omitted review decisions are counted as `deferred` instead of dismissed, so safe matches can import immediately while staff review unresolved rows later.
 - Accepted rows are inserted idempotently into the POC `payments` ledger with references prefixed by source (`momo:` / `ecobank:`). Name-only bank matches carry `raw_row.matched_partner_id` so the giving ledger can attribute them to a partner.
 - Uploads revalidate the `poc-giving` cache tag after commit.
 

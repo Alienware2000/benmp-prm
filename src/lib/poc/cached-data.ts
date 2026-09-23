@@ -16,7 +16,7 @@ import { loadGivingLedger } from "./giving";
  */
 export const loadReconciliationCached = unstable_cache(
   () => loadReconciliation(),
-  ["poc-reconciliation-v1"],
+  ["poc-reconciliation-v2"],
   { revalidate: 120, tags: ["poc-giving"] },
 );
 

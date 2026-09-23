@@ -19,6 +19,9 @@ export type DbRegistration = {
   full_name: string;
   phone_raw: string | null;
   phone_e164: string | null;
+  // Partners table columns used when reading from partners instead of registrations.
+  whatsapp_number?: string | null;
+  momo_phone_number?: string | null;
 };
 
 export type DbPayment = {
@@ -283,13 +286,25 @@ export async function findSentMessageByPartnerRef(
 export async function loadReconciliation(
   fetcher: Fetcher = supabaseRestFetcher(),
 ): Promise<ReconciliationResult> {
-  const [regs, pays] = await Promise.all([
+  // The old POC read registrations (the Qodesh sign-up sheet). The new database
+  // is the partners table — hub admins ingest partners there via the wizard.
+  // Read from partners instead of the now-empty registrations table. payments
+  // is also empty (no MoMo statement imported yet); with zero payments every
+  // partner lands in registeredUnpaid, which is correct.
+  const [partners, pays] = await Promise.all([
     fetcher<DbRegistration>(
-      "registrations?select=id,full_name,phone_raw,phone_e164&limit=5000",
+      "partners?select=id,full_name,whatsapp_number,momo_phone_number&limit=50000",
+    ).then((rows) =>
+      rows.map((r) => ({
+        id: r.id,
+        full_name: r.full_name,
+        phone_raw: r.momo_phone_number ?? null,
+        phone_e164: r.whatsapp_number ?? r.momo_phone_number ?? null,
+      })),
     ),
     fetcher<DbPayment>(
       "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at,status&status=eq.Successful&limit=5000",
     ),
   ]);
-  return reconcile(mapRegistrations(regs), mapPayments(pays));
+  return reconcile(mapRegistrations(partners), mapPayments(pays));
 }

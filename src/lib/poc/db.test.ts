@@ -54,21 +54,25 @@ describe("db row -> domain mapping", () => {
 });
 
 describe("loadReconciliation (injected fetcher, no network)", () => {
-  it("reconciles registrations vs payments into the three buckets", async () => {
+  it("reconciles partners vs payments into the three buckets", async () => {
     const fetcher: Fetcher = (async (path: string) => {
-      if (path.startsWith("registrations")) {
+      if (path.startsWith("partners")) {
         return [
           {
             id: "r1",
             full_name: "Kofi",
             phone_raw: "0244000001",
             phone_e164: "+233244000001",
+            whatsapp_number: "+233244000001",
+            momo_phone_number: null,
           },
           {
             id: "r2",
             full_name: "Ama",
             phone_raw: "0244000002",
             phone_e164: "+233244000002",
+            whatsapp_number: "+233244000002",
+            momo_phone_number: null,
           },
         ];
       }

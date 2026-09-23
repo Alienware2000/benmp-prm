@@ -29,7 +29,7 @@ describe("decideHubRoute", () => {
     expect(decideHubRoute("/", null)).toEqual({ kind: "not-hub" });
   });
 
-  it("a hub session is corralled into the hub area — it never reaches /poc or staff APIs", () => {
+  it("a hub session is corralled into the hub area — it never reaches /poc or staff APIs, but can see the dashboard root", () => {
     expect(decideHubRoute("/poc", session(false))).toEqual({
       kind: "redirect",
       to: "/hub",
@@ -38,10 +38,7 @@ describe("decideHubRoute", () => {
       kind: "redirect",
       to: "/hub",
     });
-    expect(decideHubRoute("/", session(false))).toEqual({
-      kind: "redirect",
-      to: "/hub",
-    });
+    expect(decideHubRoute("/", session(false))).toEqual({ kind: "next" });
     expect(decideHubRoute("/hub", session(false))).toEqual({ kind: "next" });
   });
 

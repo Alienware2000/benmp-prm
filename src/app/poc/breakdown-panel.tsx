@@ -212,11 +212,20 @@ export function ClickableMetricTile({
   active: boolean;
 }) {
   const tones: Record<string, string> = {
-    teal: "bg-cyan-50 text-brand ring-cyan-100",
-    green: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-    yellow: "bg-amber-50 text-amber-700 ring-amber-100",
-    coral: "bg-rose-50 text-rose-700 ring-rose-100",
-    blue: "bg-blue-50 text-blue-700 ring-blue-100",
+    teal: "bg-[#e9f7fe] text-[#028782] ring-[#b7e4f7]",
+    blue: "bg-[#eef7fa] text-[#45acfd] ring-[#b7d8f5]",
+    green: "bg-[#f1f8ef] text-[#5b9d3a] ring-[#c8e8b8]",
+    purple: "bg-[#d4ebf6] text-[#9b6fd9] ring-[#c8d8f0]",
+    yellow: "bg-[#fef6e7] text-[#d4a017] ring-[#f0d878]",
+    coral: "bg-[#fce8e8] text-[#d4453a] ring-[#e8b8b8]",
+  };
+  const tileBg: Record<string, string> = {
+    teal: "bg-[#e9f7fe]",
+    blue: "bg-[#eef7fa]",
+    green: "bg-[#f1f8ef]",
+    purple: "bg-[#d4ebf6]",
+    yellow: "bg-[#fef6e7]",
+    coral: "bg-[#fce8e8]",
   };
   return (
     <button
@@ -224,8 +233,8 @@ export function ClickableMetricTile({
       className={`min-w-0 rounded-lg border p-4 text-left shadow-sm transition ${
         active
           ? "border-foreground ring-2 ring-foreground/10"
-          : "border-border bg-surface hover:border-foreground/30"
-      }`}
+          : "border-border hover:border-foreground/30"
+      } ${tileBg[tone] ?? "bg-surface"}`}
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-semibold text-muted-foreground">{label}</p>

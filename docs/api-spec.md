@@ -411,9 +411,29 @@ Errors: `400` empty selection / empty or over-long message / >200 recipients · 
 
 Gates (unchanged from 0008 §6): `opt_outs` is enforced, `BENMP_SEND_ALLOWLIST` restricts real delivery when configured, and every attempt — sent, skipped or failed — is written to `sent_messages`.
 
+### `POST /api/poc/giving/upload`
+
+Uploads the fixed MoMo CSV or Ecobank XLS statement format from `/poc/giving/upload`.
+
+Multipart form fields:
+
+- `action`: `preview` or `commit`.
+- `source`: `momo` or `ecobank`.
+- `file`: statement file.
+- `decisions`: JSON object for `commit`, keyed by normalized row id. Each value is `{ action: "match", partnerId }`, `{ action: "create", name }`, or `{ action: "dismiss" }`.
+
+Rules:
+
+- MoMo imports only successful rows and matches `From account` first, then `From name`.
+- Ecobank imports only `Credit` rows; `Debit` rows never create gifts.
+- Safe exact phone or unique normalized-name matches auto-apply.
+- Ambiguous or unmatched rows are reviewed by staff: match existing, create partner, or dismiss.
+- Accepted rows are inserted idempotently into the POC `payments` ledger with references prefixed by source (`momo:` / `ecobank:`). Name-only bank matches carry `raw_row.matched_partner_id` so the giving ledger can attribute them to a partner.
+- Uploads revalidate the `poc-giving` cache tag after commit.
+
 ### Pages
 
-`/poc` (dashboard) · `/poc/giving` (filterable ledger) · `/poc/messages` (send to one number or selected partners). `/poc/directory` redirects to the selected-partners mode in Messages, and `/poc/giving/test` redirects to the single-number mode. Giving and partner search take their filters as **GET query params** so filtered views remain linkable.
+`/poc` (dashboard) · `/poc/giving` (filterable ledger) · `/poc/giving/upload` (MoMo/Ecobank giving import) · `/poc/messages` (send to one number or selected partners). `/poc/directory` redirects to the selected-partners mode in Messages, and `/poc/giving/test` redirects to the single-number mode. Giving and partner search take their filters as **GET query params** so filtered views remain linkable.
 
 ### `POST /api/poc/messages/direct`
 

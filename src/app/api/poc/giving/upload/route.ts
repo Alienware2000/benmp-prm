@@ -1,0 +1,243 @@
+import { NextRequest, NextResponse } from "next/server";
+import Papa from "papaparse";
+import * as XLSX from "xlsx";
+import { revalidateTag } from "next/cache";
+import {
+  buildPaymentRows,
+  matchNormalizedRows,
+  parseEcobankRows,
+  parseMomoRows,
+  type NormalizedPaymentRow,
+  type PartnerForPaymentMatch,
+  type PaymentSource,
+} from "@/lib/poc/payment-upload";
+
+export const dynamic = "force-dynamic";
+
+type CommitDecision =
+  | { action: "match"; partnerId: string }
+  | { action: "create"; name: string }
+  | { action: "dismiss" };
+
+type PartnerRow = {
+  id: string;
+  full_name: string;
+  momo_phone_number: string | null;
+  whatsapp_number: string | null;
+  church: string | null;
+  country: string | null;
+};
+
+function env() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Supabase env is not configured.");
+  return { url, key };
+}
+
+async function rest<T>(pathAndQuery: string, init?: RequestInit): Promise<T> {
+  const { url, key } = env();
+  const response = await fetch(`${url}/rest/v1/${pathAndQuery}`, {
+    ...init,
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(init?.headers ?? {}),
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Supabase ${pathAndQuery}: ${response.status} ${await response.text()}`);
+  }
+  if (response.status === 204) return undefined as T;
+  return (await response.json()) as T;
+}
+
+function toPartner(row: PartnerRow): PartnerForPaymentMatch {
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    momoPhoneNumber: row.momo_phone_number,
+    whatsappNumber: row.whatsapp_number,
+    church: row.church,
+    country: row.country,
+  };
+}
+
+async function loadPartners(): Promise<PartnerForPaymentMatch[]> {
+  const rows = await rest<PartnerRow[]>(
+    "partners?select=id,full_name,momo_phone_number,whatsapp_number,church,country&order=full_name.asc&limit=50000",
+  );
+  return rows.map(toPartner);
+}
+
+async function createPartner(name: string): Promise<PartnerForPaymentMatch> {
+  const cleanName = name.trim();
+  if (!cleanName) throw new Error("New partner name is required.");
+  const rows = await rest<PartnerRow[]>("partners?select=id,full_name,momo_phone_number,whatsapp_number,church,country", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify([
+      {
+        full_name: cleanName,
+        country: "Ghana",
+        source: "payment_upload_review",
+        status: "active",
+      },
+    ]),
+  });
+  return toPartner(rows[0]);
+}
+
+async function insertPayments(rows: ReturnType<typeof buildPaymentRows>): Promise<void> {
+  if (rows.length === 0) return;
+  await rest<void>("payments?on_conflict=reference", {
+    method: "POST",
+    headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+    body: JSON.stringify(rows),
+  });
+}
+
+function parseCsv(text: string): Record<string, string>[] {
+  const parsed = Papa.parse<Record<string, string>>(text, {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (header) => header.trim(),
+    transform: (value) => String(value ?? "").trim(),
+  });
+  if (parsed.errors.length > 0) throw new Error(parsed.errors[0].message);
+  return parsed.data;
+}
+
+function parseWorkbook(buffer: Buffer): Record<string, string>[] {
+  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: false });
+  const sheetName = workbook.SheetNames.includes("ReportSheet")
+    ? "ReportSheet"
+    : workbook.SheetNames[0];
+  if (!sheetName) throw new Error("Workbook has no sheets.");
+  return XLSX.utils.sheet_to_json<Record<string, string>>(workbook.Sheets[sheetName], {
+    defval: "",
+    raw: false,
+  });
+}
+
+async function parseUploadedRows(file: File, source: PaymentSource): Promise<ReturnType<typeof parseMomoRows>> {
+  if (source === "momo") return parseMomoRows(parseCsv(await file.text()));
+  return parseEcobankRows(parseWorkbook(Buffer.from(await file.arrayBuffer())));
+}
+
+function serializeRow(row: NormalizedPaymentRow) {
+  return {
+    source: row.source,
+    sourceRowId: row.sourceRowId,
+    transactionDate: row.transactionDate,
+    amountMinor: row.amountMinor,
+    currency: row.currency,
+    payerName: row.payerName,
+    payerPhoneOrAccount: row.payerPhoneOrAccount,
+    providerReference: row.providerReference,
+  };
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const form = await req.formData();
+    const action = String(form.get("action") ?? "preview");
+    const source = String(form.get("source") ?? "") as PaymentSource;
+    const file = form.get("file");
+    if (source !== "momo" && source !== "ecobank") {
+      return NextResponse.json({ ok: false, error: "Choose MoMo or Ecobank." }, { status: 400 });
+    }
+    if (!(file instanceof File)) {
+      return NextResponse.json({ ok: false, error: "Upload a statement file." }, { status: 400 });
+    }
+
+    const [parsed, partners] = await Promise.all([parseUploadedRows(file, source), loadPartners()]);
+    const matches = matchNormalizedRows(parsed.rows, partners);
+
+    if (action === "preview") {
+      return NextResponse.json({
+        ok: true,
+        counts: {
+          rows: parsed.rows.length,
+          auto: matches.filter((m) => m.status === "auto").length,
+          review: matches.filter((m) => m.status === "review").length,
+          rejected: parsed.rejects.length,
+          skipped: parsed.skipped.length,
+        },
+        rows: matches.map((match) => ({
+          row: serializeRow(match.row),
+          status: match.status,
+          reason: match.reason,
+          partner: match.partner,
+          candidates: match.candidates,
+        })),
+        partnerOptions: partners.map((partner) => ({
+          id: partner.id,
+          name: partner.fullName,
+          phone: partner.momoPhoneNumber ?? partner.whatsappNumber,
+          church: partner.church,
+        })),
+        rejects: parsed.rejects.map((reject) => ({ index: reject.index, reason: reject.reason })),
+        skipped: parsed.skipped.length,
+      });
+    }
+
+    if (action !== "commit") {
+      return NextResponse.json({ ok: false, error: "Unknown upload action." }, { status: 400 });
+    }
+
+    const decisions = JSON.parse(String(form.get("decisions") ?? "{}")) as Record<string, CommitDecision>;
+    const partnersById = new Map(partners.map((partner) => [partner.id, partner]));
+    const accepted: Array<{ row: NormalizedPaymentRow; partner: PartnerForPaymentMatch | null }> = [];
+    let dismissed = 0;
+    let created = 0;
+    let manualMatched = 0;
+    let autoMatched = 0;
+
+    for (const match of matches) {
+      if (match.status === "auto") {
+        accepted.push({ row: match.row, partner: match.partner });
+        autoMatched += 1;
+        continue;
+      }
+      const decision = decisions[match.row.sourceRowId];
+      if (!decision || decision.action === "dismiss") {
+        dismissed += 1;
+        continue;
+      }
+      if (decision.action === "match") {
+        const partner = partnersById.get(decision.partnerId);
+        if (!partner) throw new Error("Selected partner was not found.");
+        accepted.push({ row: match.row, partner });
+        manualMatched += 1;
+      } else if (decision.action === "create") {
+        const partner = await createPartner(decision.name || match.row.payerName || "New Partner");
+        accepted.push({ row: match.row, partner });
+        created += 1;
+      }
+    }
+
+    await insertPayments(buildPaymentRows(accepted));
+    revalidateTag("poc-giving", "max");
+
+    return NextResponse.json({
+      ok: true,
+      counts: {
+        insertedOrAlreadyPresent: accepted.length,
+        autoMatched,
+        manualMatched,
+        created,
+        dismissed,
+        rejected: parsed.rejects.length,
+        skipped: parsed.skipped.length,
+      },
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, error: error instanceof Error ? error.message : "Upload failed." },
+      { status: 500 },
+    );
+  }
+}

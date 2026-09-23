@@ -101,6 +101,8 @@ async function createPartner(name: string): Promise<PartnerForPaymentMatch> {
       {
         full_name: cleanName,
         country: "Ghana",
+        church: "Unlisted",
+        denomination: "Unlisted",
         source: "payment_upload_review",
         status: "active",
       },

@@ -65,10 +65,19 @@ function toPartner(row: PartnerRow): PartnerForPaymentMatch {
 }
 
 async function loadPartners(): Promise<PartnerForPaymentMatch[]> {
-  const rows = await rest<PartnerRow[]>(
-    "partners?select=id,full_name,momo_phone_number,whatsapp_number,church,country&order=full_name.asc&limit=50000",
-  );
-  return rows.map(toPartner);
+  const allRows: PartnerRow[] = [];
+  let offset = 0;
+  const pageSize = 1000;
+  while (true) {
+    const rows = await rest<PartnerRow[]>(
+      `partners?select=id,full_name,momo_phone_number,whatsapp_number,church,country&order=full_name.asc&limit=${pageSize}&offset=${offset}`,
+    );
+    if (!rows || rows.length === 0) break;
+    allRows.push(...rows);
+    if (rows.length < pageSize) break;
+    offset += pageSize;
+  }
+  return allRows.map(toPartner);
 }
 
 async function createPartner(name: string): Promise<PartnerForPaymentMatch> {

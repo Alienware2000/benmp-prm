@@ -79,7 +79,7 @@ Required for:
 
 | Page             | Current Status                           | Purpose                                           |
 | ---------------- | ---------------------------------------- | ------------------------------------------------- |
-| `/`              | Implemented with mock/local workspace    | Today operations console.                         |
+| `/`              | Live partners from Supabase; mock for other data | Today operations console. Partner list and total-partner count read from the `partners` table via `src/lib/data/dashboard-partners.ts`; remaining workspace data (gifts, tasks, messages, metrics) still mock. |
 | `/partners`      | Implemented with mock data               | Partner directory and search.                     |
 | `/giving`        | Implemented with mock data               | Contributions, imports, reconciliation readiness. |
 | `/communication` | Implemented with mock data               | Segments, batches, provider status.               |

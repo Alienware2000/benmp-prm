@@ -6,6 +6,8 @@ import {
   buildPaymentRows,
   matchNormalizedRows,
   parseEcobankRows,
+  parseJsonArray,
+  parseJsonObject,
   parseMomoRows,
   type NormalizedPaymentRow,
   type PartnerForPaymentMatch,
@@ -161,8 +163,8 @@ export async function POST(req: NextRequest) {
     const action = String(form.get("action") ?? "preview");
     if (action === "commitDeferred") {
       const rowsJson = String(form.get("rows") ?? "[]");
-      const decisions = JSON.parse(String(form.get("decisions") ?? "{}")) as Record<string, CommitDecision>;
-      const rows = (JSON.parse(rowsJson) as unknown[]).filter(isNormalizedPaymentRow);
+      const decisions = parseJsonObject(String(form.get("decisions") ?? "")) as Record<string, CommitDecision>;
+      const rows = parseJsonArray(rowsJson).filter(isNormalizedPaymentRow);
       const partners = await loadPartners();
       const partnersById = new Map(partners.map((partner) => [partner.id, partner]));
       const accepted: Array<{ row: NormalizedPaymentRow; partner: PartnerForPaymentMatch | null }> = [];
@@ -254,7 +256,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Unknown upload action." }, { status: 400 });
     }
 
-    const decisions = JSON.parse(String(form.get("decisions") ?? "{}")) as Record<string, CommitDecision>;
+    const decisions = parseJsonObject(String(form.get("decisions") ?? "")) as Record<string, CommitDecision>;
     const partnersById = new Map(partners.map((partner) => [partner.id, partner]));
     const accepted: Array<{ row: NormalizedPaymentRow; partner: PartnerForPaymentMatch | null }> = [];
     let dismissed = 0;

@@ -89,6 +89,16 @@ function dateLabel(iso: string): string {
   return Number.isNaN(date.getTime()) ? "Not dated" : date.toLocaleDateString("en-GB");
 }
 
+async function readJsonResponse(response: Response): Promise<{ ok?: boolean; error?: string }> {
+  const text = await response.text();
+  if (!text.trim()) return { ok: false, error: `Server returned an empty response (${response.status}).` };
+  try {
+    return JSON.parse(text) as { ok?: boolean; error?: string };
+  } catch {
+    return { ok: false, error: `Server returned a non-JSON response (${response.status}).` };
+  }
+}
+
 export function GivingUploadClient() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [source, setSource] = useState<Source>("momo");
@@ -125,7 +135,7 @@ export function GivingUploadClient() {
     if (action === "commit") form.set("decisions", JSON.stringify(decisions));
     try {
       const response = await fetch("/api/poc/giving/upload", { method: "POST", body: form });
-      const body = await response.json();
+      const body = await readJsonResponse(response);
       if (!response.ok || !body.ok) throw new Error(body.error ?? "Upload failed.");
       if (action === "preview") {
         setPreview(body as PreviewResponse);
@@ -165,7 +175,7 @@ export function GivingUploadClient() {
       form.set("rows", JSON.stringify(rowsToProcess.map((row) => row.row)));
       form.set("decisions", JSON.stringify(decisions));
       const response = await fetch("/api/poc/giving/upload", { method: "POST", body: form });
-      const body = await response.json();
+      const body = await readJsonResponse(response);
       if (!response.ok || !body.ok) throw new Error(body.error ?? "Review commit failed.");
       const processedIds = new Set(rowsToProcess.map((row) => row.row.sourceRowId));
       savePending(pendingReview.filter((row) => !processedIds.has(row.row.sourceRowId)));

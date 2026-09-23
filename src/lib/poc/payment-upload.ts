@@ -84,6 +84,31 @@ export function normalizePartnerName(name: string | null | undefined): string {
     .join(" ");
 }
 
+function nameTokens(name: string | null | undefined): string[] {
+  return normalizePartnerName(name).split(" ").filter(Boolean);
+}
+
+export function firstLastNameKey(name: string | null | undefined): string {
+  const tokens = nameTokens(name);
+  if (tokens.length < 2) return "";
+  return `${tokens[0]} ${tokens[tokens.length - 1]}`;
+}
+
+export function ghanaLastNineKey(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const digits = String(raw).replace(/\D/g, "");
+  if (digits.length < 9) return null;
+  const lastNine = digits.slice(-9);
+  return /^[25]\d{8}$/.test(lastNine) ? lastNine : null;
+}
+
+function extractMomoPhone(raw: string): string | null {
+  const explicit = normalizePhone(raw);
+  if (explicit) return explicit;
+  const lastNine = ghanaLastNineKey(raw);
+  return lastNine ? `+233${lastNine}` : null;
+}
+
 function cell(row: RawPaymentRow, key: string): string {
   return (row[key] ?? "").trim();
 }
@@ -146,7 +171,8 @@ export function parseMomoRows(rows: RawPaymentRow[]): PaymentParseResult {
       return;
     }
     const payerName = collapseDoubledName(cell(row, "From name")) || null;
-    const payerPhoneOrAccount = normalizePhone(cell(row, "From account"));
+    const payerPhoneOrAccount =
+      extractMomoPhone(cell(row, "From")) ?? extractMomoPhone(cell(row, "From account"));
     out.push({
       source: "momo",
       sourceRowId: id,
@@ -237,29 +263,43 @@ function partnerPhones(partner: PartnerForPaymentMatch): string[] {
     .filter((phone): phone is string => Boolean(phone));
 }
 
+function addToMultiMap<K, V>(map: Map<K, V[]>, key: K, value: V): void {
+  map.set(key, [...(map.get(key) ?? []), value]);
+}
+
 export function matchNormalizedRows(
   rows: NormalizedPaymentRow[],
   partners: PartnerForPaymentMatch[],
 ): PaymentMatchResult[] {
   const byPhone = new Map<string, PartnerForPaymentMatch>();
   const byName = new Map<string, PartnerForPaymentMatch[]>();
+  const byFirstLastName = new Map<string, PartnerForPaymentMatch[]>();
 
   for (const partner of partners) {
-    for (const phone of partnerPhones(partner)) if (!byPhone.has(phone)) byPhone.set(phone, partner);
+    for (const phone of partnerPhones(partner)) {
+      if (!byPhone.has(phone)) byPhone.set(phone, partner);
+      const lastNine = ghanaLastNineKey(phone);
+      if (lastNine && !byPhone.has(lastNine)) byPhone.set(lastNine, partner);
+    }
     const nameKey = normalizePartnerName(partner.fullName);
-    if (nameKey) byName.set(nameKey, [...(byName.get(nameKey) ?? []), partner]);
+    if (nameKey) addToMultiMap(byName, nameKey, partner);
+    const firstLast = firstLastNameKey(partner.fullName);
+    if (firstLast) addToMultiMap(byFirstLastName, firstLast, partner);
   }
 
   return rows.map((row) => {
     const phone = normalizePhone(row.payerPhoneOrAccount);
+    const phoneKey = phone ?? ghanaLastNineKey(row.payerPhoneOrAccount);
     const phoneMatch = phone ? byPhone.get(phone) : undefined;
-    if (phoneMatch) {
+    const lastNineMatch = phoneKey ? byPhone.get(phoneKey) : undefined;
+    if (phoneMatch ?? lastNineMatch) {
+      const partner = phoneMatch ?? lastNineMatch;
       return {
         row,
         status: "auto",
         reason: "Exact phone match",
-        partner: phoneMatch,
-        candidates: [phoneMatch],
+        partner: partner ?? null,
+        candidates: partner ? [partner] : [],
       };
     }
 
@@ -275,12 +315,28 @@ export function matchNormalizedRows(
       };
     }
 
+    const firstLastMatches = firstLastNameKey(row.payerName)
+      ? (byFirstLastName.get(firstLastNameKey(row.payerName)) ?? [])
+      : [];
+    if (firstLastMatches.length === 1) {
+      return {
+        row,
+        status: "auto",
+        reason: "Unique first-last name match",
+        partner: firstLastMatches[0],
+        candidates: firstLastMatches,
+      };
+    }
+
     return {
       row,
       status: "review",
-      reason: nameMatches.length > 1 ? "Multiple exact name matches" : "No safe match",
+      reason:
+        nameMatches.length > 1 || firstLastMatches.length > 1
+          ? "Multiple exact name matches"
+          : "No safe match",
       partner: null,
-      candidates: nameMatches,
+      candidates: nameMatches.length > 0 ? nameMatches : firstLastMatches,
     };
   });
 }

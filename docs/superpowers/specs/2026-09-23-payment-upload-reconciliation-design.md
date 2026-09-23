@@ -31,7 +31,7 @@ The MoMo file format is fixed and can be hardcoded. Important columns:
 Rules:
 
 - Only successful rows are importable gifts.
-- `From account` is the primary payer identifier.
+- `From` is the primary payer phone source when it contains an MSISDN such as `FRI:233.../MSISDN`; `From account` is the fallback payer identifier.
 - `From name` is the secondary payer identifier.
 - Currency defaults to `GHS` when the export currency column is blank.
 - Store the full raw row as evidence.
@@ -83,8 +83,9 @@ raw_row
 Auto-match only when the match is safe.
 
 - Exact normalized phone/account match is high confidence and can auto-apply.
-- For MoMo, match `From account` against partner MoMo/phone fields first.
+- For MoMo, match the payer phone against partner MoMo/WhatsApp fields first. Ghana numbers compare by normalized E.164 and by the last 9 national digits so `024...`, `23324...`, `+23324...`, and `FRI:23324.../MSISDN` all meet.
 - Exact normalized full-name match can auto-apply only when it resolves to one unique partner.
+- A unique first-name + last-name match can auto-apply when titles and middle names differ.
 - Fuzzy name matches go to review.
 - Multiple candidate matches go to review.
 - No match goes to review.

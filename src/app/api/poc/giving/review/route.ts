@@ -2,6 +2,7 @@ import { normalizePhone } from "@/lib/phone";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import {
+  assertPaymentRowsExist,
   buildPaymentRows,
   ghanaLastNineKey,
   parseJsonObject,
@@ -268,6 +269,7 @@ async function handleAcceptAll(): Promise<NextResponse> {
       headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
       body: JSON.stringify(paymentRows),
     });
+    await assertPaymentRowsExist(paymentRows, (path) => rest<Array<{ reference: string }>>(path));
   }
 
   // Mark all review rows as promoted

@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { revalidateTag } from "next/cache";
 import {
+  assertPaymentRowsExist,
   buildPaymentRows,
   matchNormalizedRows,
   parseEcobankRows,
@@ -15,6 +16,7 @@ import {
   type NormalizedPaymentRow,
   type PartnerForPaymentMatch,
   type PaymentSource,
+  type PocPaymentInsertRow,
 } from "@/lib/poc/payment-upload";
 
 export const dynamic = "force-dynamic";
@@ -124,13 +126,15 @@ async function createPartner(
   return toPartner(rows[0]);
 }
 
-async function insertPayments(rows: ReturnType<typeof buildPaymentRows>): Promise<void> {
+async function insertPayments(rows: PocPaymentInsertRow[]): Promise<void> {
   if (rows.length === 0) return;
   await rest<void>("payments?on_conflict=reference", {
     method: "POST",
     headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
     body: JSON.stringify(rows),
   });
+
+  await assertPaymentRowsExist(rows, (path) => rest<Array<{ reference: string }>>(path));
 }
 
 async function createImportBatch({

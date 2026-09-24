@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertPaymentRowsExist,
   buildPaymentRows,
   extractEcobankPayerName,
   isPaidInMonth,
   matchNormalizedRows,
   normalizePartnerName,
   parseEcobankRows,
+  parseJsonArray,
+  parseJsonObject,
   parseMomoRows,
   parsePaystackOnetimeRows,
   parsePaystackRecurringRows,
-  parseJsonArray,
-  parseJsonObject,
   type PartnerForPaymentMatch,
 } from "./payment-upload";
 
@@ -328,6 +329,29 @@ describe("payment upload persistence mapping", () => {
       },
     ]);
   });
+  it("rejects promotion when an idempotent insert leaves a reference missing", async () => {
+    const rows = buildPaymentRows([
+      {
+        row: {
+          source: "paystack_onetime",
+          sourceRowId: "paystack-1",
+          transactionDate: "2026-09-04T00:00:00.000Z",
+          amountMinor: 5000,
+          currency: "GHS",
+          payerName: "Apostle Peter Nsowah",
+          payerPhoneOrAccount: null,
+          providerReference: "paystack-1",
+          rawRow: { Channel: "card" },
+        },
+        partner: partners[0],
+      },
+    ]);
+
+    await expect(assertPaymentRowsExist(rows, async () => [])).rejects.toThrow(
+      "Payment insert incomplete",
+    );
+  });
+
 
   it("marks a partner paid when any contribution exists in the selected month", () => {
     expect(

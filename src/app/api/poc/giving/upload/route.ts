@@ -94,14 +94,14 @@ async function loadPartners(): Promise<PartnerForPaymentMatch[]> {
   return allRows.map(toPartner);
 }
 function countryForPaymentSource(source: PaymentSource): string {
-  return source === "momo" || source === "ecobank" ? "Ghana" : "Unlisted";
+  return source === "momo" || source === "ecobank" ? "Ghana" : "Unknown";
 }
 
 
 async function createPartner(
   name: string,
   phone: string | null = null,
-  country = "Unlisted",
+  country = "Unknown",
 ): Promise<PartnerForPaymentMatch> {
   const cleanName = name.trim();
   if (!cleanName) throw new Error("New partner name is required.");

@@ -38,4 +38,32 @@ describe("buildDashboardTiles", () => {
     expect(tiles.cumulative.amountMinor).toBe(6000);
     expect(tiles.mostRecentMonth?.month).toBe("2026-09");
   });
+  it("counts a persisted matched partner even when the payment phone is unavailable", () => {
+    const tiles = buildDashboardTiles({
+      partners: [
+        {
+          id: "p1",
+          country: "Ghana",
+          last_contribution_date: null,
+          momo_phone_number: null,
+          whatsapp_number: null,
+        },
+      ],
+      payments: [
+        {
+          reference: "momo:2",
+          payer_phone_e164: null,
+          amount_minor: 6000,
+          currency: "GHS",
+          paid_at: "2026-09-01T00:00:00.000Z",
+          status: "Successful",
+          raw_row: { matched_partner_id: "p1" },
+        },
+      ],
+    });
+
+    expect(tiles.activePartners).toBe(1);
+    expect(tiles.activeThisMonth).toBe(1);
+    expect(tiles.activeThisYear).toBe(1);
+  });
 });

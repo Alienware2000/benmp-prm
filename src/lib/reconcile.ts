@@ -35,6 +35,8 @@ export type PaymentRow = {
   reference: string;
   payerName: string | null;
   payerPhone: string | null;
+  /** Persisted partner link assigned during payment import, when available. */
+  matchedPartnerId?: string | null;
   amountMinor: number;
   currency: string;
   /** ISO date the payment landed. */
@@ -94,15 +96,15 @@ export function isStatementRow(payerName: string | null): boolean {
 
 /**
  * Reconcile a period's payments against the registration sheet.
- * Matching is by normalized phone; a payment with no phone match falls to
- * paidUnregistered (Bishop Ebo's rule) rather than being dropped. Unregistered
- * payments are grouped by phone — one entry (and later one thank-you) per person,
- * covering their total, exactly like registeredPaid.
+ * Matching uses a persisted partner link first, then normalized phone. A payment with
+ * no match falls to paidUnregistered (Bishop Ebo's rule) rather than being dropped.
+ * Unregistered payments are grouped by phone — one entry per person.
  */
 export function reconcile(
   registrations: RegistrationRow[],
   payments: PaymentRow[],
 ): ReconciliationResult {
+  const registrationById = new Map(registrations.map((registration) => [registration.id, registration]));
   const registrationByPhone = new Map<string, RegistrationRow>();
   for (const reg of registrations) {
     const key = normalizePhone(reg.phone);
@@ -118,7 +120,9 @@ export function reconcile(
 
   for (const payment of payments) {
     const key = normalizePhone(payment.payerPhone);
-    const match = key ? registrationByPhone.get(key) : undefined;
+    const match =
+      (payment.matchedPartnerId ? registrationById.get(payment.matchedPartnerId) : undefined) ??
+      (key ? registrationByPhone.get(key) : undefined);
 
     if (match) {
       const existing = paymentsByRegId.get(match.id);
@@ -147,7 +151,6 @@ export function reconcile(
     }
   }
 
-  const registrationById = new Map(registrations.map((r) => [r.id, r]));
   const registeredPaid: RegisteredPaid[] = [];
   for (const [regId, pays] of paymentsByRegId) {
     const registration = registrationById.get(regId);

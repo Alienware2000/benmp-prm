@@ -12,10 +12,12 @@ const pay = (
   payerPhone: string | null,
   amountMinor: number,
   payerName: string | null = null,
+  matchedPartnerId?: string,
 ): PaymentRow => ({
   reference,
   payerName,
   payerPhone,
+  matchedPartnerId,
   amountMinor,
   currency: "GHS",
   paidAt: "2026-07-10",
@@ -30,6 +32,17 @@ describe("reconcile", () => {
     expect(result.registeredPaid).toHaveLength(1);
     expect(result.registeredPaid[0].registration.id).toBe("p1");
     expect(result.registeredPaid[0].totalMinor).toBe(6000);
+    expect(result.paidUnregistered).toHaveLength(0);
+    expect(result.registeredUnpaid).toHaveLength(0);
+  });
+
+  it("uses persisted matched partner linkage when the payment phone is missing", () => {
+    const result = reconcile(
+      [reg("p1", "Ama Serwaa", null)],
+      [pay("r1", null, 6000, "Ama Serwaa", "p1")],
+    );
+
+    expect(result.registeredPaid.map((entry) => entry.registration.id)).toEqual(["p1"]);
     expect(result.paidUnregistered).toHaveLength(0);
     expect(result.registeredUnpaid).toHaveLength(0);
   });

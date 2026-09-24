@@ -176,7 +176,18 @@ export type PaymentMethodBreakdown = {
 };
 
 /** Resolve a raw payment_method enum value to a group (default: other). */
-export function toPaymentMethodGroup(method: string | null | undefined): PaymentMethodGroup {
+export function toPaymentMethodGroup(
+  method: string | null | undefined,
+  rawRow?: Record<string, unknown> | null,
+): PaymentMethodGroup {
+  // The payments table has no payment_method column; derive it from raw_row.source.
+  const source = (rawRow?.source as string) ?? method;
+  if (source) {
+    const s = source.toLowerCase();
+    if (s.includes("momo") || s.includes("mobile")) return "mobile_money";
+    if (s.includes("bank")) return "bank";
+    if (s.includes("card") || s.includes("paystack")) return "card";
+  }
   const group = method ? PAYMENT_METHOD_TO_GROUP[method] : undefined;
   return group ?? "other";
 }
@@ -263,8 +274,10 @@ async function fetchAllPayments(): Promise<DashboardPaymentRow[]> {
   if (!SUPABASE_URL || !KEY) return [];
   const out: DashboardPaymentRow[] = [];
   for (let offset = 0; ; offset += 1000) {
+    // The payments table does not have a payment_method column — it's in
+    // raw_row.source. Select without it; toPaymentMethodGroup handles null.
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/payments?select=reference,payer_phone_e164,amount_minor,currency,paid_at,status,payment_method,raw_row&status=eq.Successful&order=paid_at.desc&limit=1000&offset=${offset}`,
+      `${SUPABASE_URL}/rest/v1/payments?select=reference,payer_phone_e164,amount_minor,currency,paid_at,status,raw_row&status=eq.Successful&order=paid_at.desc&limit=1000&offset=${offset}`,
       { headers: restHeaders(), cache: "no-store" },
     );
     if (!res.ok) break;
@@ -354,7 +367,7 @@ export function buildDashboardTiles({
     cum.amountMinor += amount;
 
     // Track amount per payment-method group (cumulative + per-month)
-    const group = toPaymentMethodGroup(payment.payment_method);
+    const group = toPaymentMethodGroup(payment.payment_method, payment.raw_row);
     cum.byPaymentMethod[group] += amount;
     cumByMethod.set(group, (cumByMethod.get(group) ?? 0) + amount);
 

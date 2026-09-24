@@ -103,7 +103,7 @@ function formatGhsMinor(amountMinor: number): string {
 const THANK_MESSAGE =
   "Hi {name}, thank you for {amount} to BENMP. Your partnership means so much to us. God richly bless you!";
 const REMINDER_MESSAGE =
-  "Hi {name}, this is a gentle reminder about your BENMP partnership gift. Please send it by MoMo whenever you are ready. Thank you and God bless you!";
+  "Hi {name}, this is a gentle reminder about your BENMP partnership donation. Please send it by MoMo whenever you are ready. Thank you and God bless you!";
 const UPDATE_MESSAGE =
   "Hi {name}, we would like to share an update from BENMP and the Healing Jesus Campaign. Thank you for staying connected with us.";
 
@@ -128,7 +128,7 @@ export default async function MessagesPage({
         ? buildThankYouMessage(name, amountMinor)
         : "";
     const contextNote = initialMessage
-      ? `Prefilled from Giving using the recorded GHS ${formatGhsMinor(amountMinor)} gift. Review the recipient and amount before sending.`
+      ? `Prefilled from Giving using the recorded GHS ${formatGhsMinor(amountMinor)} donation. Review the recipient and amount before sending.`
       : undefined;
     return (
       <PocShell
@@ -246,7 +246,7 @@ export default async function MessagesPage({
         <div className="mb-3">
           <h2 className="text-base font-bold">What would you like to do?</h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Gift-based actions use the reporting period selected above.
+            Donation-based actions use the reporting period selected above.
           </p>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
@@ -260,7 +260,7 @@ export default async function MessagesPage({
           <TaskCard
             href={withPeriod("/poc/messages", from, to, { task: "remind" })}
             title="Send a gentle reminder"
-            description="Contact registered partners who have no gift recorded in the selected period."
+            description="Contact registered partners who have no donation recorded in the selected period."
             detail={`${answers.unpaidCount.toLocaleString("en-US")} people to review`}
             Icon={BellRing}
           />

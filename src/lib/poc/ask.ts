@@ -34,7 +34,7 @@ export type AskResult = {
 
 type PartnerFact = {
   name: string;
-  status: "registered giver" | "new giver" | "no gift recorded";
+  status: "registered giver" | "new giver" | "no donation recorded";
   category: GiverCategory | null;
   amountMinor: number;
   giftCount: number;
@@ -115,7 +115,7 @@ function allPartnerFacts(result: ReconciliationResult): PartnerFact[] {
     }),
     ...result.registeredUnpaid.map((registration) => ({
       name: registration.fullName,
-      status: "no gift recorded" as const,
+      status: "no donation recorded" as const,
       category: null,
       amountMinor: 0,
       giftCount: 0,
@@ -127,8 +127,8 @@ function allPartnerFacts(result: ReconciliationResult): PartnerFact[] {
 function factLine(fact: PartnerFact): string {
   const giving =
     fact.amountMinor > 0 || fact.giftCount > 0
-      ? `GHS ${formatGhs(fact.amountMinor)}${fact.giftCount > 0 ? ` across ${fact.giftCount} gift${fact.giftCount === 1 ? "" : "s"}` : " recorded"}; latest ${dateLabel(fact.latest)}`
-      : "no gift in the selected period";
+      ? `GHS ${formatGhs(fact.amountMinor)}${fact.giftCount > 0 ? ` across ${fact.giftCount} donation${fact.giftCount === 1 ? "" : "s"}` : " recorded"}; latest ${dateLabel(fact.latest)}`
+      : "no donation in the selected period";
   return `${fact.name}: ${fact.status}; ${categoryLabel(fact.category)}; ${giving}`;
 }
 
@@ -195,7 +195,7 @@ function relevantCategoryLines(
           .slice(0, MAX_CONTEXT_RECORDS)
           .map(
             (giver) =>
-              `${giver.name} - GHS ${formatGhs(giver.amountMinor)}, ${giver.giftCount} gift${giver.giftCount === 1 ? "" : "s"}`,
+              `${giver.name} - GHS ${formatGhs(giver.amountMinor)}, ${giver.giftCount} donation${giver.giftCount === 1 ? "" : "s"}`,
           )
           .join("; ") || "none"
       }`,
@@ -206,7 +206,7 @@ function relevantCategoryLines(
     append("Top givers", groups.top);
   if (/repeat|consistent|faithful|regular/.test(q))
     append("Repeat givers", groups.consistent);
-  if (/ordinary|occasional|one time|one gift/.test(q))
+  if (/ordinary|occasional|one time|one donation/.test(q))
     append("Ordinary givers", groups.ordinary);
   return sections;
 }
@@ -244,9 +244,9 @@ export function buildWorkspaceGrounding(
     groundedIn.push("giver categories");
   }
 
-  if (/unpaid|not paid|hasn t given|haven t given|remind|no gift/.test(q)) {
+  if (/unpaid|not paid|hasn t given|haven t given|remind|no donation/.test(q)) {
     sections.push(
-      `Sample registered partners with no gift in this period (${result.registeredUnpaid.length} total):\n${
+      `Sample registered partners with no donation in this period (${result.registeredUnpaid.length} total):\n${
         result.registeredUnpaid
           .slice(0, MAX_CONTEXT_RECORDS)
           .map((partner) => `- ${partner.fullName}`)
@@ -260,8 +260,8 @@ export function buildWorkspaceGrounding(
     [
       "BENMP workspace guide:",
       "- Dashboard: overview, action shortcuts, attention items, and top/repeat/ordinary giver groups.",
-      "- Giving: review verified gifts, choose the giving period, filter by giver name or amount, and prepare acknowledgements.",
-      "- Messages: thank givers, remind partners with no gift, send ministry updates, choose a category-based audience, use approved drafts, add attachments, review, then explicitly confirm before sending.",
+      "- Giving: review verified donations, choose the giving period, filter by giver name or amount, and prepare acknowledgements.",
+      "- Messages: thank givers, remind partners with no donation, send ministry updates, choose a category-based audience, use approved drafts, add attachments, review, then explicitly confirm before sending.",
       "- Calls: a focused list of top and repeat givers for personal follow-up.",
       "- The giving period follows staff across pages. The assistant is read-only and cannot send messages, change records, or make financial decisions.",
     ].join("\n"),
@@ -330,7 +330,7 @@ export function answerLocally(
     return `${a.unregisteredCount} people gave but are not yet on the register. They are still included for acknowledgement${names ? `. Largest examples: ${names}.` : "."}${tail}`;
   }
   if (isUnpaid) {
-    return `${a.unpaidCount} registered partners have not paid during ${periodLabel}; no gift is recorded for them in that window. Review this group under Messages, then prepare a gentle reminder if appropriate.`;
+    return `${a.unpaidCount} registered partners have not paid during ${periodLabel}; no donation is recorded for them in that window. Review this group under Messages, then prepare a gentle reminder if appropriate.`;
   }
   if (isTotal) {
     return `GHS ${a.totalCollectedGhs} was recorded during ${periodLabel}. ${a.paidCount} identifiable people gave, alongside ${a.statementRowCount} bank or interoperability statement rows.`;
@@ -338,7 +338,7 @@ export function answerLocally(
   if (isPaid) {
     return `${a.paidCount} people gave during ${periodLabel}: ${a.registeredPaidCount} registered partners and ${a.unregisteredCount} new givers not yet linked to the register.`;
   }
-  return `During ${periodLabel}, ${a.paidCount} people gave, ${a.unpaidCount} registered partners have no recorded gift, and GHS ${a.totalCollectedGhs} was recorded.`;
+  return `During ${periodLabel}, ${a.paidCount} people gave, ${a.unpaidCount} registered partners have no recorded donation, and GHS ${a.totalCollectedGhs} was recorded.`;
 }
 
 function answerLocallyFromResult(
@@ -368,7 +368,7 @@ function answerLocallyFromResult(
   if (/repeat|consistent|faithful|regular/.test(q)) {
     return `${groups.consistent.length} people are repeat givers for ${period}. Review the Repeat group on the Dashboard or open Calls for personal follow-up.`;
   }
-  if (/ordinary|occasional|one time|one gift/.test(q)) {
+  if (/ordinary|occasional|one time|one donation/.test(q)) {
     return `${groups.ordinary.length} people are ordinary givers for ${period}. They gave, but are not in the top or repeat groups. The Dashboard shows up to 20 at a time.`;
   }
   if (matches.length > 0) {
@@ -377,11 +377,11 @@ function answerLocallyFromResult(
   if (/how.*(thank|message)|send.*message|attachment|draft/.test(q)) {
     return "Open Messages, choose the purpose, select a giver category, review or edit the draft, add an attachment if needed, and confirm the final recipients before sending. The assistant cannot send on your behalf.";
   }
-  if (/filter|find.*gift|amount/.test(q) && !/total|how much/.test(q)) {
-    return "Open Giving to choose a period and filter verified gifts by giver name, minimum amount, or maximum amount. You can begin an individual or group acknowledgement from those records.";
+  if (/filter|find.*donation|amount/.test(q) && !/total|how much/.test(q)) {
+    return "Open Giving to choose a period and filter verified donations by giver name, minimum amount, or maximum amount. You can begin an individual or group acknowledgement from those records.";
   }
   if (/where|page|dashboard|what can|how.*work|help/.test(q)) {
-    return "Use Dashboard for the overview and giver groups, Giving for verified gifts and amount filters, Messages for acknowledgements and updates, and Calls for top or repeat-giver follow-up. Your selected giving period follows you across all four pages.";
+    return "Use Dashboard for the overview and giver groups, Giving for verified donations and amount filters, Messages for acknowledgements and updates, and Calls for top or repeat-giver follow-up. Your selected giving period follows you across all four pages.";
   }
   return answerLocally(question, headlineAnswers(result), period);
 }

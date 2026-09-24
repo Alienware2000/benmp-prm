@@ -118,7 +118,7 @@ function RefinementFields({
       </div>
       <div>
         <label htmlFor={`${prefix}-min`} className={LABEL}>
-          Minimum gift (GHS)
+          Minimum donation (GHS)
         </label>
         <input
           type="number"
@@ -134,7 +134,7 @@ function RefinementFields({
       </div>
       <div>
         <label htmlFor={`${prefix}-max`} className={LABEL}>
-          Maximum gift (GHS)
+          Maximum donation (GHS)
         </label>
         <input
           type="number"
@@ -217,7 +217,7 @@ export default async function GivingPage({
   return (
     <PocShell
       title="Giving"
-      subtitle="Review recorded gifts, filter by amount, and begin an acknowledgement from the verified record."
+      subtitle="Review recorded donations, filter by amount, and begin an acknowledgement from the verified record."
       toolbar={
         <PeriodFilter
           availableStart={available.start}
@@ -245,7 +245,7 @@ export default async function GivingPage({
           </p>
         </article>
         <article className="rounded-lg border border-border bg-surface p-4 shadow-sm">
-          <p className="text-xs font-semibold text-muted-foreground">Gifts</p>
+          <p className="text-xs font-semibold text-muted-foreground">Donations</p>
           <p className="mt-4 text-2xl font-bold tabular-nums">
             {totals.count.toLocaleString("en-US")}
           </p>
@@ -255,7 +255,7 @@ export default async function GivingPage({
         </article>
         <article className="rounded-lg border border-border bg-surface p-4 shadow-sm">
           <p className="text-xs font-semibold text-muted-foreground">
-            Average gift
+            Average donation
           </p>
           <p className="mt-4 text-2xl font-bold tabular-nums">
             {totals.currency} {ghs(averageMinor)}
@@ -275,7 +275,7 @@ export default async function GivingPage({
             <h2 className="text-sm font-bold">Acknowledge this giving</h2>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
               Prepare personal thank-you messages using each giver&apos;s
-              recorded name and gift amount.
+              recorded name and donation amount.
             </p>
           </div>
         </div>
@@ -347,7 +347,7 @@ export default async function GivingPage({
       <div className="mb-3 mt-7 flex items-end justify-between gap-3">
         <div>
           <h2 className="text-base font-bold">
-            {isFiltered ? "Matching gifts" : "Gift record"}
+            {isFiltered ? "Matching donations" : "Donation record"}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
             {rows.length === 0
@@ -360,7 +360,7 @@ export default async function GivingPage({
       <div className="grid gap-2 md:hidden">
         {rows.length === 0 && (
           <p className="rounded-lg border border-dashed border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
-            No gifts match these filters.
+            No donations match these filters.
           </p>
         )}
         {visibleRows.map((row) => {
@@ -423,7 +423,7 @@ export default async function GivingPage({
                   colSpan={5}
                   className="px-4 py-8 text-center text-muted-foreground"
                 >
-                  No gifts match these filters.
+                  No donations match these filters.
                 </td>
               </tr>
             )}

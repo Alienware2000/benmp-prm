@@ -90,7 +90,7 @@ export function PartnersTable({ data }: { data: TableData }) {
                   </p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     {row.phoneMasked} · {row.giftCount}{" "}
-                    {row.giftCount === 1 ? "gift" : "gifts"} · {row.when}
+                    {row.giftCount === 1 ? "donation" : "donations"} · {row.when}
                   </p>
                 </div>
                 <div className="text-right">
@@ -118,7 +118,7 @@ export function PartnersTable({ data }: { data: TableData }) {
               <th className="px-4 pb-2 pt-3 sm:px-5">Partner</th>
               <th className="pb-2 pt-3 pr-4">Phone</th>
               <th className="pb-2 pt-3 pr-4">Status</th>
-              <th className="pb-2 pt-3 pr-4 text-right">Gifts</th>
+              <th className="pb-2 pt-3 pr-4 text-right">Donations</th>
               <th className="hidden pb-2 pt-3 pr-4 sm:table-cell">When</th>
               <th className="pb-2 pt-3 pr-4 text-right sm:pr-5">Amount</th>
             </tr>

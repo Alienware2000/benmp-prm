@@ -88,7 +88,7 @@ async function createPartner(name: string): Promise<PartnerForPaymentMatch> {
   const rows = await rest<PartnerRow[]>("partners?select=id,full_name,momo_phone_number,whatsapp_number,church,country", {
     method: "POST",
     headers: { Prefer: "return=representation" },
-    body: JSON.stringify([{ full_name: cleanName, country: "Ghana", source: "payment_import_review", status: "active" }]),
+    body: JSON.stringify([{ full_name: cleanName, country: "Ghana", church: "Unlisted", denomination: "Unlisted", source: "payment_import_review", status: "active" }]),
   });
   return toPartner(rows[0]);
 }

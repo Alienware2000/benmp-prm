@@ -18,7 +18,7 @@ type ReviewRow = {
   created_at: string;
 };
 
-type PartnerOption = { id: string; name: string; phone: string | null; church: string | null };
+type PartnerOption = { id: string; name: string; phone: string | null };
 type Decision = { action: "dismiss" } | { action: "match"; partnerId: string } | { action: "create"; name: string };
 
 const inputClass = "h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus:border-brand";
@@ -27,9 +27,17 @@ function money(minor: number, currency: string): string {
   return `${currency} ${(minor / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+const REVIEW_STORAGE_KEY = "benmp-pending-giving-review-v1";
+
 async function readJson(response: Response) {
   const text = await response.text();
   return text ? JSON.parse(text) : { ok: false, error: "Empty response." };
+}
+
+function clearUploadPendingReview() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(REVIEW_STORAGE_KEY);
+  }
 }
 
 export function GivingReviewClient({
@@ -79,6 +87,7 @@ export function GivingReviewClient({
       const body = await readJson(response);
       if (!response.ok || !body.ok) throw new Error(body.error ?? "Could not save review action.");
       setRows((current) => current.filter((item) => item.id !== row.id));
+      clearUploadPendingReview();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save review action.");
     } finally {
@@ -95,6 +104,7 @@ export function GivingReviewClient({
       const body = await readJson(response);
       if (!response.ok || !body.ok) throw new Error(body.error ?? "Could not accept all rows.");
       setRows([]);
+      clearUploadPendingReview();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not accept all rows.");
     } finally {
@@ -149,7 +159,7 @@ export function GivingReviewClient({
                 </select>
                 {decision.action === "match" && (
                   <select className={inputClass} value={decision.partnerId} onChange={(event) => setDecisions((d) => ({ ...d, [item.id]: { action: "match", partnerId: event.target.value } }))}>
-                    {partners.map((partner) => <option key={partner.id} value={partner.id}>{partner.name}{partner.phone ? ` · ${partner.phone}` : ""}{partner.church ? ` · ${partner.church}` : ""}</option>)}
+                    {partners.map((partner) => <option key={partner.id} value={partner.id}>{partner.name}{partner.phone ? ` · ${partner.phone}` : ""}</option>)}
                   </select>
                 )}
                 {decision.action === "create" && (

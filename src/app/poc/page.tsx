@@ -187,7 +187,7 @@ export default async function PocPage({
           />
           <QuickAction
             href={withPeriod("/poc/messages", from, to, { task: "update" })}
-            label="Ministry update"
+            label="Ministry news"
             detail="Choose a group and add media"
             Icon={Megaphone}
             index={2}
@@ -226,7 +226,7 @@ export default async function PocPage({
               href={withPeriod("/poc/messages", from, to, { task: "remind" })}
               className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(238,211,162,0.72)] bg-white/72 px-3 py-2.5 text-sm transition hover:-translate-y-px hover:bg-white hover:text-[#079779]"
             >
-              <span>Review partners with no gift</span>
+              <span>Review partners with no donation</span>
               <b className="tabular-nums">{answers.unpaidCount}</b>
             </Link>
             <Link

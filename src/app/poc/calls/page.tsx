@@ -122,7 +122,7 @@ export default async function CallsPage({
             defaultChecked={consistent}
             className="h-4 w-4 accent-[var(--brand)]"
           />
-          Repeat givers (2+ gifts)
+          Repeat givers (2+ donations)
         </label>
         <label className={FIELD_LABEL}>
           <input
@@ -198,7 +198,7 @@ export default async function CallsPage({
                 </b>
               </div>
               <div>
-                <span className="block text-muted-foreground">Gifts</span>
+                <span className="block text-muted-foreground">Donations</span>
                 <b className="mt-1 block tabular-nums">{row.giftCount}</b>
               </div>
             </div>
@@ -222,7 +222,7 @@ export default async function CallsPage({
             <tr className="border-b border-border text-left text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               <th className="px-4 py-3 font-semibold">Partner</th>
               <th className="px-2 py-3 font-semibold">WhatsApp</th>
-              <th className="px-2 py-3 text-right font-semibold">Gifts</th>
+              <th className="px-2 py-3 text-right font-semibold">Donations</th>
               <th className="px-2 py-3 text-right font-semibold">Total</th>
               <th className="px-4 py-3 font-semibold">Reason</th>
               <th className="w-16 px-4 py-3" aria-label="Call" />

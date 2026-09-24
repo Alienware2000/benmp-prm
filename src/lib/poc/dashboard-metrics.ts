@@ -22,7 +22,8 @@ export type Geography =
   | "Europe"
   | "North America"
   | "South America"
-  | "Pacific/Asia";
+  | "Pacific/Asia"
+  | "Unlisted";
 
 export const GEOGRAPHIES: Geography[] = [
   "Ghana",
@@ -32,6 +33,7 @@ export const GEOGRAPHIES: Geography[] = [
   "North America",
   "South America",
   "Pacific/Asia",
+  "Unlisted",
 ];
 
 /** African countries excluding Ghana (Ghana is its own group). */
@@ -101,7 +103,9 @@ const PACIFIC_ASIA_COUNTRIES = new Set([
 export function toGeography(country: string | null | undefined): Geography {
   if (!country || country.trim() === "") return "Ghana"; // unassigned → Ghana
   const c = country.trim();
+  if (c.toLowerCase() === "unlisted") return "Unlisted";
   if (c.toLowerCase() === "ghana") return "Ghana";
+  if (c.toLowerCase() === "europe") return "Europe"; // broad country label used in DB
   if (AFRICAN_COUNTRIES.has(c)) return "Africa";
   if (UK_COUNTRIES.has(c)) return "United Kingdom";
   if (EUROPEAN_COUNTRIES.has(c)) return "Europe";
@@ -134,11 +138,58 @@ function restHeaders(): Record<string, string> {
 // Types
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Payment method groups
+// ---------------------------------------------------------------------------
+
+/** High-level payment method groups used by the breakdown filter pills. */
+export type PaymentMethodGroup = "mobile_money" | "bank" | "card" | "other";
+
+/** Ordered list of filter pill labels (UI order). */
+export const PAYMENT_METHOD_GROUP_LABELS: PaymentMethodGroup[] = [
+  "mobile_money",
+  "bank",
+  "card",
+  "other",
+];
+
+/** Maps a raw `contributions.payment_method` enum value to its group. */
+const PAYMENT_METHOD_TO_GROUP: Record<string, PaymentMethodGroup> = {
+  mobile_money: "mobile_money",
+  paystack_mobile_money: "mobile_money",
+  flutterwave_mobile_money: "mobile_money",
+  hubtel_mobile_money: "mobile_money",
+  bank_transfer: "bank",
+  paystack_bank_transfer: "bank",
+  paystack_card: "card",
+  paypal: "other",
+  cash: "other",
+  check: "other",
+  other: "other",
+};
+
+/** Per-method-group amount totals for a period. */
+export type PaymentMethodBreakdown = {
+  group: PaymentMethodGroup;
+  amountMinor: number;
+  currency: string;
+};
+
+/** Resolve a raw payment_method enum value to a group (default: other). */
+export function toPaymentMethodGroup(method: string | null | undefined): PaymentMethodGroup {
+  const group = method ? PAYMENT_METHOD_TO_GROUP[method] : undefined;
+  return group ?? "other";
+}
+
 export type GeographyBreakdown = {
   geography: Geography;
   partnerCount: number;
+  /** Distinct partners who donated (per-period for monthly; all-time for cumulative). */
+  donorCount: number;
   amountMinor: number;
   currency: string;
+  /** Amount per payment-method group for this geography (lets the panel filter by method). */
+  byPaymentMethod: Record<PaymentMethodGroup, number>;
 };
 
 export type MonthlyBreakdown = {
@@ -146,22 +197,27 @@ export type MonthlyBreakdown = {
   amountMinor: number;
   currency: string;
   byGeography: GeographyBreakdown[];
+  paymentMethodBreakdown: PaymentMethodBreakdown[];
 };
 
 export type DashboardTiles = {
   totalPartners: number;
   activePartners: number;
+  activeThisMonth: number;
+  activeThisYear: number;
   mostRecentMonth: {
     month: string;
     amountMinor: number;
     currency: string;
     byGeography: GeographyBreakdown[];
+    paymentMethodBreakdown: PaymentMethodBreakdown[];
   } | null;
   cumulative: {
     amountMinor: number;
     currency: string;
     byGeography: GeographyBreakdown[];
     byMonth: MonthlyBreakdown[];
+    paymentMethodBreakdown: PaymentMethodBreakdown[];
   };
 };
 
@@ -183,6 +239,7 @@ export type DashboardPaymentRow = {
   currency: string | null;
   paid_at: string | null;
   status: string | null;
+  payment_method: string | null;
   raw_row?: Record<string, unknown> | null;
 };
 
@@ -207,7 +264,7 @@ async function fetchAllPayments(): Promise<DashboardPaymentRow[]> {
   const out: DashboardPaymentRow[] = [];
   for (let offset = 0; ; offset += 1000) {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/payments?select=reference,payer_phone_e164,amount_minor,currency,paid_at,status,raw_row&status=eq.Successful&order=paid_at.desc&limit=1000&offset=${offset}`,
+      `${SUPABASE_URL}/rest/v1/payments?select=reference,payer_phone_e164,amount_minor,currency,paid_at,status,payment_method,raw_row&status=eq.Successful&order=paid_at.desc&limit=1000&offset=${offset}`,
       { headers: restHeaders(), cache: "no-store" },
     );
     if (!res.ok) break;
@@ -225,9 +282,17 @@ async function fetchAllPayments(): Promise<DashboardPaymentRow[]> {
 function emptyGeoBreakdown(): Map<Geography, GeographyBreakdown> {
   const m = new Map<Geography, GeographyBreakdown>();
   for (const g of GEOGRAPHIES) {
-    m.set(g, { geography: g, partnerCount: 0, amountMinor: 0, currency: "GHS" });
+    m.set(g, { geography: g, partnerCount: 0, donorCount: 0, amountMinor: 0, currency: "GHS", byPaymentMethod: { mobile_money: 0, bank: 0, card: 0, other: 0 } });
   }
   return m;
+}
+
+function buildMethodBreakdown(amounts: Map<PaymentMethodGroup, number>): PaymentMethodBreakdown[] {
+  return PAYMENT_METHOD_GROUP_LABELS.map((group) => ({
+    group,
+    amountMinor: amounts.get(group) ?? 0,
+    currency: "GHS",
+  }));
 }
 
 export function buildDashboardTiles({
@@ -256,6 +321,12 @@ export function buildDashboardTiles({
   // Aggregate contributions
   const cumByGeo = emptyGeoBreakdown();
   const monthMap = new Map<string, Map<Geography, GeographyBreakdown>>();
+  // Distinct donor partner IDs per geography: cumulative (all-time) and per-month.
+  const cumDonorByGeo = new Map<Geography, Set<string>>();
+  const monthDonorMap = new Map<string, Map<Geography, Set<string>>>();
+  // Amount totals per payment-method group: cumulative and per-month.
+  const cumByMethod = new Map<PaymentMethodGroup, number>();
+  const monthByMethod = new Map<string, Map<PaymentMethodGroup, number>>();
   let cumulativeMinor = 0;
   let cumulativeCurrency = "GHS";
 
@@ -282,6 +353,21 @@ export function buildDashboardTiles({
     const cum = cumByGeo.get(geo)!;
     cum.amountMinor += amount;
 
+    // Track amount per payment-method group (cumulative + per-month)
+    const group = toPaymentMethodGroup(payment.payment_method);
+    cum.byPaymentMethod[group] += amount;
+    cumByMethod.set(group, (cumByMethod.get(group) ?? 0) + amount);
+
+    // Track distinct donors per geography (cumulative + per-month)
+    if (partnerId) {
+      let cumSet = cumDonorByGeo.get(geo);
+      if (!cumSet) {
+        cumSet = new Set<string>();
+        cumDonorByGeo.set(geo, cumSet);
+      }
+      cumSet.add(partnerId);
+    }
+
     const month = (payment.paid_at ?? "").slice(0, 7); // YYYY-MM
     if (!month) continue;
     if (!monthMap.has(month)) {
@@ -289,14 +375,52 @@ export function buildDashboardTiles({
     }
     const m = monthMap.get(month)!;
     m.get(geo)!.amountMinor += amount;
+    m.get(geo)!.byPaymentMethod[group] += amount;
+
+    const methodMap = monthByMethod.get(month) ?? new Map<PaymentMethodGroup, number>();
+    if (!monthByMethod.has(month)) monthByMethod.set(month, methodMap);
+    methodMap.set(group, (methodMap.get(group) ?? 0) + amount);
+
+    if (partnerId) {
+      let monthGeoMap = monthDonorMap.get(month);
+      if (!monthGeoMap) {
+        monthGeoMap = new Map<Geography, Set<string>>();
+        monthDonorMap.set(month, monthGeoMap);
+      }
+      let monthSet = monthGeoMap.get(geo);
+      if (!monthSet) {
+        monthSet = new Set<string>();
+        monthGeoMap.set(geo, monthSet);
+      }
+      monthSet.add(partnerId);
+    }
   }
 
   // Tile 2: Active partners (paid at least once in the POC payments ledger)
   const activePartners = paidPartnerIds.size;
 
-  // Set partner counts in cumulative geography breakdown
+  // Tile 2 sub-counts: partners active this calendar month / this year (last 12 months)
+  const now = new Date();
+  const yearStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  let activeThisMonth = 0;
+  let activeThisYear = 0;
+  for (const p of partners) {
+    const raw = p.last_contribution_date;
+    if (!raw) continue;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) continue;
+    if (d >= monthStart) activeThisMonth++;
+    if (d >= yearStart) activeThisYear++;
+  }
+
+  // Set partner counts in cumulative geography breakdown (directory totals for tile 1)
   for (const [geo, count] of partnerCountByGeo) {
     cumByGeo.get(geo)!.partnerCount = count;
+  }
+  // Set donor counts (distinct partners who ever donated per geo, for tile 4 drill-down)
+  for (const [geo, donors] of cumDonorByGeo) {
+    cumByGeo.get(geo)!.donorCount = donors.size;
   }
 
   const byGeography: GeographyBreakdown[] = Array.from(cumByGeo.values());
@@ -305,11 +429,19 @@ export function buildDashboardTiles({
   const sortedMonths = Array.from(monthMap.keys()).sort().reverse();
   const byMonth: MonthlyBreakdown[] = sortedMonths.map((month) => {
     const geoMap = monthMap.get(month)!;
+    const donorGeoMap = monthDonorMap.get(month);
+    // Set per-month donor counts (partners who donated in this month per geo, for tile 3 drill-down)
+    if (donorGeoMap) {
+      for (const [geo, donors] of donorGeoMap) {
+        geoMap.get(geo)!.donorCount = donors.size;
+      }
+    }
     return {
       month,
       amountMinor: Array.from(geoMap.values()).reduce((s, g) => s + g.amountMinor, 0),
       currency: "GHS",
       byGeography: Array.from(geoMap.values()),
+      paymentMethodBreakdown: buildMethodBreakdown(monthByMethod.get(month) ?? new Map()),
     };
   });
 
@@ -319,17 +451,21 @@ export function buildDashboardTiles({
     amountMinor: byMonth[0].amountMinor,
     currency: byMonth[0].currency,
     byGeography: byMonth[0].byGeography,
+    paymentMethodBreakdown: byMonth[0].paymentMethodBreakdown,
   } : null;
 
   return {
     totalPartners,
     activePartners,
+    activeThisMonth,
+    activeThisYear,
     mostRecentMonth,
     cumulative: {
       amountMinor: cumulativeMinor,
       currency: cumulativeCurrency,
       byGeography,
       byMonth,
+      paymentMethodBreakdown: buildMethodBreakdown(cumByMethod),
     },
   };
 }

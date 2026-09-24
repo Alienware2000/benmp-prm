@@ -84,13 +84,13 @@ const PRIMARY_AUDIENCES: AudienceOption[] = [
   {
     key: "paid",
     label: "Gave in selected period",
-    description: "People with a gift recorded in the period shown above",
+    description: "People with a donation recorded in the period shown above",
     Icon: HeartHandshake,
   },
   {
     key: "unpaid",
-    label: "No gift in selected period",
-    description: "Registered partners with no gift in the period shown above",
+    label: "No donation in selected period",
+    description: "Registered partners with no donation in the period shown above",
     Icon: CircleDollarSign,
   },
 ];
@@ -105,13 +105,13 @@ const SPECIFIC_AUDIENCES: AudienceOption[] = [
   {
     key: "consistent",
     label: "Repeat givers",
-    description: "2 or more gifts in the selected period, excluding the Top 20",
+    description: "2 or more donations in the selected period, excluding the Top 20",
     Icon: Sparkles,
   },
   {
     key: "new",
-    label: "Gift not linked to a profile",
-    description: "A gift exists, but no registered partner record matches it",
+    label: "Donation not linked to a profile",
+    description: "A donation exists, but no registered partner record matches it",
     Icon: Gift,
   },
   {
@@ -487,7 +487,7 @@ export function MessageCenter({
               Selected giving period: {periodLabel}
             </p>
             <p className="mt-0.5 text-[11px] leading-5 text-muted-foreground">
-              Gift-based groups and amounts use only the records in this period.
+              Donation-based groups and amounts use only the records in this period.
             </p>
           </div>
         </div>
@@ -595,7 +595,7 @@ export function MessageCenter({
                 className="h-4 w-4 text-muted-foreground"
                 aria-hidden
               />
-              Refine by gift amount
+              Refine by donation amount
               <span className="font-normal text-muted-foreground">
                 optional
               </span>
@@ -656,7 +656,7 @@ export function MessageCenter({
           </span>
         </div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          Names and gift amounts are filled in for each person when available.
+          Names and donation amounts are filled in for each person when available.
         </p>
 
         <div className="mt-3 grid gap-2 rounded-md border border-border bg-background p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">

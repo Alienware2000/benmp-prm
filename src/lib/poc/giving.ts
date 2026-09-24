@@ -15,7 +15,7 @@
 import { normalizePhone } from "../phone";
 import { isStatementRow } from "../reconcile";
 import type { Fetcher } from "./db";
-import { supabaseRestFetcher } from "./db";
+import { fetchAll, supabaseRestFetcher } from "./db";
 import { branchLabel, isSensibleName } from "./directory";
 
 /** Shown wherever a payment can't be tied to a known partner. */
@@ -281,8 +281,9 @@ export async function loadPartnersForGivingMatchedIds(
 export async function loadGivingLedger(
   fetcher: Fetcher = supabaseRestFetcher(),
 ): Promise<GivingEntry[]> {
-  const payments = await fetcher<DbGivingPayment>(
-    "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at,raw_row&status=eq.Successful&order=paid_at.desc&limit=5000",
+  const payments = await fetchAll<DbGivingPayment>(
+    fetcher,
+    "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at,raw_row&status=eq.Successful&order=paid_at.desc",
   );
   const [branchByPhone, branchByPartnerId] = await Promise.all([
     loadPartnersForGivingPhones(

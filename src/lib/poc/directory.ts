@@ -14,7 +14,7 @@
 
 import { normalizePhone } from "../phone";
 import type { Fetcher } from "./db";
-import { memoWithTtl, supabaseRestFetcher } from "./db";
+import { fetchAll, memoWithTtl, supabaseRestFetcher } from "./db";
 
 /** A row as it comes back from PostgREST. */
 export type DbPartner = {
@@ -424,8 +424,9 @@ export async function searchDirectory(
   const { from, to } = rangeHeader(query);
   const [{ rows, total }, payments] = await Promise.all([
     fetchWithCount(buildDirectoryPath(query), from, to),
-    fetcher<{ payer_phone_e164: string | null; amount_minor: number | string }>(
-      "payments?select=payer_phone_e164,amount_minor&status=eq.Successful&limit=5000",
+    fetchAll<{ payer_phone_e164: string | null; amount_minor: number | string }>(
+      fetcher,
+      "payments?select=payer_phone_e164,amount_minor&status=eq.Successful",
     ),
   ]);
 
@@ -456,11 +457,9 @@ export async function loadAllDirectoryPartners(
 ): Promise<DirectoryPartner[]> {
   const [rows, payments] = await Promise.all([
     fetchAllRows<DbPartner>(fetcher, `partners?select=${SELECT}`, "id.asc"),
-    fetcher<{
-      payer_phone_e164: string | null;
-      amount_minor: number | string;
-    }>(
-      "payments?select=payer_phone_e164,amount_minor&status=eq.Successful&limit=5000",
+    fetchAll<{ payer_phone_e164: string | null; amount_minor: number | string }>(
+      fetcher,
+      "payments?select=payer_phone_e164,amount_minor&status=eq.Successful",
     ),
   ]);
   return mapPartners(rows, givingByPhone(payments));
@@ -505,11 +504,12 @@ export async function loadPartnersByPhones(
   const rows = await fetcher<DbPartner>(
     `partners?select=${SELECT}&whatsapp_number=in.(${encodeURIComponent(list)})&limit=${clean.length}`,
   );
-  const payments = await fetcher<{
+  const payments = await fetchAll<{
     payer_phone_e164: string | null;
     amount_minor: number | string;
   }>(
-    "payments?select=payer_phone_e164,amount_minor&status=eq.Successful&limit=5000",
+    fetcher,
+    "payments?select=payer_phone_e164,amount_minor&status=eq.Successful",
   );
 
   return mapPartners(rows, givingByPhone(payments)).sort((a, b) =>
@@ -527,11 +527,12 @@ export async function loadPartnersByIds(
   const rows = await fetcher<DbPartner>(
     `partners?select=${SELECT}&id=in.(${clean.join(",")})&limit=${clean.length}`,
   );
-  const payments = await fetcher<{
+  const payments = await fetchAll<{
     payer_phone_e164: string | null;
     amount_minor: number | string;
   }>(
-    "payments?select=payer_phone_e164,amount_minor&status=eq.Successful&limit=5000",
+    fetcher,
+    "payments?select=payer_phone_e164,amount_minor&status=eq.Successful",
   );
   return mapPartners(rows, givingByPhone(payments));
 }

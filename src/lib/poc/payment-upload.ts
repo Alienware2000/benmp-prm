@@ -1,7 +1,7 @@
 import { normalizePhone } from "../phone";
 import { collapseDoubledName, parseAmountToMinor } from "../ingest";
 
-export type PaymentSource = "momo" | "ecobank";
+export type PaymentSource = "momo" | "ecobank" | "paystack_onetime" | "paystack_recurring";
 
 export type RawPaymentRow = Record<string, string>;
 
@@ -54,6 +54,7 @@ export type PocPaymentInsertRow = {
   payer_phone_e164: string | null;
   amount_minor: number;
   currency: string;
+  payment_method: string | null;
   raw_row: Record<string, unknown>;
 };
 
@@ -257,6 +258,173 @@ export function parseEcobankRows(rows: RawPaymentRow[]): PaymentParseResult {
   return { rows: out, rejects, skipped };
 }
 
+// ---------------------------------------------------------------------------
+// Paystack one-time CSV
+// ---------------------------------------------------------------------------
+// Columns: Reference, Transaction Date, Customer (fullname), Amount Paid,
+// Country Code, Currency, Channel, Status, Transaction ID, …
+// Amount Paid is in cedis (GHS) — may include decimals.
+// Only "success" status rows are imported.
+
+function parsePaystackOnetimeDate(raw: string): string | null {
+  const s = raw.trim();
+  if (!s) return null;
+  // Format: "Sep 1st, 2026 05:55:26 AM"
+  const m = s.match(/^(\w{3})\s+(\d{1,2})(?:st|nd|rd|th),?\s+(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)$/i);
+  if (m) {
+    const months: Record<string, number> = {
+      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+    };
+    const month = months[m[1].toLowerCase()];
+    if (month === undefined) return null;
+    const day = Number(m[2]);
+    const year = Number(m[3]);
+    let hour = Number(m[4]);
+    const minute = Number(m[5]);
+    const second = Number(m[6]);
+    if (m[7].toUpperCase() === "PM" && hour !== 12) hour += 12;
+    if (m[7].toUpperCase() === "AM" && hour === 12) hour = 0;
+    return new Date(Date.UTC(year, month, day, hour, minute, second)).toISOString();
+  }
+  return parseDate(s);
+}
+
+export function parsePaystackOnetimeRows(rows: RawPaymentRow[]): PaymentParseResult {
+  const out: NormalizedPaymentRow[] = [];
+  const rejects: PaymentParseReject[] = [];
+  const skipped: PaymentParseReject[] = [];
+
+  rows.forEach((row, index) => {
+    const status = cell(row, "Status").toLowerCase();
+    if (status !== "success") {
+      skipped.push({ index, reason: `not successful (${status})`, rawRow: row });
+      return;
+    }
+    const reference = cell(row, "Reference");
+    if (!reference) {
+      rejects.push({ index, reason: "missing Reference", rawRow: row });
+      return;
+    }
+    const amountStr = cell(row, "Amount Paid");
+    // Paystack one-time: Amount Paid is in cedis (may have decimals)
+    const amountMinor = parseAmountToMinor(amountStr);
+    if (amountMinor == null) {
+      rejects.push({ index, reason: "invalid amount", rawRow: row });
+      return;
+    }
+    const transactionDate = parsePaystackOnetimeDate(cell(row, "Transaction Date"));
+    if (!transactionDate) {
+      rejects.push({ index, reason: "invalid transaction date", rawRow: row });
+      return;
+    }
+    const payerName = cell(row, "Customer (fullname)") || null;
+    const channel = cell(row, "Channel");
+    const currency = cell(row, "Currency") || "GHS";
+
+    out.push({
+      source: "paystack_onetime",
+      sourceRowId: reference,
+      transactionDate,
+      amountMinor,
+      currency,
+      payerName,
+      payerPhoneOrAccount: null,
+      providerReference: reference,
+      rawRow: { ...row, _payment_method: channel === "mobile_money" ? "paystack_mobile_money" : channel === "bank_transfer" ? "paystack_bank_transfer" : "paystack_card" },
+    });
+  });
+
+  return { rows: out, rejects, skipped };
+}
+
+// ---------------------------------------------------------------------------
+// Paystack recurring CSV
+// ---------------------------------------------------------------------------
+// Columns: First name, Last name, Phone number, Plan amount (GHS) [in pesewas!],
+// Total amount paid so far (GHS) [in cedis], Subscription code,
+// Most recent payment date, No. of payments, Subscription status, …
+// Plan amount (GHS) is in pesewas; Total amount paid so far (GHS) is in cedis.
+// Only "active-renewing" and "active-non-renewing" subscriptions are imported.
+
+function parsePaystackRecurringDate(raw: string): string | null {
+  const s = raw.trim();
+  if (!s) return null;
+  // Format: "Sep 8, 2026 7:01:27 pm" or "Sep 8, 2026 7:01:00 pm"
+  const m = s.match(/^(\w{3})\s+(\d{1,2}),?\s+(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)$/i);
+  if (m) {
+    const months: Record<string, number> = {
+      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+    };
+    const month = months[m[1].toLowerCase()];
+    if (month === undefined) return null;
+    const day = Number(m[2]);
+    const year = Number(m[3]);
+    let hour = Number(m[4]);
+    const minute = Number(m[5]);
+    const second = Number(m[6]);
+    if (m[7].toUpperCase() === "PM" && hour !== 12) hour += 12;
+    if (m[7].toUpperCase() === "AM" && hour === 12) hour = 0;
+    return new Date(Date.UTC(year, month, day, hour, minute, second)).toISOString();
+  }
+  return parseDate(s);
+}
+
+export function parsePaystackRecurringRows(rows: RawPaymentRow[]): PaymentParseResult {
+  const out: NormalizedPaymentRow[] = [];
+  const rejects: PaymentParseReject[] = [];
+  const skipped: PaymentParseReject[] = [];
+
+  rows.forEach((row, index) => {
+    const status = cell(row, "Subscription status").toLowerCase();
+    if (!status.startsWith("active")) {
+      skipped.push({ index, reason: `not active (${status})`, rawRow: row });
+      return;
+    }
+
+    const subscriptionCode = cell(row, "Subscription code");
+    if (!subscriptionCode) {
+      rejects.push({ index, reason: "missing Subscription code", rawRow: row });
+      return;
+    }
+
+    // Plan amount (GHS) is in pesewas
+    const planAmountPesewas = Number(cell(row, "Plan amount (GHS)"));
+    if (Number.isNaN(planAmountPesewas) || planAmountPesewas <= 0) {
+      rejects.push({ index, reason: "invalid plan amount", rawRow: row });
+      return;
+    }
+    const amountMinor = planAmountPesewas; // pesewas = minor units
+
+    const transactionDate = parsePaystackRecurringDate(cell(row, "Most recent payment date"));
+    if (!transactionDate) {
+      rejects.push({ index, reason: "invalid most recent payment date", rawRow: row });
+      return;
+    }
+
+    const firstName = cell(row, "First name");
+    const lastName = cell(row, "Last name");
+    const payerName = [firstName, lastName].filter(Boolean).join(" ") || null;
+    const phoneRaw = cell(row, "Phone number");
+    const payerPhoneOrAccount = phoneRaw ? (normalizePhone(phoneRaw) ?? phoneRaw) : null;
+
+    out.push({
+      source: "paystack_recurring",
+      sourceRowId: subscriptionCode,
+      transactionDate,
+      amountMinor,
+      currency: "GHS",
+      payerName,
+      payerPhoneOrAccount,
+      providerReference: subscriptionCode,
+      rawRow: { ...row, _payment_method: "paystack_card" },
+    });
+  });
+
+  return { rows: out, rejects, skipped };
+}
+
 function partnerPhones(partner: PartnerForPaymentMatch): string[] {
   return [partner.momoPhoneNumber, partner.whatsappNumber]
     .map((phone) => normalizePhone(phone))
@@ -345,6 +513,19 @@ export function bestPartnerPhone(partner: PartnerForPaymentMatch): string | null
   return normalizePhone(partner.momoPhoneNumber) ?? normalizePhone(partner.whatsappNumber);
 }
 
+/** Map a payment source + raw row to a payment_method enum value for the payments table. */
+function resolvePaymentMethod(row: NormalizedPaymentRow): string | null {
+  const rawMethod = row.rawRow?._payment_method;
+  if (typeof rawMethod === "string") return rawMethod;
+  switch (row.source) {
+    case "momo": return "mobile_money";
+    case "ecobank": return "bank_transfer";
+    case "paystack_onetime":
+    case "paystack_recurring": return "paystack_card";
+    default: return null;
+  }
+}
+
 export function buildPaymentRows(
   matches: Array<{ row: NormalizedPaymentRow; partner: PartnerForPaymentMatch | null }>,
 ): PocPaymentInsertRow[] {
@@ -356,6 +537,7 @@ export function buildPaymentRows(
     payer_phone_e164: normalizePhone(row.payerPhoneOrAccount) ?? (partner ? bestPartnerPhone(partner) : null),
     amount_minor: row.amountMinor,
     currency: row.currency || "GHS",
+    payment_method: resolvePaymentMethod(row),
     raw_row: {
       ...row.rawRow,
       ...(partner ? { matched_partner_id: partner.id } : {}),

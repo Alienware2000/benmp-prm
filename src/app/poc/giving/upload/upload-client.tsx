@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, FileUp, LoaderCircle, TriangleAlert } from "lucide-react";
 
-type Source = "momo" | "ecobank";
+type Source = "momo" | "ecobank" | "paystack_onetime" | "paystack_recurring";
 
 type PreviewPartner = {
   id: string;
@@ -223,6 +223,8 @@ export function GivingUploadClient() {
             >
               <option value="momo">MoMo CSV</option>
               <option value="ecobank">Ecobank XLS</option>
+              <option value="paystack_onetime">Paystack One-time CSV</option>
+              <option value="paystack_recurring">Paystack Recurring CSV</option>
             </select>
           </div>
           <div>
@@ -232,7 +234,7 @@ export function GivingUploadClient() {
             <input
               ref={fileRef}
               type="file"
-              accept={source === "momo" ? ".csv,text/csv" : ".xls,.xlsx"}
+              accept={source === "ecobank" ? ".xls,.xlsx" : ".csv,text/csv"}
               className={inputClass + " file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-semibold"}
               onChange={(event) => {
                 setFile(event.target.files?.[0] ?? null);
@@ -252,7 +254,7 @@ export function GivingUploadClient() {
           </button>
         </div>
         <p className="mt-3 text-xs leading-5 text-muted-foreground">
-          MoMo and Ecobank files import safe matches immediately. Unmatched or ambiguous rows move into the review queue below.
+          MoMo, Ecobank, and Paystack files import safe matches immediately. Unmatched or ambiguous rows move into the review queue below.
         </p>
       </section>
 

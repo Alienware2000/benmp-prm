@@ -7,6 +7,8 @@ import {
   normalizePartnerName,
   parseEcobankRows,
   parseMomoRows,
+  parsePaystackOnetimeRows,
+  parsePaystackRecurringRows,
   parseJsonArray,
   parseJsonObject,
   type PartnerForPaymentMatch,
@@ -321,6 +323,7 @@ describe("payment upload persistence mapping", () => {
         payer_phone_e164: "+233244123456",
         amount_minor: 5000,
         currency: "GHS",
+        payment_method: "bank_transfer",
         raw_row: { Credit: "50.00", matched_partner_id: "peter-id", source: "ecobank" },
       },
     ]);
@@ -356,5 +359,219 @@ describe("payment upload JSON helpers", () => {
   it("treats blank JSON object input as empty instead of throwing", () => {
     expect(parseJsonObject("")).toEqual({});
     expect(parseJsonObject(null)).toEqual({});
+  });
+});
+
+describe("Paystack one-time CSV parser", () => {
+  it("parses successful Paystack one-time card rows", () => {
+    const result = parsePaystackOnetimeRows([
+      {
+        Reference: "T827244178493191",
+        "Transaction Date": "Sep 1st, 2026 05:55:26 AM",
+        "Customer (email)": "sanniemp@gmail.com",
+        "Amount Paid": "10940",
+        "Paystack Fees": "213.33",
+        "Total Fees": "213.33",
+        "Amount Due": "10726.67",
+        "Settlement Date": "Sep 2nd, 2026 12:00:00 AM",
+        "Gateway Response": "Payment authorized.",
+        "Customer (fullname)": "Busani Mpofu",
+        "Transaction ID": "6513569396",
+        "Card Type": "visa debit",
+        "Card Bank": "STANDARD BANK SOUTH AFRICA",
+        "Country Code": "ZA",
+        Currency: "GHS",
+        Subaccount: "",
+        "Subaccount Amount Due": "",
+        Source: "checkout",
+        "Source Identifier": "",
+        Status: "success",
+        Channel: "card",
+        "Requested Amount": "10940",
+        "Receipt Number": "624305195718",
+      },
+    ]);
+
+    expect(result.rejects).toEqual([]);
+    expect(result.skipped).toEqual([]);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({
+      source: "paystack_onetime",
+      sourceRowId: "T827244178493191",
+      transactionDate: "2026-09-01T05:55:26.000Z",
+      amountMinor: 1094000, // 10940 GHS = 1094000 pesewas
+      currency: "GHS",
+      payerName: "Busani Mpofu",
+      payerPhoneOrAccount: null,
+      providerReference: "T827244178493191",
+    });
+  });
+
+  it("parses Paystack mobile money rows with correct payment method", () => {
+    const result = parsePaystackOnetimeRows([
+      {
+        Reference: "T312261799859850",
+        "Transaction Date": "Sep 15th, 2026 10:00:00 AM",
+        "Customer (email)": "test@example.com",
+        "Amount Paid": "108",
+        "Customer (fullname)": "David Otabil",
+        "Country Code": "GH",
+        Currency: "GHS",
+        Status: "success",
+        Channel: "mobile_money",
+      },
+    ]);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].amountMinor).toBe(10800); // 108 GHS = 10800 pesewas
+    expect(result.rows[0].rawRow._payment_method).toBe("paystack_mobile_money");
+  });
+
+  it("skips non-success rows", () => {
+    const result = parsePaystackOnetimeRows([
+      {
+        Reference: "T123",
+        "Transaction Date": "Sep 1st, 2026 12:00:00 AM",
+        "Amount Paid": "500",
+        "Customer (fullname)": "Failed Person",
+        Status: "failed",
+        Channel: "card",
+        Currency: "GHS",
+      },
+    ]);
+
+    expect(result.rows).toHaveLength(0);
+    expect(result.skipped).toHaveLength(1);
+    expect(result.skipped[0].reason).toContain("not successful");
+  });
+
+  it("handles decimal cedis amounts correctly", () => {
+    const result = parsePaystackOnetimeRows([
+      {
+        Reference: "T999",
+        "Transaction Date": "Sep 2nd, 2026 11:12:38 PM",
+        "Amount Paid": "1551.24",
+        "Customer (fullname)": "Calvin Mensah",
+        "Country Code": "GH",
+        Currency: "GHS",
+        Status: "success",
+        Channel: "card",
+      },
+    ]);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].amountMinor).toBe(155124); // 1551.24 GHS = 155124 pesewas
+  });
+});
+
+describe("Paystack recurring CSV parser", () => {
+  it("parses active recurring subscriptions", () => {
+    const result = parsePaystackRecurringRows([
+      {
+        "First name": "Danielle",
+        "Last name": "Adeyemo",
+        Email: "danielle@example.com",
+        "Phone number": "+447913192349",
+        "Plan name": "Monthly Donations (GHS 200)",
+        "Plan code": "PLN_xyz",
+        "Plan amount (GHS)": "20000", // pesewas
+        "Plan interval": "monthly",
+        "Subscription code": "SUB_abc123",
+        "Subscription status": "active-renewing",
+        "Start date": "Sep 8, 2026 7:01:27 pm",
+        "Most recent payment date": "Sep 8, 2026 7:01:27 pm",
+        "Cancellation date": "",
+        "Next payment date": "Oct 8, 2026 7:01:00 pm",
+        "No. of payments": "2",
+        "Total amount paid so far (GHS)": "400", // cedis
+        "Card description": "visa ending with 1234",
+        "Card expiry date": "12/2030",
+      },
+    ]);
+
+    expect(result.rejects).toEqual([]);
+    expect(result.skipped).toEqual([]);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({
+      source: "paystack_recurring",
+      sourceRowId: "SUB_abc123",
+      transactionDate: "2026-09-08T19:01:27.000Z",
+      amountMinor: 20000, // Plan amount in pesewas (200 GHS)
+      currency: "GHS",
+      payerName: "Danielle Adeyemo",
+      payerPhoneOrAccount: "+447913192349",
+      providerReference: "SUB_abc123",
+    });
+    expect(result.rows[0].rawRow._payment_method).toBe("paystack_card");
+  });
+
+  it("skips cancelled and expired subscriptions", () => {
+    const result = parsePaystackRecurringRows([
+      {
+        "First name": "John",
+        "Last name": "Doe",
+        "Phone number": "",
+        "Plan amount (GHS)": "5000",
+        "Subscription code": "SUB_cancelled",
+        "Subscription status": "cancelled",
+        "Most recent payment date": "Aug 1, 2026 12:00:00 pm",
+      },
+      {
+        "First name": "Jane",
+        "Last name": "Doe",
+        "Phone number": "",
+        "Plan amount (GHS)": "5000",
+        "Subscription code": "SUB_expired",
+        "Subscription status": "expired",
+        "Most recent payment date": "Jul 1, 2026 12:00:00 pm",
+      },
+    ]);
+
+    expect(result.rows).toHaveLength(0);
+    expect(result.skipped).toHaveLength(2);
+  });
+
+  it("handles Ghana phone numbers and missing phones", () => {
+    const result = parsePaystackRecurringRows([
+      {
+        "First name": "Telinam",
+        "Last name": "Eli",
+        "Phone number": "+233540678253",
+        "Plan amount (GHS)": "10000",
+        "Subscription code": "SUB_gh1",
+        "Subscription status": "active-renewing",
+        "Most recent payment date": "Sep 10, 2026 10:00:00 am",
+      },
+      {
+        "First name": "Maame",
+        "Last name": "Benyi",
+        "Phone number": "",
+        "Plan amount (GHS)": "20000",
+        "Subscription code": "SUB_nophone",
+        "Subscription status": "active-renewing",
+        "Most recent payment date": "Sep 8, 2026 7:01:27 pm",
+      },
+    ]);
+
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows[0].payerPhoneOrAccount).toBe("+233540678253");
+    expect(result.rows[1].payerPhoneOrAccount).toBeNull();
+  });
+
+  it("accepts active-non-renewing status", () => {
+    const result = parsePaystackRecurringRows([
+      {
+        "First name": "Armel",
+        "Last name": "AMADOU",
+        "Phone number": "",
+        "Plan amount (GHS)": "50000",
+        "Subscription code": "SUB_active_nr",
+        "Subscription status": "active-non-renewing",
+        "Most recent payment date": "Sep 2, 2026 11:14:31 pm",
+      },
+    ]);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].payerName).toBe("Armel AMADOU");
   });
 });

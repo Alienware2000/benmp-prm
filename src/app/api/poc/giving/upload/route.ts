@@ -9,6 +9,8 @@ import {
   parseJsonArray,
   parseJsonObject,
   parseMomoRows,
+  parsePaystackOnetimeRows,
+  parsePaystackRecurringRows,
   type NormalizedPaymentRow,
   type PartnerForPaymentMatch,
   type PaymentSource,
@@ -238,7 +240,10 @@ function parseWorkbook(buffer: Buffer): Record<string, string>[] {
 
 async function parseUploadedRows(file: File, source: PaymentSource): Promise<ReturnType<typeof parseMomoRows>> {
   if (source === "momo") return parseMomoRows(parseCsv(await file.text()));
-  return parseEcobankRows(parseWorkbook(Buffer.from(await file.arrayBuffer())));
+  if (source === "ecobank") return parseEcobankRows(parseWorkbook(Buffer.from(await file.arrayBuffer())));
+  if (source === "paystack_onetime") return parsePaystackOnetimeRows(parseCsv(await file.text()));
+  if (source === "paystack_recurring") return parsePaystackRecurringRows(parseCsv(await file.text()));
+  throw new Error(`Unknown source: ${source}`);
 }
 
 function serializeRow(row: NormalizedPaymentRow) {
@@ -336,8 +341,8 @@ export async function POST(req: NextRequest) {
 
     const source = String(form.get("source") ?? "") as PaymentSource;
     const file = form.get("file");
-    if (source !== "momo" && source !== "ecobank") {
-      return NextResponse.json({ ok: false, error: "Choose MoMo or Ecobank." }, { status: 400 });
+    if (source !== "momo" && source !== "ecobank" && source !== "paystack_onetime" && source !== "paystack_recurring") {
+      return NextResponse.json({ ok: false, error: "Choose a statement type." }, { status: 400 });
     }
     if (!(file instanceof File)) {
       return NextResponse.json({ ok: false, error: "Upload a statement file." }, { status: 400 });

@@ -82,7 +82,15 @@ async function loadPartners(): Promise<PartnerForPaymentMatch[]> {
   return allRows.map(toPartner);
 }
 
-async function createPartner(name: string, phone: string | null = null): Promise<PartnerForPaymentMatch> {
+function countryForPaymentSource(source: NormalizedPaymentRow["source"]): string {
+  return source === "momo" || source === "ecobank" ? "Ghana" : "Unlisted";
+}
+
+async function createPartner(
+  name: string,
+  phone: string | null = null,
+  country = "Unlisted",
+): Promise<PartnerForPaymentMatch> {
   const cleanName = name.trim();
   if (!cleanName) throw new Error("New partner name is required.");
   const normalizedPhone = normalizePhone(phone);
@@ -93,7 +101,7 @@ async function createPartner(name: string, phone: string | null = null): Promise
       {
         full_name: cleanName,
         momo_phone_number: normalizedPhone,
-        country: "Ghana",
+        country,
         church: "Unlisted",
         denomination: "Unlisted",
         source: "payment_import_review",
@@ -156,7 +164,11 @@ export async function POST(req: NextRequest) {
       partner = partners.find((p) => p.id === decision.partnerId) ?? null;
       if (!partner) throw new Error("Selected partner was not found.");
     } else if (decision.action === "create") {
-      partner = await createPartner(decision.name || row.payerName || "New Partner", row.payerPhoneOrAccount);
+      partner = await createPartner(
+        decision.name || row.payerName || "New Partner",
+        row.payerPhoneOrAccount,
+        countryForPaymentSource(row.source),
+      );
     }
     if (!partner) return NextResponse.json({ ok: false, error: "Choose match, create, or dismiss." }, { status: 400 });
     const paymentRows = buildPaymentRows([{ row, partner }]);
@@ -227,12 +239,10 @@ async function handleAcceptAll(): Promise<NextResponse> {
       partner = partnerByName.get(nameKey);
     }
 
-    // If no existing match, create or reuse a new partner for this name
     if (!partner) {
       partner = newPartnersByName.get(payerName.toLowerCase());
       if (!partner) {
-        partner = await createPartner(payerName, phone);
-        partnerByName.set(payerName.toLowerCase(), partner);
+        partner = await createPartner(payerName, phone, countryForPaymentSource(row.source));
         newPartnersByName.set(payerName.toLowerCase(), partner);
         if (partner.momoPhoneNumber || partner.whatsappNumber) {
           for (const phone of [partner.momoPhoneNumber, partner.whatsappNumber]) {

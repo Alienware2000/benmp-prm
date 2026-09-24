@@ -537,7 +537,7 @@ export function buildPaymentRows(
     payer_phone_e164: normalizePhone(row.payerPhoneOrAccount) ?? (partner ? bestPartnerPhone(partner) : null),
     amount_minor: row.amountMinor,
     currency: row.currency || "GHS",
-    // payment_method goes into raw_row._payment_method, not a separate column
+    payment_method: resolvePaymentMethod(row),
     raw_row: {
       ...row.rawRow,
       ...(partner ? { matched_partner_id: partner.id } : {}),

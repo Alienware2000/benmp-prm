@@ -324,7 +324,7 @@ describe("payment upload persistence mapping", () => {
         amount_minor: 5000,
         currency: "GHS",
         payment_method: "bank_transfer",
-        raw_row: { Credit: "50.00", matched_partner_id: "peter-id", source: "ecobank" },
+        raw_row: { Credit: "50.00", matched_partner_id: "peter-id", source: "ecobank", _payment_method: "bank_transfer" },
       },
     ]);
   });

@@ -36,8 +36,8 @@ type MethodFilter = "all" | PaymentMethodGroup;
 const METHOD_PILLS: { key: MethodFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "mobile_money", label: "Mobile Money" },
-  { key: "bank", label: "Bank" },
-  { key: "card", label: "Card" },
+  { key: "bank", label: "Bank Transfer" },
+  { key: "paystack", label: "Paystack" },
 ];
 
 

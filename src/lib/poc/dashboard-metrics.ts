@@ -142,26 +142,26 @@ function restHeaders(): Record<string, string> {
 // Payment method groups
 // ---------------------------------------------------------------------------
 
-/** High-level payment method groups used by the breakdown filter pills. */
-export type PaymentMethodGroup = "mobile_money" | "bank" | "card" | "other";
+/** High-level payment source groups used by the breakdown filter pills. */
+export type PaymentMethodGroup = "mobile_money" | "bank" | "paystack" | "other";
 
 /** Ordered list of filter pill labels (UI order). */
 export const PAYMENT_METHOD_GROUP_LABELS: PaymentMethodGroup[] = [
   "mobile_money",
   "bank",
-  "card",
+  "paystack",
   "other",
 ];
 
-/** Maps a raw `contributions.payment_method` enum value to its group. */
+/** Maps a raw payment method value to its source group. */
 const PAYMENT_METHOD_TO_GROUP: Record<string, PaymentMethodGroup> = {
   mobile_money: "mobile_money",
-  paystack_mobile_money: "mobile_money",
   flutterwave_mobile_money: "mobile_money",
   hubtel_mobile_money: "mobile_money",
   bank_transfer: "bank",
-  paystack_bank_transfer: "bank",
-  paystack_card: "card",
+  paystack_mobile_money: "paystack",
+  paystack_bank_transfer: "paystack",
+  paystack_card: "paystack",
   paypal: "other",
   cash: "other",
   check: "other",
@@ -175,7 +175,7 @@ export type PaymentMethodBreakdown = {
   currency: string;
 };
 
-/** Resolve a payment_method enum value to a high-level filter group. */
+/** Resolve a payment method value to a high-level source group. */
 export function toPaymentMethodGroup(
   method: string | null | undefined,
   rawRow?: Record<string, unknown> | null,
@@ -187,9 +187,9 @@ export function toPaymentMethodGroup(
   const resolved = method ?? rawMethod ?? source;
   if (resolved) {
     const s = resolved.toLowerCase();
+    if (s.includes("paystack")) return "paystack";
     if (s.includes("momo") || s.includes("mobile")) return "mobile_money";
     if (s.includes("bank") || s.includes("ecobank")) return "bank";
-    if (s.includes("card") || s.includes("paystack")) return "card";
     const mapped = PAYMENT_METHOD_TO_GROUP[resolved];
     if (mapped) return mapped;
   }
@@ -296,7 +296,7 @@ async function fetchAllPayments(): Promise<DashboardPaymentRow[]> {
 function emptyGeoBreakdown(): Map<Geography, GeographyBreakdown> {
   const m = new Map<Geography, GeographyBreakdown>();
   for (const g of GEOGRAPHIES) {
-    m.set(g, { geography: g, partnerCount: 0, donorCount: 0, amountMinor: 0, currency: "GHS", byPaymentMethod: { mobile_money: 0, bank: 0, card: 0, other: 0 } });
+    m.set(g, { geography: g, partnerCount: 0, donorCount: 0, amountMinor: 0, currency: "GHS", byPaymentMethod: { mobile_money: 0, bank: 0, paystack: 0, other: 0 } });
   }
   return m;
 }

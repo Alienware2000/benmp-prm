@@ -22,7 +22,8 @@ export type Geography =
   | "Europe"
   | "North America"
   | "South America"
-  | "Pacific/Asia";
+  | "Pacific/Asia"
+  | "Unlisted";
 
 export const GEOGRAPHIES: Geography[] = [
   "Ghana",
@@ -32,6 +33,7 @@ export const GEOGRAPHIES: Geography[] = [
   "North America",
   "South America",
   "Pacific/Asia",
+  "Unlisted",
 ];
 
 /** African countries excluding Ghana (Ghana is its own group). */
@@ -101,6 +103,7 @@ const PACIFIC_ASIA_COUNTRIES = new Set([
 export function toGeography(country: string | null | undefined): Geography {
   if (!country || country.trim() === "") return "Ghana"; // unassigned → Ghana
   const c = country.trim();
+  if (c.toLowerCase() === "unlisted") return "Unlisted";
   if (c.toLowerCase() === "ghana") return "Ghana";
   if (AFRICAN_COUNTRIES.has(c)) return "Africa";
   if (UK_COUNTRIES.has(c)) return "United Kingdom";

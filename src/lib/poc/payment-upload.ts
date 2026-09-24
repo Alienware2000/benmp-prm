@@ -54,7 +54,7 @@ export type PocPaymentInsertRow = {
   payer_phone_e164: string | null;
   amount_minor: number;
   currency: string;
-  payment_method: string | null;
+  // payment_method is not a column on the payments table; it goes into raw_row._payment_method
   raw_row: Record<string, unknown>;
 };
 
@@ -542,6 +542,7 @@ export function buildPaymentRows(
       ...row.rawRow,
       ...(partner ? { matched_partner_id: partner.id } : {}),
       source: row.source,
+      _payment_method: resolvePaymentMethod(row),
     },
   }));
 }

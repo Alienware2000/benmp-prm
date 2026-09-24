@@ -69,12 +69,12 @@ describe("buildDashboardTiles", () => {
 });
 
 describe("regional payment attribution", () => {
-  it("keeps an unlisted partner's payment out of Ghana", () => {
+  it("keeps an unknown partner's payment out of Ghana", () => {
     const tiles = buildDashboardTiles({
       partners: [
         {
           id: "p1",
-          country: "Unlisted",
+          country: "Unknown",
           last_contribution_date: null,
           momo_phone_number: null,
           whatsapp_number: null,
@@ -97,17 +97,17 @@ describe("regional payment attribution", () => {
     const byRegion = Object.fromEntries(
       tiles.cumulative.byGeography.map((entry) => [entry.geography, entry.amountMinor]),
     );
-    expect(byRegion.Unlisted).toBe(2500);
+    expect(byRegion.Unknown).toBe(2500);
     expect(byRegion.Ghana).toBe(0);
   });
-
 });
 
 describe("toGeography", () => {
-  it("routes missing or unknown countries to Unlisted", () => {
-    expect(toGeography(null)).toBe("Unlisted");
-    expect(toGeography("")).toBe("Unlisted");
-    expect(toGeography("Unknown country")).toBe("Unlisted");
+  it("routes missing or unknown countries to Unknown", () => {
+    expect(toGeography(null)).toBe("Unknown");
+    expect(toGeography("")).toBe("Unknown");
+    expect(toGeography("Unlisted")).toBe("Unknown");
+    expect(toGeography("Unknown country")).toBe("Unknown");
   });
 });
 

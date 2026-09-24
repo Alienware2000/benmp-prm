@@ -5,9 +5,9 @@
  * PostgREST (same service-role pattern as src/lib/hub/db.ts). All money is
  * integer minor units; GHS and USD are both displayed.
  *
- * Geography grouping (Decision: user instruction 2026-09-23):
+ * Geography grouping:
  *   Ghana | Africa | Europe | North America | Others
- * Partners with no country (NULL/empty) are counted as Ghana.
+ * Partners with no country (NULL/empty) are counted as Unknown.
  */
 
 import { ghanaLastNineKey } from "./payment-upload";
@@ -23,7 +23,7 @@ export type Geography =
   | "North America"
   | "South America"
   | "Pacific/Asia"
-  | "Unlisted";
+  | "Unknown";
 
 export const GEOGRAPHIES: Geography[] = [
   "Ghana",
@@ -33,7 +33,7 @@ export const GEOGRAPHIES: Geography[] = [
   "North America",
   "South America",
   "Pacific/Asia",
-  "Unlisted",
+  "Unknown",
 ];
 
 /** African countries excluding Ghana (Ghana is its own group). */
@@ -101,9 +101,9 @@ const PACIFIC_ASIA_COUNTRIES = new Set([
 ]);
 
 export function toGeography(country: string | null | undefined): Geography {
-  if (!country || country.trim() === "") return "Unlisted";
+  if (!country || country.trim() === "") return "Unknown";
   const c = country.trim();
-  if (c.toLowerCase() === "unlisted") return "Unlisted";
+  if (c.toLowerCase() === "unknown" || c.toLowerCase() === "unlisted") return "Unknown";
   if (c.toLowerCase() === "ghana") return "Ghana";
   if (c.toLowerCase() === "europe") return "Europe"; // broad country label used in DB
   if (AFRICAN_COUNTRIES.has(c)) return "Africa";
@@ -112,7 +112,7 @@ export function toGeography(country: string | null | undefined): Geography {
   if (NORTH_AMERICAN_COUNTRIES.has(c)) return "North America";
   if (SOUTH_AMERICAN_COUNTRIES.has(c)) return "South America";
   if (PACIFIC_ASIA_COUNTRIES.has(c)) return "Pacific/Asia";
-  return "Unlisted";
+  return "Unknown";
 }
 
 // ---------------------------------------------------------------------------

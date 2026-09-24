@@ -148,10 +148,12 @@ export async function POST(req: NextRequest) {
       partner = await createPartner(decision.name || row.payerName || "New Partner");
     }
     if (!partner) return NextResponse.json({ ok: false, error: "Choose match, create, or dismiss." }, { status: 400 });
+    // payment_method column may not exist yet; strip it from the REST payload
+    const paymentRows = buildPaymentRows([{ row, partner }]).map(({ payment_method: _pm, ...rest }) => rest);
     await rest<void>("payments?on_conflict=reference", {
       method: "POST",
       headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
-      body: JSON.stringify(buildPaymentRows([{ row, partner }])),
+      body: JSON.stringify(paymentRows),
     });
     await updateReviewRow(id, "promoted", partner.id);
     revalidateTag("poc-giving", "max");
@@ -239,12 +241,13 @@ async function handleAcceptAll(): Promise<NextResponse> {
     promotedIds.push(reviewRow.id);
   }
 
-  // Insert all payments (ignore duplicates)
+  // Insert all payments (ignore duplicates). Strip payment_method column — it may not exist yet.
   if (payments.length > 0) {
+    const paymentRows = buildPaymentRows(payments).map(({ payment_method: _pm, ...rest }) => rest);
     await rest<void>("payments?on_conflict=reference", {
       method: "POST",
       headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
-      body: JSON.stringify(buildPaymentRows(payments)),
+      body: JSON.stringify(paymentRows),
     });
   }
 

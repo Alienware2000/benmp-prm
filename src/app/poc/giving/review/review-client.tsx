@@ -18,7 +18,7 @@ type ReviewRow = {
   created_at: string;
 };
 
-type PartnerOption = { id: string; name: string; phone: string | null; church: string | null };
+type PartnerOption = { id: string; name: string; phone: string | null };
 type Decision = { action: "dismiss" } | { action: "match"; partnerId: string } | { action: "create"; name: string };
 
 const inputClass = "h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus:border-brand";
@@ -149,7 +149,7 @@ export function GivingReviewClient({
                 </select>
                 {decision.action === "match" && (
                   <select className={inputClass} value={decision.partnerId} onChange={(event) => setDecisions((d) => ({ ...d, [item.id]: { action: "match", partnerId: event.target.value } }))}>
-                    {partners.map((partner) => <option key={partner.id} value={partner.id}>{partner.name}{partner.phone ? ` · ${partner.phone}` : ""}{partner.church ? ` · ${partner.church}` : ""}</option>)}
+                    {partners.map((partner) => <option key={partner.id} value={partner.id}>{partner.name}{partner.phone ? ` · ${partner.phone}` : ""}</option>)}
                   </select>
                 )}
                 {decision.action === "create" && (

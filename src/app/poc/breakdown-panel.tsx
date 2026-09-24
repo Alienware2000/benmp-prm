@@ -5,6 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import type {
   GeographyBreakdown,
   MonthlyBreakdown,
+  PaymentMethodGroup,
 } from "@/lib/poc/dashboard-metrics";
 
 function formatGhs(minor: number): string {
@@ -40,12 +41,14 @@ export function BreakdownPanel({
     amountMinor: number;
     currency: string;
     byGeography: GeographyBreakdown[];
+    paymentMethodBreakdown: { group: PaymentMethodGroup; amountMinor: number; currency: string }[];
   } | null;
   cumulative: {
     amountMinor: number;
     currency: string;
     byGeography: GeographyBreakdown[];
     byMonth: MonthlyBreakdown[];
+    paymentMethodBreakdown: { group: PaymentMethodGroup; amountMinor: number; currency: string }[];
   };
   activeTile: "month" | "cumulative";
 }) {
@@ -122,7 +125,7 @@ export function BreakdownPanel({
                         {g.geography}
                       </td>
                       <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                        {g.partnerCount.toLocaleString("en-US")}
+                        {g.donorCount.toLocaleString("en-US")}
                       </td>
                       <td className="py-2 pr-4 text-right tabular-nums text-foreground">
                         {formatGhs(g.amountMinor)}
@@ -136,7 +139,7 @@ export function BreakdownPanel({
                   <td className="py-2 pr-4 text-foreground">Total</td>
                   <td className="py-2 pr-4 text-right tabular-nums text-foreground">
                     {data.byGeography
-                      .reduce((s, g) => s + g.partnerCount, 0)
+                      .reduce((s, g) => s + g.donorCount, 0)
                       .toLocaleString("en-US")}
                   </td>
                   <td className="py-2 pr-4 text-right tabular-nums text-foreground">
@@ -267,8 +270,8 @@ export function DashboardTilesSection({ tiles }: { tiles: DashboardTiles }) {
   );
 
   const monthValue = tiles.mostRecentMonth
-    ? `GHS ${formatGhs(tiles.mostRecentMonth.amountMinor)}`
-    : "GHS 0";
+    ? `GHS ${formatGhs(tiles.mostRecentMonth.amountMinor)} (${monthLabel(tiles.mostRecentMonth.month)})`
+    : "GHS 0.00";
   const monthDetail = tiles.mostRecentMonth
     ? `${monthLabel(tiles.mostRecentMonth.month)} · click for geography breakdown`
     : "No contributions recorded yet";
@@ -297,16 +300,52 @@ export function DashboardTilesSection({ tiles }: { tiles: DashboardTiles }) {
           }
           active={activeTile === "partners"}
         />
-        {/* Tile 2: Active BENMP Partners */}
-        <ClickableMetricTile
-          label="Active BENMP Partners"
-          value={tiles.activePartners.toLocaleString("en-US")}
-          detail="Given at least once"
-          Icon={UserCheck}
-          tone="green"
+        {/* Tile 2: Active BENMP Partners — two-column layout */}
+        <button
+          type="button"
           onClick={() => setActiveTile(null)}
-          active={false}
-        />
+          className={`relative min-h-[160px] min-w-0 overflow-hidden rounded-[18px] border p-5 text-left shadow-[0_2px_8px_rgba(16,42,67,0.07)] transition-all duration-180 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(16,42,67,0.09)] ${
+            "border-transparent hover:border-foreground/20"
+          } bg-[radial-gradient(circle_at_88%_18%,rgba(255,255,255,.65),transparent_25%),linear-gradient(135deg,#c9f6dc_0%,#b7edff_100%)] text-[#073b4c]`}
+        >
+          <span
+            className="pointer-events-none absolute -right-11 -bottom-21 h-[170px] w-[170px] rounded-full bg-white/18"
+            aria-hidden
+          />
+          <div className="relative flex items-start justify-between gap-3">
+            <p className="text-[13px] font-bold text-[#073b4c]">Active BENMP Partners</p>
+            <span
+              className="grid h-10 w-10 flex-none place-items-center rounded-[12px] bg-white/22 ring-1 ring-white/25 text-[#073b4c]"
+            >
+              <UserCheck className="h-[18px] w-[18px]" aria-hidden />
+            </span>
+          </div>
+          <div className="relative z-1 mt-[18px] flex items-stretch gap-4">
+            {/* Left column: Given this month */}
+            <div className="flex min-w-0 flex-1 flex-col">
+              <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">
+                Given this month
+              </p>
+              <p className="mt-1 text-[22px] font-extrabold leading-none tracking-[-0.035em] tabular-nums">
+                {tiles.activeThisMonth.toLocaleString("en-US")}
+              </p>
+            </div>
+            {/* Vertical divider */}
+            <span className="w-px flex-none bg-[#073b4c]/20" aria-hidden />
+            {/* Right column: Active this year (big number) */}
+            <div className="flex min-w-0 flex-1 flex-col">
+              <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">
+                Active this year
+              </p>
+              <p className="mt-1 text-[30px] font-extrabold leading-none tracking-[-0.035em] tabular-nums">
+                {tiles.activeThisYear.toLocaleString("en-US")}
+              </p>
+            </div>
+          </div>
+          <p className="relative z-1 mt-3 border-t border-white/15 pt-2 text-[12px] opacity-78">
+            By last contribution date · last 12 months
+          </p>
+        </button>
         {/* Tile 3: Most recent month */}
         <ClickableMetricTile
           label="Amount collected (recent month)"

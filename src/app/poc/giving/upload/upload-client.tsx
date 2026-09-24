@@ -11,7 +11,6 @@ type PreviewPartner = {
   fullName: string;
   momoPhoneNumber: string | null;
   whatsappNumber: string | null;
-  church: string | null;
   country: string | null;
 };
 
@@ -37,7 +36,7 @@ type PreviewResponse = {
   ok: true;
   counts: { rows: number; auto: number; review: number; rejected: number; skipped: number };
   rows: PreviewRow[];
-  partnerOptions: Array<{ id: string; name: string; phone: string | null; church: string | null }>;
+  partnerOptions: Array<{ id: string; name: string; phone: string | null }>;
   rejects: Array<{ index: number; reason: string }>;
   skipped: number;
 };
@@ -335,7 +334,7 @@ export function GivingUploadClient() {
         <section className="rounded-lg border border-success/30 bg-success/10 p-4 text-sm text-success">
           <p className="font-bold">Upload committed.</p>
           <p className="mt-1">
-            {committed.counts.insertedOrAlreadyPresent} gifts accepted, {committed.counts.autoMatched} auto-matched, {committed.counts.manualMatched} manually matched, {committed.counts.created} partners created, {committed.counts.dismissed} dismissed, {committed.counts.deferred} deferred for later review.
+            {committed.counts.insertedOrAlreadyPresent} donations accepted, {committed.counts.autoMatched} auto-matched, {committed.counts.manualMatched} manually matched, {committed.counts.created} partners created, {committed.counts.dismissed} dismissed, {committed.counts.deferred} deferred for later review.
           </p>
           <Link href="/poc/giving" className="mt-3 inline-flex h-9 items-center rounded-md bg-brand px-3 text-xs font-semibold text-white">
             View giving ledger
@@ -404,9 +403,9 @@ export function GivingUploadClient() {
                         value={decision.partnerId}
                         onChange={(event) => updateDecision(item.row.sourceRowId, { action: "match", partnerId: event.target.value })}
                       >
-                        {[...item.candidates.map((p) => ({ id: p.id, name: p.fullName, phone: p.momoPhoneNumber ?? p.whatsappNumber, church: p.church })), ...partnerOptions].map((partner) => (
+                        {[...item.candidates.map((p) => ({ id: p.id, name: p.fullName, phone: p.momoPhoneNumber ?? p.whatsappNumber })), ...partnerOptions].map((partner) => (
                           <option key={partner.id} value={partner.id}>
-                            {partner.name}{partner.phone ? ` · ${partner.phone}` : ""}{partner.church ? ` · ${partner.church}` : ""}
+                            {partner.name}{partner.phone ? ` · ${partner.phone}` : ""}
                           </option>
                         ))}
                       </select>

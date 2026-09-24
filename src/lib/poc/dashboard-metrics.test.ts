@@ -113,6 +113,12 @@ describe("toGeography", () => {
 
 describe("toPaymentMethodGroup", () => {
   it("prefers the payments table payment_method over legacy raw-row metadata", () => {
-    expect(toPaymentMethodGroup("paystack_card", { _payment_method: "mobile_money" })).toBe("card");
+    expect(toPaymentMethodGroup("paystack_card", { _payment_method: "mobile_money" })).toBe("paystack");
+  });
+
+  it("groups every Paystack channel as Paystack", () => {
+    expect(toPaymentMethodGroup("paystack_mobile_money")).toBe("paystack");
+    expect(toPaymentMethodGroup("paystack_bank_transfer")).toBe("paystack");
+    expect(toPaymentMethodGroup("paystack_card")).toBe("paystack");
   });
 });

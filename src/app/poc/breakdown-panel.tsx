@@ -309,8 +309,11 @@ export function DashboardTilesSection({ tiles }: { tiles: DashboardTiles }) {
   );
 
   const monthValue = tiles.mostRecentMonth
-    ? `GHS ${formatGhs(tiles.mostRecentMonth.amountMinor)} (${monthLabel(tiles.mostRecentMonth.month)})`
+    ? `GHS ${formatGhs(tiles.mostRecentMonth.amountMinor)}`
     : "GHS 0.00";
+  const monthLabel3 = tiles.mostRecentMonth
+    ? `Amount collected (${monthLabel(tiles.mostRecentMonth.month)})`
+    : "Amount collected (recent month)";
   const monthDetail = tiles.mostRecentMonth
     ? `${monthLabel(tiles.mostRecentMonth.month)} · click for geography breakdown`
     : "No contributions recorded yet";
@@ -387,7 +390,7 @@ export function DashboardTilesSection({ tiles }: { tiles: DashboardTiles }) {
         </button>
         {/* Tile 3: Most recent month */}
         <ClickableMetricTile
-          label="Amount collected (recent month)"
+          label={monthLabel3}
           value={monthValue}
           detail={monthDetail}
           Icon={CircleDollarSign}

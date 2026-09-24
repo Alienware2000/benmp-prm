@@ -1,3 +1,4 @@
+import { normalizePhone } from "@/lib/phone";
 import { NextRequest, NextResponse } from "next/server";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
@@ -93,15 +94,17 @@ async function loadPartners(): Promise<PartnerForPaymentMatch[]> {
   return allRows.map(toPartner);
 }
 
-async function createPartner(name: string): Promise<PartnerForPaymentMatch> {
+async function createPartner(name: string, phone: string | null = null): Promise<PartnerForPaymentMatch> {
   const cleanName = name.trim();
   if (!cleanName) throw new Error("New partner name is required.");
+  const normalizedPhone = normalizePhone(phone);
   const rows = await rest<PartnerRow[]>("partners?select=id,full_name,momo_phone_number,whatsapp_number,church,country", {
     method: "POST",
     headers: { Prefer: "return=representation" },
     body: JSON.stringify([
       {
         full_name: cleanName,
+        momo_phone_number: normalizedPhone,
         country: "Ghana",
         church: "Unlisted",
         denomination: "Unlisted",
@@ -306,7 +309,7 @@ export async function POST(req: NextRequest) {
           accepted.push({ row, partner });
           manualMatched += 1;
         } else if (decision.action === "create") {
-          const partner = await createPartner(decision.name || row.payerName || "New Partner");
+          const partner = await createPartner(decision.name || row.payerName || "New Partner", row.payerPhoneOrAccount);
           accepted.push({ row, partner });
           created += 1;
         }
@@ -456,7 +459,7 @@ export async function POST(req: NextRequest) {
         accepted.push({ row: match.row, partner });
         manualMatched += 1;
       } else if (decision.action === "create") {
-        const partner = await createPartner(decision.name || match.row.payerName || "New Partner");
+        const partner = await createPartner(decision.name || match.row.payerName || "New Partner", match.row.payerPhoneOrAccount);
         accepted.push({ row: match.row, partner });
         created += 1;
       }

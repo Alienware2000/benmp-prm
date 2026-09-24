@@ -82,13 +82,24 @@ async function loadPartners(): Promise<PartnerForPaymentMatch[]> {
   return allRows.map(toPartner);
 }
 
-async function createPartner(name: string): Promise<PartnerForPaymentMatch> {
+async function createPartner(name: string, phone: string | null = null): Promise<PartnerForPaymentMatch> {
   const cleanName = name.trim();
   if (!cleanName) throw new Error("New partner name is required.");
+  const normalizedPhone = normalizePhone(phone);
   const rows = await rest<PartnerRow[]>("partners?select=id,full_name,momo_phone_number,whatsapp_number,church,country", {
     method: "POST",
     headers: { Prefer: "return=representation" },
-    body: JSON.stringify([{ full_name: cleanName, country: "Ghana", church: "Unlisted", denomination: "Unlisted", source: "payment_import_review", status: "active" }]),
+    body: JSON.stringify([
+      {
+        full_name: cleanName,
+        momo_phone_number: normalizedPhone,
+        country: "Ghana",
+        church: "Unlisted",
+        denomination: "Unlisted",
+        source: "payment_import_review",
+        status: "active",
+      },
+    ]),
   });
   return toPartner(rows[0]);
 }
@@ -145,7 +156,7 @@ export async function POST(req: NextRequest) {
       partner = partners.find((p) => p.id === decision.partnerId) ?? null;
       if (!partner) throw new Error("Selected partner was not found.");
     } else if (decision.action === "create") {
-      partner = await createPartner(decision.name || row.payerName || "New Partner");
+      partner = await createPartner(decision.name || row.payerName || "New Partner", row.payerPhoneOrAccount);
     }
     if (!partner) return NextResponse.json({ ok: false, error: "Choose match, create, or dismiss." }, { status: 400 });
     const paymentRows = buildPaymentRows([{ row, partner }]);
@@ -220,8 +231,7 @@ async function handleAcceptAll(): Promise<NextResponse> {
     if (!partner) {
       partner = newPartnersByName.get(payerName.toLowerCase());
       if (!partner) {
-        partner = await createPartner(payerName);
-        // Add to lookups so later rows with same name or phone find this partner
+        partner = await createPartner(payerName, phone);
         partnerByName.set(payerName.toLowerCase(), partner);
         newPartnersByName.set(payerName.toLowerCase(), partner);
         if (partner.momoPhoneNumber || partner.whatsappNumber) {

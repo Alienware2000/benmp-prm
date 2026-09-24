@@ -51,6 +51,22 @@ describe("db row -> domain mapping", () => {
       },
     ]);
   });
+  it("maps the persisted payment partner link", () => {
+    const [payment] = mapPayments([
+      {
+        reference: "TXN2",
+        payer_name: "Ama",
+        payer_phone_e164: null,
+        amount_minor: 5000,
+        currency: "GHS",
+        paid_at: "2026-07-10",
+        status: "Successful",
+        raw_row: { matched_partner_id: "partner-1" },
+      },
+    ]);
+
+    expect(payment.matchedPartnerId).toBe("partner-1");
+  });
 });
 
 describe("loadReconciliation (injected fetcher, no network)", () => {

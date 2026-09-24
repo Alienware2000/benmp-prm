@@ -32,6 +32,7 @@ export type DbPayment = {
   currency: string | null;
   paid_at: string | null;
   status: string | null;
+  raw_row?: Record<string, unknown> | null;
 };
 
 export function mapRegistrations(rows: DbRegistration[]): RegistrationRow[] {
@@ -41,12 +42,14 @@ export function mapRegistrations(rows: DbRegistration[]): RegistrationRow[] {
     phone: r.phone_e164 ?? r.phone_raw,
   }));
 }
-
 export function mapPayments(rows: DbPayment[]): PaymentRow[] {
   return rows.map((p) => ({
     reference: p.reference,
     payerName: p.payer_name,
     payerPhone: p.payer_phone_e164,
+    ...(typeof p.raw_row?.matched_partner_id === "string"
+      ? { matchedPartnerId: p.raw_row.matched_partner_id }
+      : {}),
     amountMinor: Number(p.amount_minor),
     currency: p.currency ?? "GHS",
     paidAt: p.paid_at ?? "",
@@ -302,11 +305,9 @@ export async function findSentMessageByPartnerRef(
 export async function loadReconciliation(
   fetcher: Fetcher = supabaseRestFetcher(),
 ): Promise<ReconciliationResult> {
-  // The old POC read registrations (the Qodesh sign-up sheet). The new database
-  // is the partners table — hub admins ingest partners there via the wizard.
-  // Read from partners instead of the now-empty registrations table. payments
-  // is also empty (no MoMo statement imported yet); with zero payments every
-  // partner lands in registeredUnpaid, which is correct.
+  // Hub admins ingest partners into the partners table. Payment imports persist
+  // matched_partner_id in raw_row; load it so reconciliation can use that durable
+  // link before falling back to phone matching for legacy rows.
   const [partners, pays] = await Promise.all([
     fetchAll<DbRegistration>(
       fetcher,
@@ -321,7 +322,7 @@ export async function loadReconciliation(
     ),
     fetchAll<DbPayment>(
       fetcher,
-      "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at,status&status=eq.Successful&order=paid_at.desc",
+      "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at,status,raw_row&status=eq.Successful&order=paid_at.desc",
     ),
   ]);
   return reconcile(mapRegistrations(partners), mapPayments(pays));

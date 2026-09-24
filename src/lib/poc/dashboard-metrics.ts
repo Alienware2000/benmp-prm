@@ -413,23 +413,29 @@ export function buildDashboardTiles({
     }
   }
 
-  // Tile 2: Active partners (paid at least once in the POC payments ledger)
+  // Tile 2: Active partners — derived from the payments ledger, not
+  // partners.last_contribution_date (which is never set in the POC flow).
+  // Count distinct matched partner IDs (or payer phones as fallback).
   const activePartners = paidPartnerIds.size;
 
-  // Tile 2 sub-counts: partners active this calendar month / this year (last 12 months)
   const now = new Date();
   const yearStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  let activeThisMonth = 0;
-  let activeThisYear = 0;
-  for (const p of partners) {
-    const raw = p.last_contribution_date;
-    if (!raw) continue;
-    const d = new Date(raw);
+  const activeThisMonthIds = new Set<string>();
+  const activeThisYearIds = new Set<string>();
+  for (const payment of payments) {
+    const id =
+      typeof payment.raw_row?.matched_partner_id === "string"
+        ? payment.raw_row.matched_partner_id
+        : payment.payer_phone_e164;
+    if (!id) continue;
+    const d = new Date(payment.paid_at ?? "");
     if (Number.isNaN(d.getTime())) continue;
-    if (d >= monthStart) activeThisMonth++;
-    if (d >= yearStart) activeThisYear++;
+    if (d >= monthStart) activeThisMonthIds.add(id);
+    if (d >= yearStart) activeThisYearIds.add(id);
   }
+  const activeThisMonth = activeThisMonthIds.size;
+  const activeThisYear = activeThisYearIds.size;
 
   // Set partner counts in cumulative geography breakdown (directory totals for tile 1)
   for (const [geo, count] of partnerCountByGeo) {

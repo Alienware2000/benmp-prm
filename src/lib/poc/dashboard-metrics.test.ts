@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDashboardTiles } from "./dashboard-metrics";
+import { buildDashboardTiles, toGeography, toPaymentMethodGroup } from "./dashboard-metrics";
 
 describe("buildDashboardTiles", () => {
   it("counts active partners from POC payments matched by last 9 Ghana digits", () => {
@@ -65,5 +65,54 @@ describe("buildDashboardTiles", () => {
     expect(tiles.activePartners).toBe(1);
     expect(tiles.activeThisMonth).toBe(1);
     expect(tiles.activeThisYear).toBe(1);
+  });
+});
+
+describe("regional payment attribution", () => {
+  it("keeps an unlisted partner's payment out of Ghana", () => {
+    const tiles = buildDashboardTiles({
+      partners: [
+        {
+          id: "p1",
+          country: "Unlisted",
+          last_contribution_date: null,
+          momo_phone_number: null,
+          whatsapp_number: null,
+        },
+      ],
+      payments: [
+        {
+          reference: "paystack:1",
+          payer_phone_e164: null,
+          amount_minor: 2500,
+          currency: "GHS",
+          paid_at: "2026-09-01T00:00:00.000Z",
+          status: "Successful",
+          payment_method: "paystack_card",
+          raw_row: { matched_partner_id: "p1" },
+        },
+      ],
+    });
+
+    const byRegion = Object.fromEntries(
+      tiles.cumulative.byGeography.map((entry) => [entry.geography, entry.amountMinor]),
+    );
+    expect(byRegion.Unlisted).toBe(2500);
+    expect(byRegion.Ghana).toBe(0);
+  });
+
+});
+
+describe("toGeography", () => {
+  it("routes missing or unknown countries to Unlisted", () => {
+    expect(toGeography(null)).toBe("Unlisted");
+    expect(toGeography("")).toBe("Unlisted");
+    expect(toGeography("Unknown country")).toBe("Unlisted");
+  });
+});
+
+describe("toPaymentMethodGroup", () => {
+  it("prefers the payments table payment_method over legacy raw-row metadata", () => {
+    expect(toPaymentMethodGroup("paystack_card", { _payment_method: "mobile_money" })).toBe("card");
   });
 });

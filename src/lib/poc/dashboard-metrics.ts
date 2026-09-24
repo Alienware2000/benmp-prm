@@ -101,7 +101,7 @@ const PACIFIC_ASIA_COUNTRIES = new Set([
 ]);
 
 export function toGeography(country: string | null | undefined): Geography {
-  if (!country || country.trim() === "") return "Ghana"; // unassigned → Ghana
+  if (!country || country.trim() === "") return "Unlisted";
   const c = country.trim();
   if (c.toLowerCase() === "unlisted") return "Unlisted";
   if (c.toLowerCase() === "ghana") return "Ghana";
@@ -112,7 +112,7 @@ export function toGeography(country: string | null | undefined): Geography {
   if (NORTH_AMERICAN_COUNTRIES.has(c)) return "North America";
   if (SOUTH_AMERICAN_COUNTRIES.has(c)) return "South America";
   if (PACIFIC_ASIA_COUNTRIES.has(c)) return "Pacific/Asia";
-  return "Ghana"; // unknown country → Ghana (per user instruction: unassigned counts as Ghana)
+  return "Unlisted";
 }
 
 // ---------------------------------------------------------------------------
@@ -175,26 +175,25 @@ export type PaymentMethodBreakdown = {
   currency: string;
 };
 
-/** Resolve a raw payment_method enum value to a group (default: other). */
+/** Resolve a payment_method enum value to a high-level filter group. */
 export function toPaymentMethodGroup(
   method: string | null | undefined,
   rawRow?: Record<string, unknown> | null,
 ): PaymentMethodGroup {
-  // The payments table has no payment_method column. Derive it from:
-  // 1. raw_row._payment_method (set by Paystack/bank parsers)
-  // 2. raw_row.source (set by MoMo/Ecobank CSV import: "momo" or "ecobank")
-  // 3. the method argument (fallback)
+  // The normalized payments.payment_method column is canonical. Legacy imports
+  // may only have raw_row._payment_method or raw_row.source.
   const rawMethod = rawRow?._payment_method as string | undefined;
-  const source = (rawRow?.source as string) ?? method;
-  const resolved = rawMethod ?? source;
+  const source = rawRow?.source as string | undefined;
+  const resolved = method ?? rawMethod ?? source;
   if (resolved) {
     const s = resolved.toLowerCase();
     if (s.includes("momo") || s.includes("mobile")) return "mobile_money";
     if (s.includes("bank") || s.includes("ecobank")) return "bank";
     if (s.includes("card") || s.includes("paystack")) return "card";
+    const mapped = PAYMENT_METHOD_TO_GROUP[resolved];
+    if (mapped) return mapped;
   }
-  const group = method ? PAYMENT_METHOD_TO_GROUP[method] : undefined;
-  return group ?? "other";
+  return "other";
 }
 
 export type GeographyBreakdown = {
@@ -255,9 +254,9 @@ export type DashboardPaymentRow = {
   currency: string | null;
   paid_at: string | null;
   status: string | null;
+  payment_method?: string | null;
   raw_row?: Record<string, unknown> | null;
 };
-
 async function fetchAllPartners(): Promise<DashboardPartnerRow[]> {
   if (!SUPABASE_URL || !KEY) return [];
   const out: DashboardPartnerRow[] = [];
@@ -278,10 +277,8 @@ async function fetchAllPayments(): Promise<DashboardPaymentRow[]> {
   if (!SUPABASE_URL || !KEY) return [];
   const out: DashboardPaymentRow[] = [];
   for (let offset = 0; ; offset += 1000) {
-    // The payments table does not have a payment_method column — it's in
-    // raw_row.source. Select without it; toPaymentMethodGroup handles null.
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/payments?select=reference,payer_phone_e164,amount_minor,currency,paid_at,status,raw_row&status=eq.Successful&order=paid_at.desc&limit=1000&offset=${offset}`,
+      `${SUPABASE_URL}/rest/v1/payments?select=reference,payer_phone_e164,amount_minor,currency,paid_at,status,payment_method,raw_row&status=eq.Successful&order=paid_at.desc&limit=1000&offset=${offset}`,
       { headers: restHeaders(), cache: "no-store" },
     );
     if (!res.ok) break;
@@ -371,7 +368,7 @@ export function buildDashboardTiles({
     cum.amountMinor += amount;
 
     // Track amount per payment-method group (cumulative + per-month)
-    const group = toPaymentMethodGroup(null, payment.raw_row);
+    const group = toPaymentMethodGroup(payment.payment_method, payment.raw_row);
     cum.byPaymentMethod[group] += amount;
     cumByMethod.set(group, (cumByMethod.get(group) ?? 0) + amount);
 

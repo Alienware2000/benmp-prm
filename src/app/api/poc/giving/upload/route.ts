@@ -93,8 +93,16 @@ async function loadPartners(): Promise<PartnerForPaymentMatch[]> {
   }
   return allRows.map(toPartner);
 }
+function countryForPaymentSource(source: PaymentSource): string {
+  return source === "momo" || source === "ecobank" ? "Ghana" : "Unlisted";
+}
 
-async function createPartner(name: string, phone: string | null = null): Promise<PartnerForPaymentMatch> {
+
+async function createPartner(
+  name: string,
+  phone: string | null = null,
+  country = "Unlisted",
+): Promise<PartnerForPaymentMatch> {
   const cleanName = name.trim();
   if (!cleanName) throw new Error("New partner name is required.");
   const normalizedPhone = normalizePhone(phone);
@@ -105,7 +113,7 @@ async function createPartner(name: string, phone: string | null = null): Promise
       {
         full_name: cleanName,
         momo_phone_number: normalizedPhone,
-        country: "Ghana",
+        country,
         church: "Unlisted",
         denomination: "Unlisted",
         source: "payment_upload_review",
@@ -309,7 +317,11 @@ export async function POST(req: NextRequest) {
           accepted.push({ row, partner });
           manualMatched += 1;
         } else if (decision.action === "create") {
-          const partner = await createPartner(decision.name || row.payerName || "New Partner", row.payerPhoneOrAccount);
+          const partner = await createPartner(
+            decision.name || row.payerName || "New Partner",
+            row.payerPhoneOrAccount,
+            countryForPaymentSource(row.source),
+          );
           accepted.push({ row, partner });
           created += 1;
         }
@@ -459,7 +471,11 @@ export async function POST(req: NextRequest) {
         accepted.push({ row: match.row, partner });
         manualMatched += 1;
       } else if (decision.action === "create") {
-        const partner = await createPartner(decision.name || match.row.payerName || "New Partner", match.row.payerPhoneOrAccount);
+        const partner = await createPartner(
+          decision.name || match.row.payerName || "New Partner",
+          match.row.payerPhoneOrAccount,
+          countryForPaymentSource(match.row.source),
+        );
         accepted.push({ row: match.row, partner });
         created += 1;
       }

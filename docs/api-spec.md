@@ -433,6 +433,7 @@ Rules:
 - Upload commit is non-blocking: omitted review decisions are counted as `deferred` instead of dismissed, so safe matches can import immediately while staff review unresolved rows later.
 - Accepted rows are inserted idempotently into the POC `payments` ledger with references prefixed by source (`momo:` / `ecobank:`). Name-only bank matches carry `raw_row.matched_partner_id` so the giving ledger can attribute them to a partner.
 - Uploads revalidate the `poc-giving` cache tag after commit.
+- Newly created partners from MoMo/Ecobank rows are assigned Ghana; Paystack-created partners are assigned `Unlisted` until staff supplies a country, so dashboard regional totals do not infer a country from an unknown Paystack export.
 - Every parsed row is also stored in `payment_import_rows` under a `payment_imports` batch. Safe rows are marked `promoted`; unresolved rows are marked `needs_review` and appear in `/poc/giving/review`.
 
 ### `GET/POST /api/poc/giving/review`

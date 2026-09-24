@@ -180,12 +180,17 @@ export function toPaymentMethodGroup(
   method: string | null | undefined,
   rawRow?: Record<string, unknown> | null,
 ): PaymentMethodGroup {
-  // The payments table has no payment_method column; derive it from raw_row.source.
+  // The payments table has no payment_method column. Derive it from:
+  // 1. raw_row._payment_method (set by Paystack/bank parsers)
+  // 2. raw_row.source (set by MoMo/Ecobank CSV import: "momo" or "ecobank")
+  // 3. the method argument (fallback)
+  const rawMethod = rawRow?._payment_method as string | undefined;
   const source = (rawRow?.source as string) ?? method;
-  if (source) {
-    const s = source.toLowerCase();
+  const resolved = rawMethod ?? source;
+  if (resolved) {
+    const s = resolved.toLowerCase();
     if (s.includes("momo") || s.includes("mobile")) return "mobile_money";
-    if (s.includes("bank")) return "bank";
+    if (s.includes("bank") || s.includes("ecobank")) return "bank";
     if (s.includes("card") || s.includes("paystack")) return "card";
   }
   const group = method ? PAYMENT_METHOD_TO_GROUP[method] : undefined;
@@ -250,7 +255,6 @@ export type DashboardPaymentRow = {
   currency: string | null;
   paid_at: string | null;
   status: string | null;
-  payment_method: string | null;
   raw_row?: Record<string, unknown> | null;
 };
 
@@ -367,7 +371,7 @@ export function buildDashboardTiles({
     cum.amountMinor += amount;
 
     // Track amount per payment-method group (cumulative + per-month)
-    const group = toPaymentMethodGroup(payment.payment_method, payment.raw_row);
+    const group = toPaymentMethodGroup(null, payment.raw_row);
     cum.byPaymentMethod[group] += amount;
     cumByMethod.set(group, (cumByMethod.get(group) ?? 0) + amount);
 

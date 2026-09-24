@@ -2,7 +2,6 @@ import {
   BellRing,
   HeartHandshake,
   Megaphone,
-  MessageCircleMore,
   PhoneCall,
 } from "lucide-react";
 import Link from "next/link";
@@ -199,44 +198,6 @@ export default async function PocPage({
             Icon={PhoneCall}
             index={3}
           />
-        </div>
-      </section>
-      <section className="mt-7">
-        <div className="rounded-[18px] border border-[#f2ddb0] bg-[radial-gradient(circle_at_100%_0%,rgba(255,208,87,0.20),transparent_30%),linear-gradient(135deg,#fff9e8,#fff1dc)] p-[18px] shadow-[0_2px_8px_rgba(16,42,67,0.07)]">
-          <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-[12px] bg-[#ffb52d] text-white">
-              <MessageCircleMore className="h-[18px] w-[18px]" aria-hidden />
-            </span>
-            <div>
-              <h2 className="text-sm font-bold text-[#06283d]">Needs attention</h2>
-              <p className="text-[11px] text-muted-foreground">
-                The most useful next steps from current records
-              </p>
-            </div>
-          </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            <Link
-              href={withPeriod("/poc/messages", from, to, { task: "thank" })}
-              className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(238,211,162,0.72)] bg-white/72 px-3 py-2.5 text-sm transition hover:-translate-y-px hover:bg-white hover:text-[#079779]"
-            >
-              <span>Review new giver acknowledgements</span>
-              <b className="tabular-nums">{answers.unregisteredCount}</b>
-            </Link>
-            <Link
-              href={withPeriod("/poc/messages", from, to, { task: "remind" })}
-              className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(238,211,162,0.72)] bg-white/72 px-3 py-2.5 text-sm transition hover:-translate-y-px hover:bg-white hover:text-[#079779]"
-            >
-              <span>Review partners with no donation</span>
-              <b className="tabular-nums">{answers.unpaidCount}</b>
-            </Link>
-            <Link
-              href={withPeriod("/poc/giving", from, to)}
-              className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(238,211,162,0.72)] bg-white/72 px-3 py-2.5 text-sm transition hover:-translate-y-px hover:bg-white hover:text-[#079779]"
-            >
-              <span>Check unattributed bank rows</span>
-              <b className="tabular-nums">{answers.statementRowCount}</b>
-            </Link>
-          </div>
         </div>
       </section>
 

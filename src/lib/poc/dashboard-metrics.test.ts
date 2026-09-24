@@ -28,8 +28,7 @@ describe("buildDashboardTiles", () => {
           currency: "GHS",
           paid_at: "2026-09-01T00:00:00.000Z",
           status: "Successful",
-          payment_method: "mobile_money",
-          raw_row: null,
+          raw_row: { _payment_method: "mobile_money" },
         },
       ],
     });

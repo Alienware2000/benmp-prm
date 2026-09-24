@@ -115,13 +115,10 @@ async function createPartner(name: string): Promise<PartnerForPaymentMatch> {
 
 async function insertPayments(rows: ReturnType<typeof buildPaymentRows>): Promise<void> {
   if (rows.length === 0) return;
-  // payment_method column may not exist yet; omit it from the REST payload.
-  // The dashboard derives the method from raw_row._payment_method / raw_row.source.
-  const stripped = rows.map(({ payment_method: _pm, ...rest }) => rest);
   await rest<void>("payments?on_conflict=reference", {
     method: "POST",
     headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
-    body: JSON.stringify(stripped),
+    body: JSON.stringify(rows),
   });
 }
 

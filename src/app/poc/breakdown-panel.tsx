@@ -31,6 +31,16 @@ function monthLabel(ym: string): string {
 
 type BreakdownKind = "geography" | "month" | null;
 
+type MethodFilter = "all" | PaymentMethodGroup;
+
+const METHOD_PILLS: { key: MethodFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "mobile_money", label: "Mobile Money" },
+  { key: "bank", label: "Bank" },
+  { key: "card", label: "Card" },
+];
+
+
 export function BreakdownPanel({
   mostRecentMonth,
   cumulative,
@@ -53,6 +63,7 @@ export function BreakdownPanel({
   activeTile: "month" | "cumulative";
 }) {
   const [breakdownKind, setBreakdownKind] = useState<BreakdownKind>("geography");
+  const [methodFilter, setMethodFilter] = useState<MethodFilter>("all");
 
   const data =
     activeTile === "month"
@@ -62,6 +73,18 @@ export function BreakdownPanel({
         : null;
 
   const monthData = activeTile === "cumulative" ? cumulative.byMonth : [];
+
+  // Geography view: amount per geography, optionally restricted to a payment-method group.
+  const showGeography = breakdownKind === "geography" || activeTile === "month";
+  const geoAmount = (g: GeographyBreakdown) =>
+    methodFilter === "all" ? g.amountMinor : g.byPaymentMethod[methodFilter];
+  const filteredGeography = showGeography && data
+    ? data.byGeography
+        .map((g) => ({ g, amount: geoAmount(g) }))
+        .filter((row) => row.amount > 0)
+    : [];
+  const geoTotal = filteredGeography.reduce((s, row) => s + row.amount, 0);
+  const geoDonorTotal = filteredGeography.reduce((s, row) => s + row.g.donorCount, 0);
 
   if (!data && !monthData.length) {
     return null;
@@ -104,6 +127,25 @@ export function BreakdownPanel({
             )}
           </div>
 
+          {showGeography && (
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Method:</span>
+              {METHOD_PILLS.map((pill) => (
+                <button
+                  key={pill.key}
+                  onClick={() => setMethodFilter(pill.key)}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                    methodFilter === pill.key
+                      ? "bg-foreground text-background"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  {pill.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {breakdownKind === "geography" || activeTile === "month" ? (
             <table className="w-full text-sm">
               <thead>
@@ -115,38 +157,35 @@ export function BreakdownPanel({
                 </tr>
               </thead>
               <tbody>
-                {data.byGeography
-                  .map((g) => (
-                    <tr
-                      key={g.geography}
-                      className="border-b border-border/50"
-                    >
-                      <td className="py-2 pr-4 font-medium text-foreground">
-                        {g.geography}
-                      </td>
-                      <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                        {g.donorCount.toLocaleString("en-US")}
-                      </td>
-                      <td className="py-2 pr-4 text-right tabular-nums text-foreground">
-                        {formatGhs(g.amountMinor)}
-                      </td>
-                      <td className="py-2 text-right tabular-nums text-muted-foreground">
-                        {formatUsd(g.amountMinor)}
-                      </td>
-                    </tr>
-                  ))}
+                {filteredGeography.map(({ g, amount }) => (
+                  <tr
+                    key={g.geography}
+                    className="border-b border-border/50"
+                  >
+                    <td className="py-2 pr-4 font-medium text-foreground">
+                      {g.geography}
+                    </td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
+                      {g.donorCount.toLocaleString("en-US")}
+                    </td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-foreground">
+                      {formatGhs(amount)}
+                    </td>
+                    <td className="py-2 text-right tabular-nums text-muted-foreground">
+                      {formatUsd(amount)}
+                    </td>
+                  </tr>
+                ))}
                 <tr className="font-bold">
                   <td className="py-2 pr-4 text-foreground">Total</td>
                   <td className="py-2 pr-4 text-right tabular-nums text-foreground">
-                    {data.byGeography
-                      .reduce((s, g) => s + g.donorCount, 0)
-                      .toLocaleString("en-US")}
+                    {geoDonorTotal.toLocaleString("en-US")}
                   </td>
                   <td className="py-2 pr-4 text-right tabular-nums text-foreground">
-                    {formatGhs(data.amountMinor)}
+                    {formatGhs(geoTotal)}
                   </td>
                   <td className="py-2 text-right tabular-nums text-muted-foreground">
-                    {formatUsd(data.amountMinor)}
+                    {formatUsd(geoTotal)}
                   </td>
                 </tr>
               </tbody>

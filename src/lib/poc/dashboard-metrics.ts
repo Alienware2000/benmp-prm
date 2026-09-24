@@ -355,6 +355,7 @@ export function buildDashboardTiles({
 
     // Track amount per payment-method group (cumulative + per-month)
     const group = toPaymentMethodGroup(payment.payment_method);
+    cum.byPaymentMethod[group] += amount;
     cumByMethod.set(group, (cumByMethod.get(group) ?? 0) + amount);
 
     // Track distinct donors per geography (cumulative + per-month)

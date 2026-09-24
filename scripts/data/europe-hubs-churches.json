@@ -1,6 +1,6 @@
 {
   "source": "Paul GTWC office WhatsApp spreadsheets, downloaded 2026-09-19 (kept outside git in ~/Dev/Data/pastors-info-2026-09-19)",
-  "notes": "Canonical Europe hub/church list. Hubs identified by denomination NAME (Decision 0020; Paul GTWC office 2026-09-19: 'I'm sending for Europe now… there are 2 more left'). Each church carries its branch pastor as leaderName/leaderPhone. Where a source file lists several pastors under one branch name (e.g. PSCI's Leeds congregations), the branch appears once with the first-listed pastor; the full pastor lists remain in the source folder.",
+  "notes": "Canonical Europe hub/church list. Hubs identified by denomination NAME (Decision 0020; Paul GTWC office 2026-09-19: 'I'm sending for Europe now… there are 2 more left'). Each church carries its branch pastor as leaderName/leaderPhone. Where a source file lists several pastors under one branch name (e.g. PSCI's Leeds congregations), the branch appears once with the first-listed pastor; the full pastor lists remain in the source folder. 2026-09-24 (Paul GTWC): MSCI spellings corrected (North Kensington, Blackthorn); Living Waters gained Dornbirn, Austria (file 'BENMP Dornbirn copy.xlsx' spells it Dornbrin; the town is Dornbirn).",
   "hubs": [
     {
       "name": "CIDC",
@@ -441,6 +441,11 @@
           "name": "Baden",
           "leaderName": "Basi Dawit",
           "leaderPhone": "0041765174988"
+        },
+        {
+          "name": "Dornbirn",
+          "leaderName": "Odion Ogielegua",
+          "leaderPhone": "+41767497342"
         }
       ]
     },
@@ -476,7 +481,7 @@
           "leaderPhone": "+447985641070"
         },
         {
-          "name": "BLACKHTORN",
+          "name": "BLACKTHORN",
           "leaderName": "ELIJAH DELA AHIADZU",
           "leaderPhone": "+447459432315"
         },
@@ -706,7 +711,7 @@
           "leaderPhone": "+447577884889"
         },
         {
-          "name": "NORTH KENSIGNTON",
+          "name": "NORTH KENSINGTON",
           "leaderName": "FRANK AMPONG",
           "leaderPhone": "+447904205469"
         },

@@ -39,9 +39,23 @@ export type CandidateRow = {
   momoPhone: string;
   whatsappPhone: string;
   church: string;
+  /**
+   * The admin's answer when this row could be someone the hub already has
+   * (Decision 0028): "new" for a different person, or the partnerId it updates.
+   */
+  match?: string;
 };
 
-export type RowField = "name" | "momoPhone" | "whatsappPhone" | "church";
+export type RowField =
+  "name" | "momoPhone" | "whatsappPhone" | "church" | "match";
+
+/** An existing partner this row might be, offered to the admin to choose from. */
+export type MatchChoice = {
+  partnerId: string;
+  name: string;
+  whatsapp: string | null;
+  church: string | null;
+};
 
 export type RowIssue = { field: RowField; message: string };
 
@@ -56,6 +70,12 @@ export type ValidatedRow = CandidateRow & {
    * EDIT of that partner rather than a new person. Null means a fresh insert.
    */
   updatesPartnerId: string | null;
+  /**
+   * Existing partners this row might be, when only its name OR only its number
+   * matches (Decision 0028). Empty when the row is clearly new or clearly the
+   * same person. Non-empty with no issue means the admin already answered.
+   */
+  matchChoices: MatchChoice[];
   issues: RowIssue[];
 };
 
@@ -186,8 +206,12 @@ export function normalizeNameKey(raw: string | null | undefined): string {
 /** One partner the uploading hub already has, for name-based edit matching. */
 export type ExistingPartner = {
   partnerId: string;
-  /** normalizeNameKey of their current name. */
+  /** normalizeNameKey of their current name; "" for a placeholder name. */
   nameKey: string;
+  /** Shown to the admin when asking "same person or different person?". */
+  name?: string;
+  whatsapp?: string | null;
+  church?: string | null;
 };
 
 export type ExistingPhoneInfo = {
@@ -244,7 +268,7 @@ export type ValidationContext = {
  * total: every row comes back, clean or flagged, in input order.
  *
  * Rules:
- *   - Name must have at least two real words; duplicate names within the upload are flagged.
+ *   - Name must have at least two real words; the same name AND number twice in one upload is flagged.
  *   - MoMo phone must be a valid Ghana mobile number (02x/05x, 9 NSN digits).
  *   - WhatsApp phone must be a parseable E.164 number; international numbers accepted.
  *   - The same MoMo or WhatsApp phone may appear for multiple names.
@@ -256,27 +280,21 @@ export function validateCandidates(
 ): ValidatedRow[] {
   const byKey = new Map(ctx.churches.map((c) => [c.nameKey, c]));
 
-  // Track which names have already appeared in this upload.
-  const firstRowForName = new Map<string, number>();
+  // A person is a name AND a number (Decision 0028): two rows with the same name
+  // but different numbers are two people; the same name and number twice is a
+  // duplicate row.
+  const firstRowForPerson = new Map<string, number>();
+  // Each existing partner may be updated by one row only.
+  const firstRowUpdating = new Map<string, number>();
+  const partnersById = new Map(
+    (ctx.existingPartners ?? []).map((p) => [p.partnerId, p]),
+  );
 
   return candidates.map((cand) => {
     const issues: RowIssue[] = [];
 
     const nameProblem = validateName(cand.name);
     if (nameProblem) issues.push({ field: "name", message: nameProblem });
-
-    if (!nameProblem) {
-      const normalizedName = cand.name.trim().toLowerCase();
-      const firstNameRow = firstRowForName.get(normalizedName);
-      if (firstNameRow !== undefined) {
-        issues.push({
-          field: "name",
-          message: `Same name as row ${firstNameRow} of this file.`,
-        });
-      } else {
-        firstRowForName.set(normalizedName, cand.rowIndex);
-      }
-    }
 
     const momoRequired = ctx.momoRequired ?? true;
     let momoPhoneE164: string | null = null;
@@ -335,33 +353,41 @@ export function validateCandidates(
       }
     }
 
-    // ---- which existing partner (if any) does this row edit? ----------------
-    //
-    // NAME is the primary match, within this hub. The thing being corrected is
-    // usually the phone number or the church, so matching on phone would miss the
-    // very rows the admin is fixing and create a second record for the same person.
-    //
-    // A name shared by two people in one hub is refused rather than guessed: there
-    // are 22 such names across the live hub data (John Tetteh, Wisdom Tetteh, …) and
-    // picking either would overwrite a real person's record with someone else's.
-    const rowNameKey = normalizeNameKey(cand.name);
-    const nameMatches = (ctx.existingPartners ?? []).filter(
-      (p) => rowNameKey !== "" && p.nameKey === rowNameKey,
-    );
-    let nameMatchedPartnerId: string | null = null;
-    if (nameMatches.length === 1) {
-      nameMatchedPartnerId = nameMatches[0].partnerId;
-    } else if (nameMatches.length > 1) {
-      issues.push({
-        field: "name",
-        message: `Your hub already has ${nameMatches.length} partners with this exact name. Add a middle name or initial so the right record is updated.`,
-      });
+    if (!nameProblem) {
+      // WhatsApp is every partner's contact number; MoMo only stands in when a
+      // row has no WhatsApp at all.
+      const contact =
+        whatsappPhoneE164 ??
+        (cand.whatsappPhone.replace(/\s+/g, "") || momoPhoneE164 || "");
+      const personKey = `${normalizeNameKey(cand.name)}|${contact}`;
+      const firstRow = firstRowForPerson.get(personKey);
+      if (firstRow !== undefined) {
+        issues.push({
+          field: "name",
+          message: `Same name and WhatsApp number as row ${firstRow} of this file.`,
+        });
+      } else {
+        firstRowForPerson.set(personKey, cand.rowIndex);
+      }
     }
 
-    // Existing-phone check covers both numbers. A phone held by ANOTHER hub (or by a
-    // pre-hub record) still blocks the row. A phone held by this hub identifies the
-    // partner to update — that is how an admin corrects a name, church or number.
-    const matchedPartnerIds = new Set<string>();
+    // ---- which existing partner (if any) does this row edit? ----------------
+    //
+    // A person is identified by name AND number together (Decision 0028).
+    //   - Both match one partner: it is that partner (a re-upload); update them.
+    //   - Only the name, or only a number, matches: it could be the same person
+    //     with a corrected detail, or a different person who shares a name (two
+    //     John Mensahs) or a phone (a couple). The system cannot know, so the
+    //     admin answers; nothing is overwritten or duplicated on a guess.
+    //   - Nothing matches: a new person.
+    // A number held by ANOTHER hub (or a pre-hub record) still blocks the row, so
+    // no hub can take over another's people.
+    const rowNameKey = normalizeNameKey(cand.name);
+    const nameIds = (ctx.existingPartners ?? [])
+      .filter((p) => rowNameKey !== "" && p.nameKey === rowNameKey)
+      .map((p) => p.partnerId);
+
+    const phoneIds: string[] = [];
     for (const [field, phone] of [
       ["momoPhone", momoPhoneE164],
       ["whatsappPhone", whatsappPhoneE164],
@@ -375,7 +401,9 @@ export function validateCandidates(
         existing.hubId != null &&
         existing.hubId === ctx.hubId;
       if (ownsIt && existing.partnerId) {
-        matchedPartnerIds.add(existing.partnerId);
+        if (!phoneIds.includes(existing.partnerId)) {
+          phoneIds.push(existing.partnerId);
+        }
         continue;
       }
       issues.push({
@@ -391,39 +419,53 @@ export function validateCandidates(
       });
     }
 
-    // Two numbers on one row pointing at two different existing people is ambiguous —
-    // updating either would silently corrupt the other. Make the admin resolve it.
-    if (matchedPartnerIds.size > 1) {
-      issues.push({
-        field: "momoPhone",
-        message:
-          "These two numbers belong to two different people already in your hub. Correct one of them.",
-      });
+    const exact = nameIds.filter((id) => phoneIds.includes(id)).sort();
+    let updatesPartnerId: string | null = null;
+    let matchChoices: MatchChoice[] = [];
+    if (exact.length > 0) {
+      updatesPartnerId = exact[0];
+    } else {
+      const candidatesIds = [...new Set([...nameIds, ...phoneIds])];
+      if (candidatesIds.length > 0) {
+        matchChoices = candidatesIds.map((id) => {
+          const p = partnersById.get(id);
+          return {
+            partnerId: id,
+            name: p?.name ?? "",
+            whatsapp: p?.whatsapp ?? null,
+            church: p?.church ?? null,
+          };
+        });
+        if (cand.match === "new") {
+          updatesPartnerId = null;
+        } else if (cand.match && candidatesIds.includes(cand.match)) {
+          updatesPartnerId = cand.match;
+        } else {
+          issues.push({
+            field: "match",
+            message:
+              nameIds.length > 0 && phoneIds.length === 0
+                ? "Your hub already has someone with this name but a different number. Same person, or a different person?"
+                : nameIds.length === 0
+                  ? "This number already belongs to someone in your hub under another name. Same person, or a different person?"
+                  : "This name and this number belong to different people in your hub. Which is it?",
+          });
+        }
+      }
     }
-    const phoneMatchedPartnerId =
-      matchedPartnerIds.size === 1 ? [...matchedPartnerIds][0] : null;
 
-    // Name and phone can both identify an edit — the name has changed, or the number
-    // has. They must not point at DIFFERENT people: that means one person's name is
-    // being put onto another person's phone, and neither record should be written.
-    if (
-      nameMatchedPartnerId &&
-      phoneMatchedPartnerId &&
-      nameMatchedPartnerId !== phoneMatchedPartnerId
-    ) {
-      issues.push({
-        field: "name",
-        message:
-          "This name and these numbers belong to two different people in your hub. Check the row.",
-      });
+    if (updatesPartnerId) {
+      const first = firstRowUpdating.get(updatesPartnerId);
+      if (first !== undefined) {
+        issues.push({
+          field: "match",
+          message: `Row ${first} of this file already updates this person.`,
+        });
+        updatesPartnerId = null;
+      } else {
+        firstRowUpdating.set(updatesPartnerId, cand.rowIndex);
+      }
     }
-    const updatesPartnerId = issues.some(
-      (i) =>
-        i.message.includes("two different people") ||
-        i.message.includes("partners with this exact name"),
-    )
-      ? null
-      : (nameMatchedPartnerId ?? phoneMatchedPartnerId);
 
     let churchId: string | null = null;
     let churchName: string | null = null;
@@ -450,6 +492,7 @@ export function validateCandidates(
       churchId,
       churchName,
       updatesPartnerId,
+      matchChoices,
       issues,
     };
   });

@@ -562,3 +562,23 @@ _2026-09-22_
 **Why**: the first Malawi upload failed row after row ("error from the numbering"). `validateCandidates` normalized WhatsApp with the Ghana default: `0999123456` silently became `+233999123456` (a wrong number saved as valid), and `265999123456` was rejected outright. The three-column international template has WhatsApp as the ONLY phone, so this blocked every non-Ghana hub whose admin typed numbers the way people type numbers.
 
 **Said no to**: a free-text country picker per row (admins upload their own hub; the hub already knows its country) · accepting any 8-15 digit string as-is (would keep saving local numbers under the wrong country).
+
+## 0028 — A partner is a name AND a number; when only one matches, the admin decides
+
+_2026-09-26_
+
+**Decided**: an upload row updates an existing partner automatically only when **both** its name and one of its numbers match that same partner. When only the name matches (a second "John Mensah" with another number) or only a number matches (a couple sharing a phone, or a corrected name), the preview asks the admin under the row: "Same person as John Mensah · +44 7700 111111: update" or "A different person: add new", with "all the same / all different" buttons for large re-uploads. The server re-checks the answer against the same candidates. Inside one file, the same name with a different WhatsApp number is two people; the same name and WhatsApp number twice is a duplicate row. One existing partner can be updated by only one row per upload.
+
+**Why**: Decision 0024 matched re-uploads by name alone, so MSCI's second partner with an existing name silently **overwrote** the first person's number, and a shared phone did the same to names. Any single-field rule guesses wrong for someone; asking only in the ambiguous case keeps re-uploads of identical sheets silent (name and number both match) while nothing is overwritten or duplicated on a guess.
+
+**Said no to**: phone-only identity (families share phones) · name-only identity (the MSCI bug) · refusing same-name rows outright (real congregations have them) · adding new people silently on a name match (duplicates the hub then has to find).
+
+## 0029 — Hub admins can remove partners they uploaded
+
+_2026-09-26_
+
+**Decided**: the hub partners page has tick boxes, "select everyone shown", and an upload filter listing each saved upload (file name and time), so an admin can remove a few people or everything one upload added. Removal is hub-scoped from the session, confirmed in two steps, and each removed row is first copied into `audit_log` (`hub_partner_delete`, full row in `before_data`) so the office can restore a mistake. Anyone with giving on record (a successful payment from their number, a contribution, or a matched statement row) is kept and named, with a note to ask the office.
+
+**Why**: Paul GTWC, 2026-09-24: admins uploaded wrong files and had no way to take them back.
+
+**Said no to**: soft delete (every partner query would need a filter; the audit copy gives recovery without it) · deleting people with giving (detaches money from a person) · undoing an upload's *updates* (the previous values aren't stored per row; the filter shows only the people an upload added).

@@ -4,7 +4,11 @@ import {
   hubSessionSecret,
   verifyHubSessionToken,
 } from "@/lib/hub/session";
-import { getHubPartners } from "@/lib/hub/db";
+import {
+  getHubPartners,
+  getHubUploads,
+  getRegionMomoRequired,
+} from "@/lib/hub/db";
 import { PartnersTable } from "./partners-table";
 
 export const dynamic = "force-dynamic";
@@ -26,20 +30,30 @@ export default async function HubPartnersPage() {
       </p>
     );
   }
-  const partners = await getHubPartners(session.hubId);
+  const [partners, uploads, momoRequired] = await Promise.all([
+    getHubPartners(session.hubId),
+    getHubUploads(session.hubId),
+    getRegionMomoRequired(session.regionCode),
+  ]);
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Your partners</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Everyone {session.hubLabel} has uploaded —{" "}
+          Everyone {session.hubLabel} has uploaded:{" "}
           {partners.length === 0
             ? "none yet. Use the upload on the home page to add your first list."
             : `${partners.length} ${partners.length === 1 ? "person" : "people"}.`}
         </p>
       </div>
-      {partners.length > 0 && <PartnersTable partners={partners} />}
+      {partners.length > 0 && (
+        <PartnersTable
+          partners={partners}
+          uploads={uploads}
+          showMomo={momoRequired}
+        />
+      )}
     </div>
   );
 }

@@ -36,6 +36,7 @@ type SubmitRow = {
   whatsappPhone: string;
   church: string;
   removed: boolean;
+  match?: string;
 };
 
 /**
@@ -91,6 +92,7 @@ export async function POST(req: NextRequest) {
     whatsappPhone: String(r.whatsappPhone ?? "").trim(),
     church: String(r.church ?? "").trim(),
     removed: r.removed === true,
+    match: typeof r.match === "string" ? r.match : undefined,
   }));
   const accepted = rows.filter((r) => !r.removed);
   if (accepted.length === 0) {
@@ -119,6 +121,7 @@ export async function POST(req: NextRequest) {
     momoPhone: momoRequired ? r.momoPhone : "",
     whatsappPhone: r.whatsappPhone,
     church: r.church,
+    match: r.match,
   }));
   const whatsappCallingCode = callingCodeForCountry(hubCountry);
   // The lookup key is E.164, produced by the same normalization the validator

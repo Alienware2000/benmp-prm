@@ -6,6 +6,11 @@
 import type { HubAccountRecord } from "./auth";
 import { normalizeNameKey, type ExistingPartner } from "./ingest";
 import { isSensibleName } from "../poc/directory";
+import {
+  planHubPartnerDeletion,
+  type DeletablePartner,
+  type DeletePlan,
+} from "./delete";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -208,15 +213,30 @@ export async function findHubPartnerNames(
 ): Promise<ExistingPartner[]> {
   const out: ExistingPartner[] = [];
   for (let offset = 0; ; offset += 1000) {
-    const rows = await rest<{ id: string; full_name: string | null }[]>(
+    const rows = await rest<
+      {
+        id: string;
+        full_name: string | null;
+        whatsapp_number: string | null;
+        church: string | null;
+      }[]
+    >(
       `partners?hub_id=eq.${encodeURIComponent(hubId)}` +
-        `&select=id,full_name&order=id.asc&limit=1000&offset=${offset}`,
+        `&select=id,full_name,whatsapp_number,church&order=id.asc&limit=1000&offset=${offset}`,
     );
     for (const r of rows) {
-      const nameKey = normalizeNameKey(r.full_name);
-      // A placeholder is not an identity: two "NO NAME" rows are not the same person.
-      if (nameKey === "" || !isSensibleName(r.full_name)) continue;
-      out.push({ partnerId: r.id, nameKey });
+      // A placeholder is not an identity: two "NO NAME" rows are not the same
+      // person. Kept with an empty key so a phone match can still describe them.
+      const nameKey = isSensibleName(r.full_name)
+        ? normalizeNameKey(r.full_name)
+        : "";
+      out.push({
+        partnerId: r.id,
+        nameKey,
+        name: r.full_name ?? "",
+        whatsapp: r.whatsapp_number,
+        church: r.church,
+      });
     }
     if (rows.length < 1000) break;
   }
@@ -547,3 +567,99 @@ export async function listRegionsForLogin(): Promise<RegionOption[]> {
       })),
   }));
 }
+
+/** Submitted uploads for this hub, newest first (Decision 0029). */
+export type HubUpload = {
+  id: string;
+  file_name: string;
+  created_at: string;
+  submitted_at: string | null;
+  accepted_count: number;
+};
+
+export async function getHubUploads(hubId: string): Promise<HubUpload[]> {
+  return rest<HubUpload[]>(
+    `hub_ingest_batches?hub_id=eq.${encodeURIComponent(hubId)}&status=eq.submitted` +
+      `&select=id,file_name,created_at,submitted_at,accepted_count&order=created_at.desc`,
+  );
+}
+
+const inList = (values: readonly string[]) =>
+  `in.(${values.map((v) => `"${v.replace(/"/g, "")}"`).join(",")})`;
+
+/**
+ * Remove partners on behalf of the hub that owns them (Decision 0029). Anyone
+ * with giving on record is kept. Every removed row is copied into audit_log
+ * first, so a mistaken deletion can be restored by the office.
+ */
+export async function deleteHubPartners(
+  hubId: string,
+  hubLabel: string,
+  partnerIds: readonly string[],
+): Promise<DeletePlan & { deleted: number }> {
+  const ids = [...new Set(partnerIds)].slice(0, 5_000);
+  const found: DeletablePartnerRow[] = [];
+  const paidPhones = new Set<string>();
+  const linkedPartnerIds = new Set<string>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    const rows = await rest<DeletablePartnerRow[]>(
+      `partners?id=${encodeURIComponent(inList(chunk))}&select=*`,
+    );
+    found.push(...rows);
+    const phones = rows
+      .flatMap((r) => [r.whatsapp_number, r.momo_phone_number])
+      .filter((p): p is string => !!p);
+    if (phones.length > 0) {
+      const paid = await rest<{ payer_phone_e164: string }[]>(
+        `payments?status=eq.Successful&select=payer_phone_e164` +
+          `&payer_phone_e164=${encodeURIComponent(inList(phones))}`,
+      );
+      for (const p of paid) paidPhones.add(p.payer_phone_e164);
+    }
+    for (const table of ["contributions", "payment_import_rows"]) {
+      const linked = await rest<{ partner_id: string }[]>(
+        `${table}?select=partner_id&partner_id=${encodeURIComponent(inList(chunk))}`,
+      );
+      for (const l of linked) linkedPartnerIds.add(l.partner_id);
+    }
+  }
+
+  const plan = planHubPartnerDeletion(hubId, ids, found, {
+    paidPhones,
+    linkedPartnerIds,
+  });
+  const byId = new Map(found.map((r) => [r.id, r]));
+  for (let i = 0; i < plan.deleteIds.length; i += 100) {
+    const chunk = plan.deleteIds.slice(i, i + 100);
+    await rest(`audit_log`, {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify(
+        chunk.map((id) => ({
+          action: "hub_partner_delete",
+          entity_table: "partners",
+          entity_id: id,
+          before_data: byId.get(id),
+          after_data: { deleted_by_hub_id: hubId, deleted_by_hub: hubLabel },
+        })),
+      ),
+    });
+    await rest(
+      `partners?id=${encodeURIComponent(inList(chunk))}&hub_id=eq.${encodeURIComponent(hubId)}`,
+      { method: "DELETE", headers: { Prefer: "return=minimal" } },
+    );
+  }
+  console.log(
+    JSON.stringify({
+      source: "hub_partner_delete",
+      hubId,
+      requested: ids.length,
+      deleted: plan.deleteIds.length,
+      kept: plan.kept.length,
+    }),
+  );
+  return { ...plan, deleted: plan.deleteIds.length };
+}
+
+type DeletablePartnerRow = DeletablePartner & Record<string, unknown>;

@@ -33,6 +33,7 @@ import {
   type ColumnMap,
   type ExistingPhoneInfo,
   type HubChurchOption,
+  type MatchChoice,
   type RowIssue,
 } from "@/lib/hub/ingest";
 
@@ -46,6 +47,8 @@ type EditRow = {
   whatsappPhone: string;
   church: string;
   removed: boolean;
+  /** Answer to "same person or different person?" (Decision 0028). */
+  match?: string;
 };
 
 type Step = "upload" | "map" | "preview" | "done";
@@ -188,6 +191,32 @@ export function IngestWizard({
   const updateCount = validated.filter(
     (v) => v.updatesPartnerId && !issuesByRow.has(v.rowIndex),
   ).length;
+  const choicesByRow = useMemo(
+    () => new Map(validated.map((v) => [v.rowIndex, v.matchChoices])),
+    [validated],
+  );
+  // Rows still waiting for "same person or different person?" (Decision 0028).
+  const askRows = validated.filter(
+    (v) =>
+      v.issues.some((i) => i.field === "match") && v.matchChoices.length > 0,
+  );
+  const askSingleRows = askRows.filter((v) => v.matchChoices.length === 1);
+
+  function answerAll(kind: "same" | "new") {
+    const answers = new Map<number, string>();
+    if (kind === "new") {
+      for (const v of askRows) answers.set(v.rowIndex, "new");
+    } else {
+      // Only rows with exactly one possible person can be answered in bulk.
+      for (const v of askSingleRows)
+        answers.set(v.rowIndex, v.matchChoices[0].partnerId);
+    }
+    setRows((rs) =>
+      rs.map((r) =>
+        answers.has(r.rowIndex) ? { ...r, match: answers.get(r.rowIndex) } : r,
+      ),
+    );
+  }
 
   // ----- step 1: upload -----------------------------------------------------
   async function onFile(file: File | undefined) {
@@ -638,10 +667,42 @@ export function IngestWizard({
                       {updateCount === 1 ? " a partner" : " partners"} you
                       already have
                     </span>{" "}
-                    — matched by phone number. Their name, church and numbers
-                    will be replaced with what is shown here. Giving history is
-                    not affected.
+                    (same name and number, or you said it is the same person).
+                    Their name, church and numbers will be replaced with what is
+                    shown here. Giving history is not affected.
                   </p>
+                )}
+                {askRows.length > 0 && (
+                  <div className="mt-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
+                    <p>
+                      <span className="font-semibold">
+                        {askRows.length} row{askRows.length === 1 ? "" : "s"}{" "}
+                        could be {askRows.length === 1 ? "someone" : "people"}{" "}
+                        you already have
+                      </span>
+                      . The name or the number matches, but not both. Answer
+                      under each row, or for all of them at once:
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {askSingleRows.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => answerAll("same")}
+                          className="inline-flex h-8 items-center rounded-md border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-muted"
+                        >
+                          All the same people ({askSingleRows.length})
+                          them
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => answerAll("new")}
+                        className="inline-flex h-8 items-center rounded-md border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-muted"
+                      >
+                        All different people ({askRows.length}): add them
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -691,6 +752,7 @@ export function IngestWizard({
                       row={r}
                       churches={churches}
                       issues={issuesByRow.get(r.rowIndex) ?? []}
+                      choices={choicesByRow.get(r.rowIndex) ?? []}
                       onEdit={editRow}
                       showMomo={momoRequired}
                     />
@@ -787,12 +849,14 @@ function PreviewRow({
   row,
   churches,
   issues,
+  choices,
   onEdit,
   showMomo,
 }: {
   row: EditRow;
   churches: HubChurchOption[];
   issues: RowIssue[];
+  choices: MatchChoice[];
   onEdit: (rowIndex: number, patch: Partial<EditRow>) => void;
   showMomo: boolean;
 }) {
@@ -949,6 +1013,29 @@ function PreviewRow({
                 </li>
               ))}
             </ul>
+            {issues.some((i) => i.field === "match") && choices.length > 0 && (
+              <SamePersonChoice row={row} choices={choices} onEdit={onEdit} />
+            )}
+          </td>
+        </tr>
+      )}
+      {!flagged && row.match && choices.length > 0 && (
+        <tr data-answered={row.rowIndex}>
+          <td />
+          <td
+            colSpan={showMomo ? 5 : 4}
+            className="px-2 pb-2.5 pt-0 text-[12px] text-muted-foreground"
+          >
+            {row.match === "new"
+              ? "Adding as a different person."
+              : `Updating ${choices.find((c) => c.partnerId === row.match)?.name || "the existing partner"}.`}{" "}
+            <button
+              type="button"
+              onClick={() => onEdit(row.rowIndex, { match: undefined })}
+              className="font-semibold text-brand underline-offset-2 hover:underline"
+            >
+              Change answer
+            </button>
           </td>
         </tr>
       )}
@@ -956,8 +1043,49 @@ function PreviewRow({
   );
 }
 
+/**
+ * "Same person or different person?" for a row whose name or number (not both)
+ * matches someone the hub already has (Decision 0028).
+ */
+function SamePersonChoice({
+  row,
+  choices,
+  onEdit,
+}: {
+  row: EditRow;
+  choices: MatchChoice[];
+  onEdit: (rowIndex: number, patch: Partial<EditRow>) => void;
+}) {
+  const btn =
+    "inline-flex min-h-8 items-center rounded-md border border-border bg-surface px-3 py-1 text-left text-xs font-semibold text-foreground hover:border-brand hover:bg-brand/5";
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {choices.map((c) => (
+        <button
+          key={c.partnerId}
+          type="button"
+          onClick={() => onEdit(row.rowIndex, { match: c.partnerId })}
+          className={btn}
+        >
+          Same person as {c.name || "this partner"}
+          {c.whatsapp ? ` · ${c.whatsapp}` : ""}
+          {c.church ? ` · ${c.church}` : ""}
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={() => onEdit(row.rowIndex, { match: "new" })}
+        className={btn}
+      >
+        A different person: add new
+      </button>
+    </div>
+  );
+}
+
 /** How the reasons row names each column, in the admin's words. */
 const FIELD_LABEL: Record<RowIssue["field"], string> = {
+  match: "Already in your hub?",
   name: "Name",
   momoPhone: "MoMo number",
   whatsappPhone: "WhatsApp number",

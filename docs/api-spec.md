@@ -455,3 +455,7 @@ Sends one staff-composed WhatsApp message to any valid international number.
 Body: `{ idempotencyKey: string, fullName?: string, phone: string, message: string, mediaAssetId?: string }`
 
 The phone is normalized server-side. A real send still requires the staff confirmation in the Messages UI, enforces opt-outs and any configured allowlist, validates the attachment against the active provider, and writes the outcome to `sent_messages`.
+
+### `POST /api/hub/partners/delete` (Decision 0029)
+
+Hub session required. Body `{ "partnerIds": string[] }` (UUIDs, max 5,000). Removes those of the session hub's partners with no giving on record, after copying each row to `audit_log`. Returns `{ ok, deleted, kept: [{ id, name, reason }] }`; partners of other hubs are silently ignored. `400` when nothing valid is sent, `401` without a hub session.

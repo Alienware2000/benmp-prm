@@ -562,3 +562,25 @@ _2026-09-22_
 **Why**: the first Malawi upload failed row after row ("error from the numbering"). `validateCandidates` normalized WhatsApp with the Ghana default: `0999123456` silently became `+233999123456` (a wrong number saved as valid), and `265999123456` was rejected outright. The three-column international template has WhatsApp as the ONLY phone, so this blocked every non-Ghana hub whose admin typed numbers the way people type numbers.
 
 **Said no to**: a free-text country picker per row (admins upload their own hub; the hub already knows its country) · accepting any 8-15 digit string as-is (would keep saving local numbers under the wrong country).
+
+## 0028 — A partner is their name AND their number
+
+_2026-09-26_
+
+**Decided**: an upload row updates an existing partner only when its name and one of its numbers both match that same partner (a re-upload of the same person). The same name with a different number is a **different person** and is added; the same number under a different name is also added. Nobody is ever overwritten on a name alone. Inside one file, two rows with the same name and different WhatsApp numbers are two people; the same name and WhatsApp number twice is a duplicate row.
+
+**Why**: two real MSCI partners share a name. Decision 0024 matched re-uploads by name first, so the second person overwrote the first one's number, and a same-name row in one file was blocked as a duplicate.
+
+**Trade-off accepted**: a re-upload can no longer change someone's number or name in place; that creates a new partner, and the old record is removed from the partners page (Decision 0029). Overwriting the wrong person was the worse failure.
+
+**Said no to**: name-only matching (the MSCI bug) · asking the admin "same or different person?" per row (confusing for hub admins, and a wrong answer overwrites someone) · blocking same-name rows.
+
+## 0029 — Hub admins can remove partners they uploaded
+
+_2026-09-26_
+
+**Decided**: the hub partners page has tick boxes, "select everyone shown", and an upload filter listing each saved upload (file name and time), so an admin can remove a few people or everything one upload added. Removal is hub-scoped from the session, confirmed in two steps, and each removed row is first copied into `audit_log` (`hub_partner_delete`, full row in `before_data`) so the office can restore a mistake. Anyone with giving on record (a successful payment from their number, a contribution, or a matched statement row) is kept and named, with a note to ask the office.
+
+**Why**: Paul GTWC, 2026-09-24: admins uploaded wrong files and had no way to take them back.
+
+**Said no to**: soft delete (every partner query would need a filter; the audit copy gives recovery without it) · deleting people with giving (detaches money from a person) · undoing an upload's *updates* (the previous values aren't stored per row; the filter shows only the people an upload added).

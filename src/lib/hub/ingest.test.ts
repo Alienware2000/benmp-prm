@@ -35,7 +35,7 @@ describe("parseCsv", () => {
     const rows = parseCsv('name,phone\r\n"Mensah, Ama","024""4"\nKofi,055\n\n');
     expect(rows).toEqual([
       ["name", "phone"],
-      ['Mensah, Ama', '024"4'],
+      ["Mensah, Ama", '024"4'],
       ["Kofi", "055"],
     ]);
   });
@@ -164,17 +164,23 @@ describe("validateCandidates", () => {
     expect(rows[1].issues.some((i) => i.field === "church")).toBe(true);
   });
 
-  it("flags an in-file duplicate name, not duplicate phone", () => {
+  it("flags the same name AND WhatsApp twice; same name with another number is a different person", () => {
     const rows = validateCandidates(
       [
-        cand({ rowIndex: 2, name: "Ama Mensah", momoPhone: "0244123456" }),
-        cand({ rowIndex: 5, name: "Ama Mensah", momoPhone: "0551234567" }),
+        cand({ rowIndex: 2, name: "Ama Mensah" }),
+        cand({ rowIndex: 5, name: "Ama Mensah" }),
+        cand({
+          rowIndex: 6,
+          name: "Ama Mensah",
+          whatsappPhone: "+233551234567",
+        }),
       ],
       ctx(),
     );
     expect(rows[0].issues).toEqual([]);
     expect(rows[1].issues[0]).toMatchObject({ field: "name" });
     expect(rows[1].issues[0].message).toMatch(/row 2/);
+    expect(rows[2].issues).toEqual([]);
   });
 
   it("allows the same phone number for different names", () => {
@@ -225,7 +231,11 @@ describe("validateCandidates", () => {
   });
 
   it("momoRequired=false: a stray MoMo value is ignored, never flagged (the Malawi 'Mobile' column)", () => {
-    const noMomo = { ...ctx(), momoRequired: false, whatsappCallingCode: "265" };
+    const noMomo = {
+      ...ctx(),
+      momoRequired: false,
+      whatsappCallingCode: "265",
+    };
     const [row] = validateCandidates(
       [cand({ momoPhone: "0999123456", whatsappPhone: "0999123456" })],
       noMomo,
@@ -245,7 +255,10 @@ describe("validateCandidates", () => {
       { name: 0, momoPhone: null, whatsappPhone: 1, church: 2 },
       true,
     );
-    expect(out[0]).toMatchObject({ momoPhone: "", whatsappPhone: "+254735841428" });
+    expect(out[0]).toMatchObject({
+      momoPhone: "",
+      whatsappPhone: "+254735841428",
+    });
   });
 
   it("a row can carry several issues at once", () => {
@@ -268,7 +281,11 @@ describe("validateCandidates: WhatsApp numbers resolve to the hub's country (Dec
     const rows = validateCandidates(
       [
         cand({ momoPhone: "", whatsappPhone: "0999 123 456" }),
-        cand({ name: "Kofi Boateng", momoPhone: "", whatsappPhone: "265888123456" }),
+        cand({
+          name: "Kofi Boateng",
+          momoPhone: "",
+          whatsappPhone: "265888123456",
+        }),
       ],
       malawi,
     );
@@ -280,10 +297,11 @@ describe("validateCandidates: WhatsApp numbers resolve to the hub's country (Dec
   });
 
   it("Ghana regions still read WhatsApp numbers as Ghanaian", () => {
-    const [row] = validateCandidates(
-      [cand({ whatsappPhone: "0244123456" })],
-      { ...ctx(), momoRequired: true, whatsappCallingCode: "265" },
-    );
+    const [row] = validateCandidates([cand({ whatsappPhone: "0244123456" })], {
+      ...ctx(),
+      momoRequired: true,
+      whatsappCallingCode: "265",
+    });
     expect(row.whatsappPhoneE164).toBe("+233244123456");
   });
 
@@ -292,7 +310,11 @@ describe("validateCandidates: WhatsApp numbers resolve to the hub's country (Dec
     const rows = validateCandidates(
       [
         cand({ momoPhone: "", whatsappPhone: "07700 900123" }),
-        cand({ name: "Kofi Boateng", momoPhone: "", whatsappPhone: "+44 7700 900123" }),
+        cand({
+          name: "Kofi Boateng",
+          momoPhone: "",
+          whatsappPhone: "+44 7700 900123",
+        }),
       ],
       europe,
     );

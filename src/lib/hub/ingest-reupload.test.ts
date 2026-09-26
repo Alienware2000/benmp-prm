@@ -6,7 +6,7 @@ import {
 } from "./ingest";
 
 /**
- * Re-upload behaviour (Decision 0024): a hub admin re-uploading a corrected sheet
+ * Re-upload behaviour (Decisions 0024, 0028): a hub admin re-uploading a corrected sheet
  * edits their OWN partners, but can never take over another hub's.
  */
 
@@ -41,30 +41,113 @@ const ctx = (
   existingPhones: new Map(Object.entries(existing)),
 });
 
-describe("re-upload of a partner this hub already owns", () => {
-  it("is an edit, not an error", () => {
+const OWN_PHONE = { hubNumber: 5, partnerId: "p-1", hubId: OWN_HUB };
+const AMA = { partnerId: "p-1", nameKey: "AMA MENSAH" };
+
+describe("same name AND same number: the same person (a re-upload)", () => {
+  it("updates that partner", () => {
     const [row] = validateCandidates(
-      [cand({ name: "Ama Mensah-Boateng" })],
-      ctx({
-        "+233244123456": {
-          hubNumber: 5,
-          partnerId: "p-1",
-          hubId: OWN_HUB,
-        },
-      }),
+      [cand({ church: "ACC" })],
+      ctx({ "+233244123456": OWN_PHONE }, [AMA]),
     );
     expect(row.issues).toEqual([]);
     expect(row.updatesPartnerId).toBe("p-1");
   });
 
-  it("matches on the MoMo number as well as WhatsApp", () => {
+  it("matches the name regardless of case and spacing", () => {
     const [row] = validateCandidates(
-      [cand()],
-      ctx({
-        "+233244123456": { hubNumber: 5, partnerId: "p-1", hubId: OWN_HUB },
-      }),
+      [cand({ name: "  ama   MENSAH " })],
+      ctx({ "+233244123456": OWN_PHONE }, [AMA]),
     );
     expect(row.updatesPartnerId).toBe("p-1");
+  });
+
+  it("either number can be the match", () => {
+    const [row] = validateCandidates(
+      [cand({ momoPhone: "0244123456", whatsappPhone: "+233209999999" })],
+      ctx({ "+233244123456": OWN_PHONE }, [AMA]),
+    );
+    expect(row.issues).toEqual([]);
+    expect(row.updatesPartnerId).toBe("p-1");
+  });
+});
+
+describe("same name, different number: a different person (Decision 0028)", () => {
+  // The MSCI case: two real partners share a name. The second must be ADDED;
+  // before, it overwrote the first person's number.
+  it("is added as a new partner and the existing one is untouched", () => {
+    const [row] = validateCandidates(
+      [cand({ momoPhone: "0209999999", whatsappPhone: "+233209999999" })],
+      ctx({}, [AMA]),
+    );
+    expect(row.issues).toEqual([]);
+    expect(row.updatesPartnerId).toBeNull();
+  });
+
+  it("is added even when the hub already has several people with the name", () => {
+    const [row] = validateCandidates(
+      [
+        cand({
+          name: "John Tetteh",
+          whatsappPhone: "+233209999999",
+          momoPhone: "0209999999",
+        }),
+      ],
+      ctx({}, [
+        { partnerId: "p-1", nameKey: "JOHN TETTEH" },
+        { partnerId: "p-2", nameKey: "JOHN TETTEH" },
+      ]),
+    );
+    expect(row.issues).toEqual([]);
+    expect(row.updatesPartnerId).toBeNull();
+  });
+});
+
+describe("same number, different name: a different person", () => {
+  // e.g. a couple sharing a phone. Nobody is renamed.
+  it("is added, and the existing partner is not renamed", () => {
+    const [row] = validateCandidates(
+      [cand({ name: "Kwesi Mensah" })],
+      ctx({ "+233244123456": OWN_PHONE }, [AMA]),
+    );
+    expect(row.issues).toEqual([]);
+    expect(row.updatesPartnerId).toBeNull();
+  });
+});
+
+describe("within one file", () => {
+  it("two rows with the same name but different numbers are two people", () => {
+    const rows = validateCandidates(
+      [
+        cand({
+          rowIndex: 2,
+          name: "John Mensah",
+          whatsappPhone: "+447700900101",
+          momoPhone: "0244123456",
+        }),
+        cand({
+          rowIndex: 3,
+          name: "John Mensah",
+          whatsappPhone: "+447700900202",
+          momoPhone: "0244123457",
+        }),
+      ],
+      ctx(),
+    );
+    expect(rows.every((r) => r.issues.length === 0)).toBe(true);
+    expect(rows.every((r) => r.updatesPartnerId === null)).toBe(true);
+  });
+
+  it("the same name and WhatsApp number twice is a duplicate row", () => {
+    const rows = validateCandidates(
+      [
+        cand({ rowIndex: 2, name: "John Mensah" }),
+        cand({ rowIndex: 7, name: "john  mensah" }),
+      ],
+      ctx(),
+    );
+    expect(rows[0].issues).toEqual([]);
+    expect(rows[1].issues[0].message).toMatch(/row 2/);
   });
 });
 
@@ -73,11 +156,7 @@ describe("a number owned by another hub", () => {
     const [row] = validateCandidates(
       [cand()],
       ctx({
-        "+233244123456": {
-          hubNumber: 12,
-          partnerId: "p-9",
-          hubId: OTHER_HUB,
-        },
+        "+233244123456": { hubNumber: 12, partnerId: "p-9", hubId: OTHER_HUB },
       }),
     );
     expect(row.updatesPartnerId).toBeNull();
@@ -96,38 +175,12 @@ describe("a number owned by another hub", () => {
   });
 });
 
-describe("ambiguous matches", () => {
-  it("refuses a row whose two numbers belong to two different people", () => {
-    // Updating either one would silently corrupt the other, so the admin resolves it.
-    const [row] = validateCandidates(
-      [cand({ momoPhone: "0244123456", whatsappPhone: "+233209999999" })],
-      ctx({
-        "+233244123456": { hubNumber: 5, partnerId: "p-1", hubId: OWN_HUB },
-        "+233209999999": { hubNumber: 5, partnerId: "p-2", hubId: OWN_HUB },
-      }),
-    );
-    expect(row.updatesPartnerId).toBeNull();
-    expect(row.issues.map((i) => i.message).join(" ")).toContain(
-      "two different people",
-    );
-  });
-
-  it("allows both numbers pointing at the SAME existing partner", () => {
-    const [row] = validateCandidates(
-      [cand({ momoPhone: "0244123456", whatsappPhone: "+233209999999" })],
-      ctx({
-        "+233244123456": { hubNumber: 5, partnerId: "p-1", hubId: OWN_HUB },
-        "+233209999999": { hubNumber: 5, partnerId: "p-1", hubId: OWN_HUB },
-      }),
-    );
-    expect(row.issues).toEqual([]);
-    expect(row.updatesPartnerId).toBe("p-1");
-  });
-});
-
 describe("a genuinely new person", () => {
   it("has no partner to update", () => {
-    const [row] = validateCandidates([cand()], ctx({}));
+    const [row] = validateCandidates(
+      [cand({ name: "Kofi Boateng" })],
+      ctx({}, [AMA]),
+    );
     expect(row.issues).toEqual([]);
     expect(row.updatesPartnerId).toBeNull();
   });
@@ -144,99 +197,5 @@ describe("without a hub in context", () => {
     });
     expect(row.updatesPartnerId).toBeNull();
     expect(row.issues).not.toEqual([]);
-  });
-});
-
-describe("name is the primary match", () => {
-  // The whole point: the admin is correcting a phone number, so matching on phone
-  // would miss the row and create a SECOND record for the same person.
-  it("updates the existing partner when the numbers have changed", () => {
-    const [row] = validateCandidates(
-      [cand({ momoPhone: "0209999999", whatsappPhone: "+233209999999" })],
-      ctx({}, [{ partnerId: "p-1", nameKey: "AMA MENSAH" }]),
-    );
-    expect(row.issues).toEqual([]);
-    expect(row.updatesPartnerId).toBe("p-1");
-  });
-
-  it("matches regardless of case and spacing", () => {
-    const [row] = validateCandidates(
-      [cand({ name: "  ama   MENSAH " })],
-      ctx({}, [{ partnerId: "p-1", nameKey: "AMA MENSAH" }]),
-    );
-    expect(row.updatesPartnerId).toBe("p-1");
-  });
-
-  it("updates when only the church changed", () => {
-    const [row] = validateCandidates(
-      [cand({ church: "ACC" })],
-      ctx({}, [{ partnerId: "p-1", nameKey: "AMA MENSAH" }]),
-    );
-    expect(row.issues).toEqual([]);
-    expect(row.updatesPartnerId).toBe("p-1");
-  });
-
-  it("adds a new partner when the name is not already in the hub", () => {
-    const [row] = validateCandidates(
-      [cand({ name: "Kofi Boateng" })],
-      ctx({}, [{ partnerId: "p-1", nameKey: "AMA MENSAH" }]),
-    );
-    expect(row.issues).toEqual([]);
-    expect(row.updatesPartnerId).toBeNull();
-  });
-
-  it("refuses a name two people in the hub share", () => {
-    // 22 such names exist in the live hub data (John Tetteh, Wisdom Tetteh, ...).
-    // Picking either would overwrite a real person with someone else's details.
-    const [row] = validateCandidates(
-      [cand({ name: "John Tetteh" })],
-      ctx({}, [
-        { partnerId: "p-1", nameKey: "JOHN TETTEH" },
-        { partnerId: "p-2", nameKey: "JOHN TETTEH" },
-      ]),
-    );
-    expect(row.updatesPartnerId).toBeNull();
-    expect(row.issues.map((i) => i.message).join(" ")).toContain(
-      "2 partners with this exact name",
-    );
-  });
-
-  it("refuses when the name and the numbers point at different people", () => {
-    // One person's name onto another person's phone: neither record is safe to write.
-    const [row] = validateCandidates(
-      [cand()],
-      ctx(
-        {
-          "+233244123456": {
-            hubNumber: 5,
-            partnerId: "p-2",
-            hubId: OWN_HUB,
-          },
-        },
-        [{ partnerId: "p-1", nameKey: "AMA MENSAH" }],
-      ),
-    );
-    expect(row.updatesPartnerId).toBeNull();
-    expect(row.issues.map((i) => i.message).join(" ")).toContain(
-      "two different people",
-    );
-  });
-
-  it("still updates when name and phone agree on the same person", () => {
-    const [row] = validateCandidates(
-      [cand()],
-      ctx(
-        {
-          "+233244123456": {
-            hubNumber: 5,
-            partnerId: "p-1",
-            hubId: OWN_HUB,
-          },
-        },
-        [{ partnerId: "p-1", nameKey: "AMA MENSAH" }],
-      ),
-    );
-    expect(row.issues).toEqual([]);
-    expect(row.updatesPartnerId).toBe("p-1");
   });
 });

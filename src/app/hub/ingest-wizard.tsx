@@ -638,9 +638,9 @@ export function IngestWizard({
                       {updateCount === 1 ? " a partner" : " partners"} you
                       already have
                     </span>{" "}
-                    — matched by phone number. Their name, church and numbers
-                    will be replaced with what is shown here. Giving history is
-                    not affected.
+                    (same name and same number). Their church and details will
+                    be updated to what is shown here. Giving history is not
+                    affected.
                   </p>
                 )}
               </div>

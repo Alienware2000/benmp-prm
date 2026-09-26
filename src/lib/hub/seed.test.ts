@@ -210,7 +210,7 @@ describe("the real Africa and Europe seed files", () => {
     expect(out.hubs.every((h) => h.country !== "")).toBe(true);
   });
 
-  it("Europe parses to 7 hubs and 219 churches", () => {
+  it("Europe parses to 7 hubs and 220 churches", () => {
     const doc = JSON.parse(
       readFileSync(
         join(__dirname, "../../../scripts/data/europe-hubs-churches.json"),
@@ -221,13 +221,13 @@ describe("the real Africa and Europe seed files", () => {
     expect(out.hubs.map((h) => h.name).sort()).toEqual([
       "CIDC",
       "GTSL",
-      "JGG",
       "Living Waters",
       "MSCI",
       "PSCI",
       "Rose of Sharon",
+      "Tell Them",
     ]);
-    expect(out.churchCount).toBe(219);
+    expect(out.churchCount).toBe(220);
   });
 });
 

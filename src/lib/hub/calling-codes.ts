@@ -9,6 +9,7 @@ const CALLING_CODES: Record<string, string> = {
   Ghana: "233",
   Benin: "229",
   "Burkina Faso": "226",
+  Burundi: "257",
   "Cape Verde": "238",
   "Central African Republic": "236",
   Chad: "235",

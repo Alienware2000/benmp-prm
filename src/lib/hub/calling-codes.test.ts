@@ -8,6 +8,7 @@ describe("callingCodeForCountry", () => {
     expect(callingCodeForCountry("South Africa")).toBe("27");
     expect(callingCodeForCountry("Ghana")).toBe("233");
     expect(callingCodeForCountry("Tanzania")).toBe("255");
+    expect(callingCodeForCountry("Burundi")).toBe("257");
   });
 
   it("takes the first country of a combined hub, and null for unknown or mixed", () => {

@@ -1,6 +1,6 @@
 {
   "source": "Paul GTWC office WhatsApp spreadsheets, downloaded 2026-09-19 (kept outside git in ~/Dev/Data/pastors-info-2026-09-19)",
-  "notes": "Canonical Europe hub/church list. Hubs identified by denomination NAME (Decision 0020; Paul GTWC office 2026-09-19: 'I'm sending for Europe now… there are 2 more left'). Each church carries its branch pastor as leaderName/leaderPhone. Where a source file lists several pastors under one branch name (e.g. PSCI's Leeds congregations), the branch appears once with the first-listed pastor; the full pastor lists remain in the source folder. 2026-09-24 (Paul GTWC): MSCI spellings corrected (North Kensington, Blackthorn); Living Waters gained Dornbirn, Austria (file 'BENMP Dornbirn copy.xlsx' spells it Dornbrin; the town is Dornbirn). 2026-09-26 (Paul GTWC): hub JGG renamed to Tell Them.",
+  "notes": "Canonical Europe hub/church list. Hubs identified by denomination NAME (Decision 0020; Paul GTWC office 2026-09-19: 'I'm sending for Europe now… there are 2 more left'). Each church carries its branch pastor as leaderName/leaderPhone. Where a source file lists several pastors under one branch name (e.g. PSCI's Leeds congregations), the branch appears once with the first-listed pastor; the full pastor lists remain in the source folder. 2026-09-24 (Paul GTWC): MSCI spellings corrected (North Kensington, Blackthorn); Living Waters gained Dornbirn, Austria (file 'BENMP Dornbirn copy.xlsx' spells it Dornbrin; the town is Dornbirn). 2026-09-26 (Paul GTWC): hub JGG renamed to Tell Them. 2026-09-26 (Paul GTWC): Tell Them's own directory (BENMP TTC - Pastors Info.csv) lists 10 branches; the JGG list had mixed in 6 from another denomination (Berlin (German), Dusseldorf, Fulda, Kassel, Munich, Wiesbaden), removed. Berlin(English) is Berlin.",
   "hubs": [
     {
       "name": "CIDC",
@@ -1087,12 +1087,7 @@
           "leaderPhone": "417 89 48 43 57"
         },
         {
-          "name": "Berlin (German)",
-          "leaderName": "Edwin Adu-Tutu",
-          "leaderPhone": "49151 72 42 17 93"
-        },
-        {
-          "name": "Berlin(English)",
+          "name": "Berlin",
           "leaderName": "Frank Charles Hudson-Odoi",
           "leaderPhone": "49 1573 1132022"
         },
@@ -1107,11 +1102,6 @@
           "leaderPhone": "4916 38 07 37 22"
         },
         {
-          "name": "Dusseldorf",
-          "leaderName": "Joey Asante",
-          "leaderPhone": "49 176 62546082"
-        },
-        {
           "name": "Essen",
           "leaderName": "Henry Obeng",
           "leaderPhone": "4916 27 65 64 32"
@@ -1120,11 +1110,6 @@
           "name": "Frankfurt",
           "leaderName": "Dinah Awuku",
           "leaderPhone": "4917 99 76 62 99"
-        },
-        {
-          "name": "Fulda",
-          "leaderName": "Celine Roehn",
-          "leaderPhone": "49 1743458626"
         },
         {
           "name": "Hamburg",
@@ -1137,24 +1122,9 @@
           "leaderPhone": "4917 09 95 68 63"
         },
         {
-          "name": "Kassel",
-          "leaderName": "Emmanuel Aboagye-Ofori",
-          "leaderPhone": "49157 53 45 49 24"
-        },
-        {
-          "name": "Munich",
-          "leaderName": "Morris Kwabena Awuah Otchere-Forbih",
-          "leaderPhone": "4916 22 71 71 04"
-        },
-        {
           "name": "Rodelheim",
           "leaderName": "Thomas Opoku-Fofie",
           "leaderPhone": "49176 22 14 38 07"
-        },
-        {
-          "name": "Wiesbaden",
-          "leaderName": "Barbara Asa-nie",
-          "leaderPhone": "49 1630807134"
         }
       ]
     }

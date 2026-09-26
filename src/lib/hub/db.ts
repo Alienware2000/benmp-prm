@@ -213,30 +213,15 @@ export async function findHubPartnerNames(
 ): Promise<ExistingPartner[]> {
   const out: ExistingPartner[] = [];
   for (let offset = 0; ; offset += 1000) {
-    const rows = await rest<
-      {
-        id: string;
-        full_name: string | null;
-        whatsapp_number: string | null;
-        church: string | null;
-      }[]
-    >(
+    const rows = await rest<{ id: string; full_name: string | null }[]>(
       `partners?hub_id=eq.${encodeURIComponent(hubId)}` +
-        `&select=id,full_name,whatsapp_number,church&order=id.asc&limit=1000&offset=${offset}`,
+        `&select=id,full_name&order=id.asc&limit=1000&offset=${offset}`,
     );
     for (const r of rows) {
-      // A placeholder is not an identity: two "NO NAME" rows are not the same
-      // person. Kept with an empty key so a phone match can still describe them.
-      const nameKey = isSensibleName(r.full_name)
-        ? normalizeNameKey(r.full_name)
-        : "";
-      out.push({
-        partnerId: r.id,
-        nameKey,
-        name: r.full_name ?? "",
-        whatsapp: r.whatsapp_number,
-        church: r.church,
-      });
+      const nameKey = normalizeNameKey(r.full_name);
+      // A placeholder is not an identity: two "NO NAME" rows are not the same person.
+      if (nameKey === "" || !isSensibleName(r.full_name)) continue;
+      out.push({ partnerId: r.id, nameKey });
     }
     if (rows.length < 1000) break;
   }

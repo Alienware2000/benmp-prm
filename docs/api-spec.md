@@ -459,5 +459,3 @@ The phone is normalized server-side. A real send still requires the staff confir
 ### `POST /api/hub/partners/delete` (Decision 0029)
 
 Hub session required. Body `{ "partnerIds": string[] }` (UUIDs, max 5,000). Removes those of the session hub's partners with no giving on record, after copying each row to `audit_log`. Returns `{ ok, deleted, kept: [{ id, name, reason }] }`; partners of other hubs are silently ignored. `400` when nothing valid is sent, `401` without a hub session.
-
-`POST /api/hub/ingest/submit` rows now accept an optional `match`: `"new"` or the partnerId the row updates, answering the preview's "same person or different person?" (Decision 0028).

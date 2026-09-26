@@ -563,15 +563,17 @@ _2026-09-22_
 
 **Said no to**: a free-text country picker per row (admins upload their own hub; the hub already knows its country) · accepting any 8-15 digit string as-is (would keep saving local numbers under the wrong country).
 
-## 0028 — A partner is a name AND a number; when only one matches, the admin decides
+## 0028 — A partner is their name AND their number
 
 _2026-09-26_
 
-**Decided**: an upload row updates an existing partner automatically only when **both** its name and one of its numbers match that same partner. When only the name matches (a second "John Mensah" with another number) or only a number matches (a couple sharing a phone, or a corrected name), the preview asks the admin under the row: "Same person as John Mensah · +44 7700 111111: update" or "A different person: add new", with "all the same / all different" buttons for large re-uploads. The server re-checks the answer against the same candidates. Inside one file, the same name with a different WhatsApp number is two people; the same name and WhatsApp number twice is a duplicate row. One existing partner can be updated by only one row per upload.
+**Decided**: an upload row updates an existing partner only when its name and one of its numbers both match that same partner (a re-upload of the same person). The same name with a different number is a **different person** and is added; the same number under a different name is also added. Nobody is ever overwritten on a name alone. Inside one file, two rows with the same name and different WhatsApp numbers are two people; the same name and WhatsApp number twice is a duplicate row.
 
-**Why**: Decision 0024 matched re-uploads by name alone, so MSCI's second partner with an existing name silently **overwrote** the first person's number, and a shared phone did the same to names. Any single-field rule guesses wrong for someone; asking only in the ambiguous case keeps re-uploads of identical sheets silent (name and number both match) while nothing is overwritten or duplicated on a guess.
+**Why**: two real MSCI partners share a name. Decision 0024 matched re-uploads by name first, so the second person overwrote the first one's number, and a same-name row in one file was blocked as a duplicate.
 
-**Said no to**: phone-only identity (families share phones) · name-only identity (the MSCI bug) · refusing same-name rows outright (real congregations have them) · adding new people silently on a name match (duplicates the hub then has to find).
+**Trade-off accepted**: a re-upload can no longer change someone's number or name in place; that creates a new partner, and the old record is removed from the partners page (Decision 0029). Overwriting the wrong person was the worse failure.
+
+**Said no to**: name-only matching (the MSCI bug) · asking the admin "same or different person?" per row (confusing for hub admins, and a wrong answer overwrites someone) · blocking same-name rows.
 
 ## 0029 — Hub admins can remove partners they uploaded
 

@@ -221,11 +221,11 @@ describe("the real Africa and Europe seed files", () => {
     expect(out.hubs.map((h) => h.name).sort()).toEqual([
       "CIDC",
       "GTSL",
-      "JGG",
       "Living Waters",
       "MSCI",
       "PSCI",
       "Rose of Sharon",
+      "Tell Them",
     ]);
     expect(out.churchCount).toBe(220);
   });

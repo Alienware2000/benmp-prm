@@ -30,11 +30,11 @@ async function rest<T>(path: string, init?: RequestInit): Promise<T> {
 
 // --- Cascading dropdown data ---
 
-export type RegionOption = { code: string; name: string; hubIdentifier: string };
+export type RegionOption = { id: string; code: string; name: string; hubIdentifier: string };
 
 export async function listAllRegions(): Promise<RegionOption[]> {
   return rest<RegionOption[]>(
-    "regions?select=code,name,hub_identifier&order=sort_order.asc",
+    "regions?select=id,code,name,hub_identifier&order=sort_order.asc",
   );
 }
 

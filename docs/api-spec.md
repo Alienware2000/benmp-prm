@@ -459,3 +459,13 @@ The phone is normalized server-side. A real send still requires the staff confir
 ### `POST /api/hub/partners/delete` (Decision 0029)
 
 Hub session required. Body `{ "partnerIds": string[] }` (UUIDs, max 5,000). Removes those of the session hub's partners with no giving on record, after copying each row to `audit_log`. Returns `{ ok, deleted, kept: [{ id, name, reason }] }`; partners of other hubs are silently ignored. `400` when nothing valid is sent, `401` without a hub session.
+## 13. Cash Payment Form Endpoints
+
+Public form at `/cash` for monthly cash collections. All endpoints under `/api/cash/*`.
+
+- `GET /api/cash/regions` — Public. Returns all regions `{ ok, regions: [{ code, name, hubIdentifier }] }`. No account filter (unlike `/api/regions` which filters to hubs with login accounts).
+- `GET /api/cash/hubs?regionCode=` — Public. Returns hubs in a region `{ ok, hubs: [{ id, label }] }`.
+- `GET /api/cash/churches?hubId=` — Public. Returns churches in a hub `{ ok, churches: [{ id, name }] }`.
+- `POST /api/cash/submit` — Public, rate-limited (5/15min per IP). Body: `{ regionCode, hubId, churchId, reportingMonth, summary: { totalRegistered, activePartners, newRegistrations, lapsed }, givers: [{ name, phone, amountMinor, transactionRef }] }`. Validates region→hub→church chain, month format, giver rows, dedup refs. Idempotent: one submission per (church, month) → `409` if duplicate. Returns `{ ok: true, submissionId }` (`201`).
+- `GET /api/cash/submissions` — Staff. Lists submissions with joined region/hub/church names. Optional `?status=` filter. Returns `{ ok, submissions: [...] }`.
+- `POST /api/cash/:id/promote` — Staff (finance/admin). Promotes giver rows to `payments` ledger with `payment_method = 'cash'`, `reference = 'cash_submission:{submissionId}:{giverId}'`. Idempotent on reference. Returns `{ ok: true, promoted: N, submissionId }`.

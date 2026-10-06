@@ -325,6 +325,54 @@ Rules:
 - Re-importing the same row must be inert once row-hash dedupe lands.
 - Matched rows promote through the same payment event path as manual finance entry.
 
+
+### `cash_submissions`
+
+Purpose: public form intake for monthly cash collections — one submission per church per month. Mirrors `intake_submissions` (migration 0012) RLS posture: anyone can insert (the public form), staff-only read/update.
+
+Fields:
+
+- `id uuid primary key`
+- `region_id uuid references regions`
+- `hub_id uuid references hubs`
+- `church_id uuid references hub_churches`
+- `reporting_month date` (first of month)
+- `total_registered int`
+- `active_partners int` (manual count)
+- `new_registrations int`
+- `lapsed int`
+- `total_cash_minor bigint` (computed sum of giver amounts)
+- `currency text` default `GHS`
+- `submitted_at timestamptz`
+- `status text` (`submitted` | `promoted` | `flagged`)
+- `promoted_at timestamptz`
+- `created_at`, `updated_at timestamptz`
+
+Constraint:
+
+- `unique (church_id, reporting_month)` — one form per church per month, prevents double-counting.
+
+### `cash_submission_givers`
+
+Purpose: the giver list within a cash submission — name, phone, amount, optional receipt reference.
+
+Fields:
+
+- `id uuid primary key`
+- `submission_id uuid references cash_submissions` (cascade delete)
+- `row_index int`
+- `giver_name text` (nullable)
+- `giver_phone text` (nullable)
+- `amount_minor bigint` (>= 0)
+- `transaction_ref text` (nullable)
+- `created_at timestamptz`
+
+Constraint:
+
+- `unique (submission_id, transaction_ref)` — no duplicate receipt refs within a submission (Postgres treats NULLs as distinct, so empty refs don't conflict).
+
+RLS: both tables have public insert, staff-only select, staff-only update (finance/admin/super_admin). Migration: `0021_cash_submissions.sql`.
+
 ## 8. Campaign Tables
 
 ### `campaigns`

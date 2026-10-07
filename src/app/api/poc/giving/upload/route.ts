@@ -144,15 +144,16 @@ async function createImportBatch({
   rowCount,
   matchedCount,
   ambiguousCount,
-  fileHash,
 }: {
   provider: string;
   filename: string;
   rowCount: number;
   matchedCount: number;
   ambiguousCount: number;
-  fileHash: string;
 }): Promise<string> {
+  // The file_hash is NOT set here — it is stamped after rows and payments
+  // succeed, so a failed import can be retried without hitting the unique
+  // (provider, file_hash) constraint on an incomplete batch.
   const rows = await rest<ImportRow[]>("payment_imports?select=id", {
     method: "POST",
     headers: { Prefer: "return=representation" },
@@ -164,11 +165,21 @@ async function createImportBatch({
         row_count: rowCount,
         matched_count: matchedCount,
         ambiguous_count: ambiguousCount,
-        file_hash: fileHash,
       },
     ]),
   });
   return rows[0].id;
+}
+
+async function stampFileHash(importId: string, fileHash: string): Promise<void> {
+  await rest<void>(
+    `payment_imports?id=eq.${encodeURIComponent(importId)}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ file_hash: fileHash }),
+    },
+  );
 }
 
 async function insertImportRows({
@@ -379,9 +390,11 @@ export async function POST(req: NextRequest) {
     ]);
     const matches = matchNormalizedRows(parsed.rows, partners);
 
-    // File-level dedup: block re-uploading the same file for the same source.
-    // preview returns the hash so the client can warn before import/commit.
-    if (action === "import" || action === "commit") {
+    // File-level dedup: only the `import` action creates a batch with a
+    // file_hash, so only it can detect a re-upload. The `commit` action
+    // inserts payments without a batch — ledger-level on_conflict=reference
+    // already prevents duplicate payments there.
+    if (action === "import") {
       const existing = await findDuplicateBatch(source, fileHash, rest);
       if (existing) {
         return NextResponse.json(
@@ -410,10 +423,12 @@ export async function POST(req: NextRequest) {
         rowCount: parsed.rows.length,
         matchedCount: accepted.length,
         ambiguousCount: reviewMatches.length,
-        fileHash,
       });
       await insertImportRows({ importId, matches });
       await insertPayments(buildPaymentRows(accepted));
+      // Stamp the file hash only after rows and payments succeed, so a
+      // failed import can be retried without the unique constraint blocking it.
+      await stampFileHash(importId, fileHash);
       revalidateTag("poc-giving", "max");
       return NextResponse.json({
         ok: true,

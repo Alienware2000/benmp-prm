@@ -454,6 +454,10 @@ Staff. Lists all `payment_imports` batches (newest first). Optional `?provider=`
 
 Staff. Lists the `payment_import_rows` for a specific batch. Returns `{ ok, rows: [{ id, payment_reference, match_status, normalized_row: { payerName, amountMinor, transactionDate }, created_at }] }`.
 
+### `GET /api/poc/giving/by-church`
+
+Staff. Aggregates all successful payments by church, with method breakdowns (MoMo / bank / cash / Paystack / other), rolling up to hub, country, and region. Optional `?month=YYYY-MM` filter. Returns `{ ok, churches: [...], rollups: { byHub, byCountry, byRegion }, unattributed: { totalMinor, paymentCount, byMethod } }`. Payments without a matched partner are counted in `unattributed`.
+
 `/poc` (dashboard) · `/poc/giving` (filterable ledger) · `/poc/giving/upload` (MoMo/Ecobank giving import) · `/poc/messages` (send to one number or selected partners). `/poc/directory` redirects to the selected-partners mode in Messages, and `/poc/giving/test` redirects to the single-number mode. Giving and partner search take their filters as **GET query params** so filtered views remain linkable.
 
 ### `POST /api/poc/messages/direct`

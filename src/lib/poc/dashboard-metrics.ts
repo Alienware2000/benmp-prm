@@ -143,12 +143,13 @@ function restHeaders(): Record<string, string> {
 // ---------------------------------------------------------------------------
 
 /** High-level payment source groups used by the breakdown filter pills. */
-export type PaymentMethodGroup = "mobile_money" | "bank" | "paystack" | "other";
+export type PaymentMethodGroup = "mobile_money" | "bank" | "cash" | "paystack" | "other";
 
 /** Ordered list of filter pill labels (UI order). */
 export const PAYMENT_METHOD_GROUP_LABELS: PaymentMethodGroup[] = [
   "mobile_money",
   "bank",
+  "cash",
   "paystack",
   "other",
 ];
@@ -162,8 +163,7 @@ const PAYMENT_METHOD_TO_GROUP: Record<string, PaymentMethodGroup> = {
   paystack_mobile_money: "paystack",
   paystack_bank_transfer: "paystack",
   paystack_card: "paystack",
-  paypal: "other",
-  cash: "other",
+  cash: "cash",
   check: "other",
   other: "other",
 };
@@ -190,6 +190,7 @@ export function toPaymentMethodGroup(
     if (s.includes("paystack")) return "paystack";
     if (s.includes("momo") || s.includes("mobile")) return "mobile_money";
     if (s.includes("bank") || s.includes("ecobank")) return "bank";
+    if (s.includes("cash")) return "cash";
     const mapped = PAYMENT_METHOD_TO_GROUP[resolved];
     if (mapped) return mapped;
   }
@@ -296,7 +297,7 @@ async function fetchAllPayments(): Promise<DashboardPaymentRow[]> {
 function emptyGeoBreakdown(): Map<Geography, GeographyBreakdown> {
   const m = new Map<Geography, GeographyBreakdown>();
   for (const g of GEOGRAPHIES) {
-    m.set(g, { geography: g, partnerCount: 0, donorCount: 0, amountMinor: 0, currency: "GHS", byPaymentMethod: { mobile_money: 0, bank: 0, paystack: 0, other: 0 } });
+    m.set(g, { geography: g, partnerCount: 0, donorCount: 0, amountMinor: 0, currency: "GHS", byPaymentMethod: { mobile_money: 0, bank: 0, cash: 0, paystack: 0, other: 0 } });
   }
   return m;
 }

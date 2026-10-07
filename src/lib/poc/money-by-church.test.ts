@@ -103,7 +103,7 @@ describe("aggregateMoneyByChurch — church level", () => {
     expect(church.byMethod.mobile_money).toBe(3000); // 1000 + 2000
     expect(church.byMethod.bank).toBe(4000);
     expect(church.byMethod.paystack).toBe(7000);
-    expect(church.byMethod.other).toBe(9000); // cash → other
+    expect(church.byMethod.cash).toBe(9000);
   });
 
   it("sorts churches by totalMinor descending", () => {
@@ -141,7 +141,7 @@ describe("aggregateMoneyByChurch — hub rollup", () => {
     const hub2 = result.rollups.byHub.find((h) => h.hubId === "hub-2")!;
     expect(hub2.totalMinor).toBe(5000);
     expect(hub2.churchCount).toBe(1);
-    expect(hub2.byMethod.other).toBe(5000);
+    expect(hub2.byMethod.cash).toBe(5000);
   });
 
   it("sorts hub rollups by totalMinor descending", () => {
@@ -172,7 +172,7 @@ describe("aggregateMoneyByChurch — country rollup", () => {
     expect(ghana.churchCount).toBe(3);
     expect(ghana.byMethod.mobile_money).toBe(1000);
     expect(ghana.byMethod.bank).toBe(2000);
-    expect(ghana.byMethod.other).toBe(5000);
+    expect(ghana.byMethod.cash).toBe(5000);
   });
 
   it("sorts country rollups by totalMinor descending", () => {
@@ -262,7 +262,7 @@ describe("aggregateMoneyByChurch — unattributed & unassigned", () => {
     expect(unassigned!.totalMinor).toBe(5000);
     expect(unassigned!.paymentCount).toBe(2);
     expect(unassigned!.byMethod.mobile_money).toBe(3000);
-    expect(unassigned!.byMethod.other).toBe(2000);
+    expect(unassigned!.byMethod.cash).toBe(2000);
 
     // The unassigned church should roll up into hub-1.
     const hub1 = result.rollups.byHub.find((h) => h.hubId === "hub-1")!;
@@ -329,6 +329,7 @@ describe("aggregateMoneyByChurch — empty input", () => {
     expect(result.unattributed.byMethod).toEqual({
       mobile_money: 0,
       bank: 0,
+      cash: 0,
       paystack: 0,
       other: 0,
     });

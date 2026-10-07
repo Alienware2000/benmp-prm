@@ -71,7 +71,7 @@ export type MoneyByChurchResult = {
 export type PaymentForAggregation = {
   amount_minor: number;
   payment_method: string | null;
-  raw_row: { matched_partner_id?: string; _payment_method?: string; source?: string } | null;
+  raw_row: { matched_partner_id?: string; church_id?: string; hub_id?: string; _payment_method?: string; source?: string } | null;
   paid_at: string;
 };
 
@@ -93,7 +93,7 @@ export type RegionMeta = { id: string; code: string; name: string };
 const UNASSIGNED_CHURCH_ID_PREFIX = "unassigned:";
 
 function emptyMethodMap(): Record<PaymentMethodGroup, number> {
-  return { mobile_money: 0, bank: 0, paystack: 0, other: 0 };
+  return { mobile_money: 0, bank: 0, cash: 0, paystack: 0, other: 0 };
 }
 
 function addMethod(
@@ -144,11 +144,35 @@ export function aggregateMoneyByChurch(
     // Month filter: only include payments whose paid_at starts with the filter.
     if (monthFilter && !payment.paid_at.startsWith(monthFilter)) continue;
 
+    // Attribution path 1: matched partner → partner's church/hub.
     const partnerId = payment.raw_row?.matched_partner_id;
     const partner = partnerId ? partnerById.get(partnerId) : undefined;
 
-    // No matched partner or unknown partner id → unattributed.
-    if (!partner) {
+    // Attribution path 2: cash submission rows carry church_id/hub_id
+    // directly in raw_row (no matched_partner_id). Use those if no partner.
+    const rawChurchId = payment.raw_row?.church_id as string | undefined;
+    const rawHubId = payment.raw_row?.hub_id as string | undefined;
+
+    let churchId: string | null = null;
+    let hubId: string | null = null;
+    let country: string | null = null;
+
+    if (partner) {
+      churchId = partner.church_id;
+      hubId = partner.hub_id;
+      country = partner.country;
+    } else if (rawChurchId && rawHubId) {
+      // Cash submission fallback: attribute via the row's own church/hub.
+      churchId = rawChurchId;
+      hubId = rawHubId;
+      // Country is not on the cash raw_row; derive from the hub's region.
+      const hub = hubById.get(rawHubId);
+      const region = hub ? regionById.get(hub.region_id) : null;
+      country = region?.name ?? null;
+    }
+
+    // No attribution path matched → unattributed.
+    if (!hubId) {
       unattributed.totalMinor += payment.amount_minor;
       unattributed.paymentCount += 1;
       addMethod(
@@ -159,20 +183,7 @@ export function aggregateMoneyByChurch(
       continue;
     }
 
-    // No hub → cannot place in a church tree → unattributed.
-    if (!partner.hub_id) {
-      unattributed.totalMinor += payment.amount_minor;
-      unattributed.paymentCount += 1;
-      addMethod(
-        unattributed.byMethod,
-        toPaymentMethodGroup(payment.payment_method, payment.raw_row),
-        payment.amount_minor,
-      );
-      continue;
-    }
-
-    const hub = hubById.get(partner.hub_id);
-    // Partner references a hub we don't have metadata for → unattributed.
+    const hub = hubById.get(hubId);
     if (!hub) {
       unattributed.totalMinor += payment.amount_minor;
       unattributed.paymentCount += 1;
@@ -183,38 +194,36 @@ export function aggregateMoneyByChurch(
       );
       continue;
     }
-
-    // Resolve a church key. Partners without church_id → "unassigned" within hub.
-    let churchId: string;
+    // Resolve a church key. No church_id → "unassigned" within the hub.
+    let resolvedChurchId: string;
     let churchName: string;
-    if (partner.church_id) {
-      const church = churchById.get(partner.church_id);
+    if (churchId) {
+      const church = churchById.get(churchId);
       if (!church) {
-        // Church metadata missing → treat as unassigned within the hub.
-        churchId = `${UNASSIGNED_CHURCH_ID_PREFIX}${partner.hub_id}`;
+        resolvedChurchId = `${UNASSIGNED_CHURCH_ID_PREFIX}${hubId}`;
         churchName = "Unassigned";
       } else {
-        churchId = church.id;
+        resolvedChurchId = church.id;
         churchName = church.name;
       }
     } else {
-      churchId = `${UNASSIGNED_CHURCH_ID_PREFIX}${partner.hub_id}`;
+      resolvedChurchId = `${UNASSIGNED_CHURCH_ID_PREFIX}${hubId}`;
       churchName = "Unassigned";
     }
 
-    const country = partner.country ?? "Unknown";
+    const resolvedCountry = country ?? "Unknown";
 
-    let agg = churchAgg.get(churchId);
+    let agg = churchAgg.get(resolvedChurchId);
     if (!agg) {
       agg = {
         churchName,
-        hubId: partner.hub_id,
-        country,
+        hubId: hubId,
+        country: resolvedCountry,
         totalMinor: 0,
         byMethod: emptyMethodMap(),
         paymentCount: 0,
       };
-      churchAgg.set(churchId, agg);
+      churchAgg.set(resolvedChurchId, agg);
     }
 
     agg.totalMinor += payment.amount_minor;
@@ -273,7 +282,7 @@ export function aggregateMoneyByChurch(
     }
     agg.totalMinor += church.totalMinor;
     agg.churchCount += 1;
-    for (const g of ["mobile_money", "bank", "paystack", "other"] as PaymentMethodGroup[]) {
+    for (const g of ["mobile_money", "bank", "cash", "paystack", "other"] as PaymentMethodGroup[]) {
       agg.byMethod[g] += church.byMethod[g];
     }
   }
@@ -308,7 +317,7 @@ export function aggregateMoneyByChurch(
     }
     agg.totalMinor += church.totalMinor;
     agg.churchCount += 1;
-    for (const g of ["mobile_money", "bank", "paystack", "other"] as PaymentMethodGroup[]) {
+    for (const g of ["mobile_money", "bank", "cash", "paystack", "other"] as PaymentMethodGroup[]) {
       agg.byMethod[g] += church.byMethod[g];
     }
   }
@@ -346,7 +355,7 @@ export function aggregateMoneyByChurch(
     }
     agg.totalMinor += church.totalMinor;
     agg.churchCount += 1;
-    for (const g of ["mobile_money", "bank", "paystack", "other"] as PaymentMethodGroup[]) {
+    for (const g of ["mobile_money", "bank", "cash", "paystack", "other"] as PaymentMethodGroup[]) {
       agg.byMethod[g] += church.byMethod[g];
     }
   }

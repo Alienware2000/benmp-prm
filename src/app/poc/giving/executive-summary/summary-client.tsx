@@ -59,7 +59,7 @@ function buildCsv(s: ApiResponse): string {
   lines.push("By Method,GHS,USD");
   for (const m of METHOD_ROWS) {
     const minor = s.byMethod[m.key];
-    lines.push(`${m.label},${(minor / 100).toFixed(2)},${(minor / s.fxRate).toFixed(2)}`);
+    lines.push(`${m.label},${(minor / 100).toFixed(2)},${(minor / 100 / s.fxRate).toFixed(2)}`);
   }
   lines.push("");
   lines.push("By Region,GHS,USD,Active Partners");
@@ -230,7 +230,7 @@ export function SummaryClient() {
                           {(minor / 100).toFixed(2)}
                         </td>
                         <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                          {(minor / data.fxRate).toFixed(2)}
+                          {(minor / 100 / data.fxRate).toFixed(2)}
                         </td>
                       </tr>
                     );

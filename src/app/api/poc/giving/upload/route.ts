@@ -18,6 +18,7 @@ import {
   type PaymentSource,
   type PocPaymentInsertRow,
 } from "@/lib/poc/payment-upload";
+import { computeFileHash, findDuplicateBatch } from "@/lib/poc/import-dedup";
 
 export const dynamic = "force-dynamic";
 
@@ -143,12 +144,14 @@ async function createImportBatch({
   rowCount,
   matchedCount,
   ambiguousCount,
+  fileHash,
 }: {
   provider: string;
   filename: string;
   rowCount: number;
   matchedCount: number;
   ambiguousCount: number;
+  fileHash: string;
 }): Promise<string> {
   const rows = await rest<ImportRow[]>("payment_imports?select=id", {
     method: "POST",
@@ -161,6 +164,7 @@ async function createImportBatch({
         row_count: rowCount,
         matched_count: matchedCount,
         ambiguous_count: ambiguousCount,
+        file_hash: fileHash,
       },
     ]),
   });
@@ -367,9 +371,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Upload a statement file." }, { status: 400 });
     }
 
-    const [parsed, partners] = await Promise.all([parseUploadedRows(file, source), loadPartners()]);
+    const fileBuffer = await file.arrayBuffer();
+    const fileHash = computeFileHash(fileBuffer);
+    const [parsed, partners] = await Promise.all([
+      parseUploadedRows(file, source),
+      loadPartners(),
+    ]);
     const matches = matchNormalizedRows(parsed.rows, partners);
 
+    // File-level dedup: block re-uploading the same file for the same source.
+    // preview returns the hash so the client can warn before import/commit.
+    if (action === "import" || action === "commit") {
+      const existing = await findDuplicateBatch(source, fileHash, rest);
+      if (existing) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "duplicate_file",
+            existingBatch: {
+              id: existing.id,
+              filename: existing.filename,
+              created_at: existing.created_at,
+              row_count: existing.row_count,
+            },
+          },
+          { status: 409 },
+        );
+      }
+    }
     if (action === "import") {
       const accepted = matches
         .filter((match) => match.status === "auto")
@@ -381,6 +410,7 @@ export async function POST(req: NextRequest) {
         rowCount: parsed.rows.length,
         matchedCount: accepted.length,
         ambiguousCount: reviewMatches.length,
+        fileHash,
       });
       await insertImportRows({ importId, matches });
       await insertPayments(buildPaymentRows(accepted));
@@ -416,6 +446,7 @@ export async function POST(req: NextRequest) {
     if (action === "preview") {
       return NextResponse.json({
         ok: true,
+        fileHash,
         counts: {
           rows: parsed.rows.length,
           auto: matches.filter((m) => m.status === "auto").length,

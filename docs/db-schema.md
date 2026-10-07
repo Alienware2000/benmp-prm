@@ -297,13 +297,14 @@ Fields:
 - `row_count`
 - `matched_count`
 - `ambiguous_count`
-- `created_by`
-- timestamps
+- `file_hash` (SHA-256 hex of uploaded file content; unique per provider — prevents re-uploading the same file as a new batch, migration 0022)
+ - timestamps
 
 Rules:
 
 - Filenames should not reveal private account numbers.
 - Real payment CSV files should not be committed.
+- Re-uploading the same file content for the same provider is blocked by a partial unique index on `(provider, file_hash)` — no double-counting at the batch level.
 
 ### `payment_import_rows`
 

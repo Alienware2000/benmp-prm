@@ -435,6 +435,7 @@ Rules:
 - Uploads revalidate the `poc-giving` cache tag after commit.
 - Newly created partners from MoMo/Ecobank rows are assigned Ghana; Paystack-created partners are assigned `Unknown` until staff supplies a country, so dashboard regional totals do not infer a country from an unknown Paystack export.
 - Every parsed row is also stored in `payment_import_rows` under a `payment_imports` batch. Safe rows are marked `promoted`; unresolved rows are marked `needs_review` and appear in `/poc/giving/review`.
+- File-level dedup (migration 0022): the `import` and `commit` actions compute a SHA-256 hash of the file content and reject re-uploads with `409 { error: "duplicate_file", existingBatch: { id, filename, created_at, row_count } }`. The `preview` action returns `fileHash` in its response so the client can warn before import. A different file with the same filename produces a different hash and succeeds.
 
 ### `GET/POST /api/poc/giving/review`
 
@@ -445,6 +446,13 @@ Lists and resolves DB-backed uploaded payment rows whose `match_status = needs_r
 - `match` / `create` promotes the row into `payments` and marks the import row `promoted`; `dismiss` marks it `dismissed`.
 
 ### Pages
+### `GET /api/poc/giving/imports`
+
+Staff. Lists all `payment_imports` batches (newest first). Optional `?provider=` and `?status=` filters. Returns `{ ok, batches: [{ id, provider, filename, status, row_count, matched_count, ambiguous_count, file_hash, created_at }] }`.
+
+### `GET /api/poc/giving/imports/:id/rows`
+
+Staff. Lists the `payment_import_rows` for a specific batch. Returns `{ ok, rows: [{ id, payment_reference, match_status, normalized_row: { payerName, amountMinor, transactionDate }, created_at }] }`.
 
 `/poc` (dashboard) · `/poc/giving` (filterable ledger) · `/poc/giving/upload` (MoMo/Ecobank giving import) · `/poc/messages` (send to one number or selected partners). `/poc/directory` redirects to the selected-partners mode in Messages, and `/poc/giving/test` redirects to the single-number mode. Giving and partner search take their filters as **GET query params** so filtered views remain linkable.
 

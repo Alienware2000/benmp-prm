@@ -44,6 +44,12 @@ describe("validateGiverRow", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.toLowerCase()).toContain("amount");
   });
+  it("rejects zero amounts", () => {
+    const row: GiverRowInput = { name: "Test", phone: "", amountMinor: 0, transactionRef: "" };
+    const result = validateGiverRow(row);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.toLowerCase()).toContain("amount");
+  });
   it("rejects a name shorter than 2 characters when no phone", () => {
     const row: GiverRowInput = { name: "A", phone: "", amountMinor: 100, transactionRef: "" };
     const result = validateGiverRow(row);

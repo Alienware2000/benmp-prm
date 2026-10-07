@@ -1,4 +1,4 @@
-// src/app/api/cash/submissions/route.ts
+// src/app/api/poc/cash/submissions/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";

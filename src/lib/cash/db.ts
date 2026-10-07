@@ -44,7 +44,7 @@ export async function listHubsInRegion(regionCode: string): Promise<HubOption[]>
   const rows = await rest<
     { id: string; hub_number: number | null; name: string; regions: { code: string } | null }[]
   >(
-    "hubs?select=id,hub_number,name,regions(code)" +
+    "hubs?select=id,hub_number,name,regions!inner(code)" +
       `&regions.code=eq.${encodeURIComponent(regionCode)}` +
       "&order=hub_number.asc.nullslast,name.asc",
   );
@@ -109,21 +109,34 @@ export async function insertSubmission(
   submission: SubmissionInsert,
   givers: GiverInsert[],
 ): Promise<string> {
-  const body = {
-    ...submission,
-    cash_submission_givers: givers,
-  };
+  // PostgREST does not detect the cash_submissions → cash_submission_givers
+  // relationship for nested inserts, so insert the parent first, then the
+  // children with the returned id. If the giver insert fails, the parent row
+  // is orphaned — but the unique(church_id, reporting_month) constraint means
+  // a retry will get a 409, prompting staff to clean up. Acceptable for a
+  // monthly form; a proper transaction would need an RPC function.
   const rows = await rest<{ id: string }[]>(
     "cash_submissions?select=id",
     {
       method: "POST",
       headers: { Prefer: "return=representation" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(submission),
     },
   );
   const row = Array.isArray(rows) ? rows[0] : rows;
   if (!row || !row.id) throw new Error("Submission insert returned no id.");
-  return row.id;
+  const submissionId = row.id;
+
+  if (givers.length > 0) {
+    const giverRows = givers.map((g) => ({ ...g, submission_id: submissionId }));
+    await rest<void>("cash_submission_givers", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify(giverRows),
+    });
+  }
+
+  return submissionId;
 }
 
 export async function submissionExistsForMonth(
@@ -192,7 +205,7 @@ export function buildCashPaymentRows(
     paid_at: submission.submitted_at,
     status: "Successful" as const,
     payer_name: g.giver_name,
-    payer_phone_e164: normalizePhone(g.giver_phone),
+    payer_phone_e164: normalizePhone(g.giver_phone, null),
     amount_minor: g.amount_minor,
     currency: "GHS",
     payment_method: "cash",

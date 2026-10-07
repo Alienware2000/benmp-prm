@@ -44,8 +44,8 @@ export function validateGiverRow(row: GiverRowInput): ValidationResult {
   if (!hasName && !hasPhone) {
     return { ok: false, error: "Each giver row must have a name (≥ 2 chars) or a phone number to identify them." };
   }
-  if (row.amountMinor < 0) {
-    return { ok: false, error: "Amount cannot be negative." };
+  if (row.amountMinor <= 0) {
+    return { ok: false, error: "Amount must be greater than zero." };
   }
   return { ok: true };
 }

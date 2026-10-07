@@ -1,4 +1,4 @@
-// src/app/api/cash/[id]/promote/route.ts
+// src/app/api/poc/cash/[id]/promote/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import {
   buildCashPaymentRows,

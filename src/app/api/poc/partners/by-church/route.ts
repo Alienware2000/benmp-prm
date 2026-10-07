@@ -22,7 +22,7 @@ async function fetchAll<T>(path: string): Promise<T[]> {
   let offset = 0;
   while (true) {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}&limit=1000&offset=${offset}`, { headers: headers(), cache: "no-store" });
-    if (!res.ok) break;
+    if (!res.ok) throw new Error(`Fetch failed: ${path} → ${res.status}`);
     const rows = (await res.json()) as T[];
     if (!rows || rows.length === 0) break;
     all.push(...rows);

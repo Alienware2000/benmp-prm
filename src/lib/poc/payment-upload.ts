@@ -546,6 +546,31 @@ export function buildPaymentRows(
     },
   }));
 }
+export type PaymentReferenceFetcher = (
+  pathAndQuery: string,
+) => Promise<Array<{ reference: string }>>;
+
+/**
+ * Confirm an idempotent ledger insert before its import rows are marked promoted.
+ * The insert may ignore duplicates, so both new and retried references are checked.
+ */
+export async function assertPaymentRowsExist(
+  rows: PocPaymentInsertRow[],
+  fetcher: PaymentReferenceFetcher,
+): Promise<void> {
+  const references = [...new Set(rows.map((row) => row.reference))];
+  const present = new Set<string>();
+  for (let offset = 0; offset < references.length; offset += 500) {
+    const chunk = references.slice(offset, offset + 500);
+    const encoded = chunk.map((reference) => encodeURIComponent(reference)).join(",");
+    const existing = await fetcher(`payments?select=reference&reference=in.(${encoded})&limit=500`);
+    for (const row of existing) present.add(row.reference);
+  }
+  const missing = references.filter((reference) => !present.has(reference));
+  if (missing.length > 0) {
+    throw new Error(`Payment insert incomplete; missing ${missing.length} reference(s).`);
+  }
+}
 
 export function isPaidInMonth(
   contributions: Array<{ partnerId: string; paidAt: string }>,

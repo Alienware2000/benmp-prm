@@ -14,6 +14,14 @@ export function isPublicPath(pathname: string): boolean {
     // The login picker's region/hub lists (Decision 0020): an admin has to pick
     // a hub before they can prove who they are. It carries the office's own
     // structure and nothing else — no counts, no account state, no partner data.
-    pathname === "/api/regions"
+    pathname === "/api/regions" ||
+    // The cash form's public surface: the page itself plus the no-login
+    // dropdown + submit endpoints it calls. The form is an intake — there is
+    // no session to gate on, so the middleware must let it through.
+    pathname === "/cash" ||
+    pathname === "/api/cash/regions" ||
+    pathname === "/api/cash/hubs" ||
+    pathname === "/api/cash/churches" ||
+    pathname === "/api/cash/submit"
   );
 }

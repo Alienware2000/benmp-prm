@@ -26,6 +26,7 @@ import {
   vaultObjectPath,
 } from "@/lib/poc/statement-file";
 import { saveStatementFile } from "@/lib/poc/statement-vault";
+import { inListChunks } from "@/lib/poc/in-list";
 
 export const dynamic = "force-dynamic";
 
@@ -232,9 +233,7 @@ async function insertImportRows({
 async function existingImportPaymentReferences(refs: string[]): Promise<Set<string>> {
   if (refs.length === 0) return new Set();
   const existing = new Set<string>();
-  for (let index = 0; index < refs.length; index += 100) {
-    const chunk = refs.slice(index, index + 100);
-    const list = chunk.map((ref) => encodeURIComponent(ref)).join(",");
+  for (const list of inListChunks(refs, { maxValues: 100 })) {
     const rows = await rest<Array<{ payment_reference: string | null }>>(
       `payment_import_rows?select=payment_reference&payment_reference=in.(${list})&limit=1000`,
     );
@@ -248,17 +247,18 @@ async function updateImportRowStatus(
   status: "promoted" | "dismissed" | "needs_review",
   partnerId?: string | null,
 ): Promise<void> {
-  if (paymentReferences.length === 0) return;
-  const list = paymentReferences.map((ref) => encodeURIComponent(ref)).join(",");
-  await rest<void>(`payment_import_rows?payment_reference=in.(${list})`, {
-    method: "PATCH",
-    headers: { Prefer: "return=minimal" },
-    body: JSON.stringify({
-      match_status: status,
-      ...(partnerId !== undefined ? { partner_id: partnerId } : {}),
-      resolved_at: status === "needs_review" ? null : new Date().toISOString(),
-    }),
+  const body = JSON.stringify({
+    match_status: status,
+    ...(partnerId !== undefined ? { partner_id: partnerId } : {}),
+    resolved_at: status === "needs_review" ? null : new Date().toISOString(),
   });
+  for (const list of inListChunks(paymentReferences)) {
+    await rest<void>(`payment_import_rows?payment_reference=in.(${list})`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body,
+    });
+  }
 }
 
 function parseCsv(text: string): Record<string, string>[] {

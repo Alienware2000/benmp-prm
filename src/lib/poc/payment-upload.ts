@@ -1,5 +1,6 @@
 import { normalizePhone } from "../phone";
 import { collapseDoubledName, parseAmountToMinor } from "../ingest";
+import { inListChunks } from "./in-list";
 
 export type PaymentSource = "momo" | "ecobank" | "paystack_onetime" | "paystack_recurring";
 
@@ -560,9 +561,7 @@ export async function assertPaymentRowsExist(
 ): Promise<void> {
   const references = [...new Set(rows.map((row) => row.reference))];
   const present = new Set<string>();
-  for (let offset = 0; offset < references.length; offset += 500) {
-    const chunk = references.slice(offset, offset + 500);
-    const encoded = chunk.map((reference) => encodeURIComponent(reference)).join(",");
+  for (const encoded of inListChunks(references)) {
     const existing = await fetcher(`payments?select=reference&reference=in.(${encoded})&limit=500`);
     for (const row of existing) present.add(row.reference);
   }

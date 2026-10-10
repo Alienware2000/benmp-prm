@@ -419,8 +419,8 @@ Multipart form fields:
 
 - `action`: `preview` or `commit`.
 - Preferred `action`: `import` — one-click parse + safe-match insert + unresolved rows returned for review.
-- `source`: `momo` or `ecobank`.
-- `file`: statement file.
+- `source`: `momo`, `ecobank`, `paystack_onetime`, or `paystack_recurring`.
+- `file`: statement file — CSV or Excel (`.xls`/`.xlsx`) for every source; the format is detected from the file's content signature, falling back to the extension.
 - `decisions`: JSON object for `commit`, keyed by normalized row id. Each value is `{ action: "match", partnerId }`, `{ action: "create", name }`, or `{ action: "dismiss" }`.
 
 Rules:
@@ -436,6 +436,7 @@ Rules:
 - Newly created partners from MoMo/Ecobank rows are assigned Ghana; Paystack-created partners are assigned `Unknown` until staff supplies a country, so dashboard regional totals do not infer a country from an unknown Paystack export.
 - Every parsed row is also stored in `payment_import_rows` under a `payment_imports` batch. Safe rows are marked `promoted`; unresolved rows are marked `needs_review` and appear in `/poc/giving/review`.
 - File-level dedup (migration 0022): the `import` and `commit` actions compute a SHA-256 hash of the file content and reject re-uploads with `409 { error: "duplicate_file", existingBatch: { id, filename, created_at, row_count } }`. The `preview` action returns `fileHash` in its response so the client can warn before import. A different file with the same filename produces a different hash and succeeds.
+- Statement vault (migration 0024): `import` saves the original file to the private `statement-vault` bucket before writing the batch (logs `statement_vaulted`), and records `storage_path`, `file_size_bytes`, `content_type` on the batch. If the vault upload fails, nothing is imported.
 
 ### `GET/POST /api/poc/giving/review`
 
@@ -448,7 +449,11 @@ Lists and resolves DB-backed uploaded payment rows whose `match_status = needs_r
 ### Pages
 ### `GET /api/poc/giving/imports`
 
-Staff. Lists all `payment_imports` batches (newest first). Optional `?provider=` and `?status=` filters. Returns `{ ok, batches: [{ id, provider, filename, status, row_count, matched_count, ambiguous_count, file_hash, created_at }] }`.
+Staff. Lists all `payment_imports` batches (newest first). Optional `?provider=` and `?status=` filters. Returns `{ ok, batches: [{ id, provider, filename, status, row_count, matched_count, ambiguous_count, file_hash, storage_path, created_at }] }`.
+
+### `GET /api/poc/giving/imports/:id/file`
+
+Staff. Downloads the original statement behind a batch: `302` redirect to a 60-second signed URL on the private `statement-vault` bucket (served under the original filename). `404` if the batch doesn't exist or predates the vault (`storage_path` null).
 
 ### `GET /api/poc/giving/imports/:id/rows`
 

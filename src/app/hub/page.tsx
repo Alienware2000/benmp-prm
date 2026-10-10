@@ -10,6 +10,7 @@ import {
   getHubChurches,
   getHubCountry,
   getHubSummary,
+  getRegionCollectsPledge,
   getRegionMomoRequired,
 } from "@/lib/hub/db";
 import { callingCodeForCountry } from "@/lib/hub/calling-codes";
@@ -27,20 +28,28 @@ export default async function HubHomePage() {
     store.get(HUB_SESSION_COOKIE)?.value,
     hubSessionSecret(),
   );
-  const [summary, churches, existingPartners, momoRequired, hubCountry] =
-    session
-      ? await Promise.all([
-          getHubSummary(session.hubId),
-          getHubChurches(session.hubId),
-          // Names of partners this hub already has, so the preview can say which rows
-          // will update an existing person rather than add a new one.
-          findHubPartnerNames(session.hubId),
-          // Ghana regions collect MoMo; other regions skip the column (Decision 0026).
-          getRegionMomoRequired(session.regionCode),
-          // WhatsApp numbers resolve to the hub's own country (Decision 0027).
-          getHubCountry(session.hubId),
-        ])
-      : [null, [], [], true, "Ghana"];
+  const [
+    summary,
+    churches,
+    existingPartners,
+    momoRequired,
+    hubCountry,
+    collectsPledge,
+  ] = session
+    ? await Promise.all([
+        getHubSummary(session.hubId),
+        getHubChurches(session.hubId),
+        // Names of partners this hub already has, so the preview can say which rows
+        // will update an existing person rather than add a new one.
+        findHubPartnerNames(session.hubId),
+        // Ghana regions collect MoMo; other regions skip the column (Decision 0026).
+        getRegionMomoRequired(session.regionCode),
+        // WhatsApp numbers resolve to the hub's own country (Decision 0027).
+        getHubCountry(session.hubId),
+        // RSC Ghana records an amount pledged per partner (Decision 0030).
+        getRegionCollectsPledge(session.regionCode),
+      ])
+    : [null, [], [], true, "Ghana", false];
 
   if (!session || !summary) {
     // The proxy should make this unreachable; fail soft rather than crash.
@@ -69,6 +78,7 @@ export default async function HubHomePage() {
         existingPartners={existingPartners}
         momoRequired={momoRequired}
         whatsappCallingCode={callingCodeForCountry(hubCountry)}
+        collectsPledge={collectsPledge}
         churches={churches.map((c) => ({
           id: c.id,
           name: c.name,

@@ -584,3 +584,15 @@ _2026-09-26_
 **Why**: Paul GTWC, 2026-09-24: admins uploaded wrong files and had no way to take them back.
 
 **Said no to**: soft delete (every partner query would need a filter; the audit copy gives recovery without it) · deleting people with giving (detaches money from a person) · undoing an upload's *updates* (the previous values aren't stored per row; the filter shows only the people an upload added).
+
+## 0030 — RSC Ghana records an amount pledged per partner
+
+_2026-10-10_
+
+**Decided**: a region can collect an "Amount pledged" column (`regions.collects_pledge`, migration 0024; on for RSC Ghana only). The upload wizard shows the column picker (guessing any header with "amount" or "pledge"), validates each value (`parsePledge`: "200", "1,200", "200.50", "GHS 200", "₵200", "300 cedis"; blank means no pledge; anything else is flagged), and stores it on the partner as `pledged_amount_minor` (pesewas) with `pledge_currency` = GHS. A re-upload updates a pledge when the row has one and never wipes it with a blank. The hub partners page shows the column for that region.
+
+**Why**: Paul GTWC (2026-10-10): RSC's partner sheet carries an Amount column, and it is the amount **pledged, not given**. A pledge is a commitment, so it must never enter `payments` or the giving totals, which only verified money feeds (Decision 0007).
+
+**Said no to**: writing it to `recurring_commitments` now (that table needs a frequency, which RSC hasn't given; move the value there when the cadence is known and the office wants "pledged vs paid") · treating it as a payment (would inflate giving) · requiring an amount on every row (some partners pledge nothing).
+
+**Deploy order**: run migration 0024 before or after the deploy, either is safe. Until it runs, `getRegionCollectsPledge` reads false and no insert names the new columns.

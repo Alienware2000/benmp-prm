@@ -46,6 +46,7 @@ type EditRow = {
   whatsappPhone: string;
   church: string;
   removed: boolean;
+  pledge?: string;
 };
 
 type Step = "upload" | "map" | "preview" | "done";
@@ -102,6 +103,7 @@ export function IngestWizard({
   existingPartners,
   momoRequired,
   whatsappCallingCode,
+  collectsPledge,
 }: {
   churches: HubChurchOption[];
   /** Lets the preview tell an edit of this hub's own partner from another hub's. */
@@ -112,6 +114,8 @@ export function IngestWizard({
   momoRequired: boolean;
   /** The hub's country calling code, so local numbers resolve there (Decision 0027). */
   whatsappCallingCode: string | null;
+  /** The region records an amount pledged per partner (Decision 0030). */
+  collectsPledge: boolean;
 }) {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -129,7 +133,8 @@ export function IngestWizard({
     momoPhone: number | "";
     whatsappPhone: number | "";
     church: number | "";
-  }>({ name: "", momoPhone: "", whatsappPhone: "", church: "" });
+    pledge: number | "";
+  }>({ name: "", momoPhone: "", whatsappPhone: "", church: "", pledge: "" });
 
   const [dragging, setDragging] = useState(false);
   const [rows, setRows] = useState<EditRow[]>([]);
@@ -159,6 +164,7 @@ export function IngestWizard({
       existingPhones: new Map(Object.entries(existingPhones)),
       momoRequired,
       whatsappCallingCode,
+      collectsPledge,
     });
   }, [
     rows,
@@ -169,6 +175,7 @@ export function IngestWizard({
     step,
     momoRequired,
     whatsappCallingCode,
+    collectsPledge,
   ]);
 
   const issuesByRow = useMemo(() => {
@@ -214,7 +221,7 @@ export function IngestWizard({
       setFileName(data.fileName ?? file.name);
       setSheets(data.sheets);
       setSheetIndex(0);
-      setCols(guessColumns(data.sheets[0], momoRequired));
+      setCols(guessColumns(data.sheets[0], momoRequired, collectsPledge));
       setStep("map");
     } catch {
       setError("Could not reach the server. Try again.");
@@ -243,7 +250,8 @@ export function IngestWizard({
       cols.name === "" ||
       (momoRequired && cols.momoPhone === "") ||
       cols.whatsappPhone === "" ||
-      cols.church === ""
+      cols.church === "" ||
+      (collectsPledge && cols.pledge === "")
     ) {
       return;
     }
@@ -254,6 +262,7 @@ export function IngestWizard({
       momoPhone: momoRequired && cols.momoPhone !== "" ? cols.momoPhone : null,
       whatsappPhone: cols.whatsappPhone,
       church: cols.church,
+      pledge: collectsPledge && cols.pledge !== "" ? cols.pledge : null,
     };
     const candidates = extractCandidates(sheet.rows, map, hasHeader);
     if (candidates.length === 0) {
@@ -447,7 +456,9 @@ export function IngestWizard({
                   onChange={(e) => {
                     const i = Number(e.target.value);
                     setSheetIndex(i);
-                    setCols(guessColumns(sheets[i], momoRequired));
+                    setCols(
+                      guessColumns(sheets[i], momoRequired, collectsPledge),
+                    );
                   }}
                   className={inputBase + " border-border"}
                 >
@@ -477,9 +488,11 @@ export function IngestWizard({
                   ["momoPhone", "MoMo numbers column"],
                   ["whatsappPhone", "WhatsApp numbers column"],
                   ["church", "Church column"],
+                  ["pledge", "Amount pledged column"],
                 ] as const
               )
                 .filter(([key]) => momoRequired || key !== "momoPhone")
+                .filter(([key]) => collectsPledge || key !== "pledge")
                 .map(([key, label]) => (
                   <label key={key} className="block">
                     <span className="mb-1.5 block text-[13px] font-semibold text-foreground">
@@ -521,7 +534,9 @@ export function IngestWizard({
                               ? "WhatsApp"
                               : c === cols.church
                                 ? "Church"
-                                : null;
+                                : collectsPledge && c === cols.pledge
+                                  ? "Pledge"
+                                  : null;
                       return (
                         <th
                           key={c}
@@ -557,7 +572,8 @@ export function IngestWizard({
                           c === cols.name ||
                           c === cols.momoPhone ||
                           c === cols.whatsappPhone ||
-                          c === cols.church;
+                          c === cols.church ||
+                          (collectsPledge && c === cols.pledge);
                         return (
                           <td
                             key={c}
@@ -593,7 +609,8 @@ export function IngestWizard({
                   cols.name === "" ||
                   (momoRequired && cols.momoPhone === "") ||
                   cols.whatsappPhone === "" ||
-                  cols.church === ""
+                  cols.church === "" ||
+                  (collectsPledge && cols.pledge === "")
                 }
                 onClick={toPreview}
                 className="inline-flex h-11 items-center gap-2 rounded-md bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-45"
@@ -681,6 +698,9 @@ export function IngestWizard({
                     {momoRequired && <th className="px-2 py-2">MoMo number</th>}
                     <th className="px-2 py-2">WhatsApp number</th>
                     <th className="px-2 py-2">Church</th>
+                    {collectsPledge && (
+                      <th className="px-2 py-2">Amount pledged (GHS)</th>
+                    )}
                     <th className="px-2 py-2" />
                   </tr>
                 </thead>
@@ -693,6 +713,7 @@ export function IngestWizard({
                       issues={issuesByRow.get(r.rowIndex) ?? []}
                       onEdit={editRow}
                       showMomo={momoRequired}
+                      showPledge={collectsPledge}
                     />
                   ))}
                 </tbody>
@@ -789,12 +810,14 @@ function PreviewRow({
   issues,
   onEdit,
   showMomo,
+  showPledge,
 }: {
   row: EditRow;
   churches: HubChurchOption[];
   issues: RowIssue[];
   onEdit: (rowIndex: number, patch: Partial<EditRow>) => void;
   showMomo: boolean;
+  showPledge: boolean;
 }) {
   const issueFor = (field: RowIssue["field"]) =>
     issues
@@ -812,6 +835,9 @@ function PreviewRow({
         )}
         <td className="px-2 py-1.5 line-through">{row.whatsappPhone || "—"}</td>
         <td className="px-2 py-1.5 line-through">{row.church || "—"}</td>
+        {showPledge && (
+          <td className="px-2 py-1.5 line-through">{row.pledge || "—"}</td>
+        )}
         <td className="px-2 py-1.5 text-right">
           <button
             type="button"
@@ -922,6 +948,25 @@ function PreviewRow({
             </select>
           </FlaggedCell>
         </td>
+        {showPledge && (
+          <td className="px-2 py-1.5">
+            <FlaggedCell message={issueFor("pledge")}>
+              <input
+                value={row.pledge ?? ""}
+                inputMode="decimal"
+                placeholder="None"
+                onChange={(e) =>
+                  onEdit(row.rowIndex, { pledge: e.target.value })
+                }
+                className={
+                  inputBase +
+                  " tabular-nums" +
+                  (issueFor("pledge") ? " border-danger/60" : " border-border")
+                }
+              />
+            </FlaggedCell>
+          </td>
+        )}
         <td className="px-2 py-1.5 text-right">
           <button
             type="button"
@@ -940,7 +985,10 @@ function PreviewRow({
         // next to the row number as "the numbering is wrong").
         <tr className="bg-danger/5" data-flagged-reason={row.rowIndex}>
           <td />
-          <td colSpan={showMomo ? 5 : 4} className="px-2 pb-2.5 pt-0">
+          <td
+            colSpan={4 + (showMomo ? 1 : 0) + (showPledge ? 1 : 0)}
+            className="px-2 pb-2.5 pt-0"
+          >
             <ul className="space-y-0.5 text-[13px] leading-5 text-danger">
               {issues.map((i, n) => (
                 <li key={n}>
@@ -958,6 +1006,7 @@ function PreviewRow({
 
 /** How the reasons row names each column, in the admin's words. */
 const FIELD_LABEL: Record<RowIssue["field"], string> = {
+  pledge: "Amount pledged",
   name: "Name",
   momoPhone: "MoMo number",
   whatsappPhone: "WhatsApp number",
@@ -991,17 +1040,20 @@ function FlaggedCell({
 function guessColumns(
   sheet: ParsedSheet | undefined,
   momoRequired: boolean,
+  collectsPledge: boolean,
 ): {
   name: number | "";
   momoPhone: number | "";
   whatsappPhone: number | "";
   church: number | "";
+  pledge: number | "";
 } {
   const header = sheet?.rows[0] ?? [];
   let name: number | "" = "";
   let momoPhone: number | "" = "";
   let whatsappPhone: number | "" = "";
   let church: number | "" = "";
+  let pledge: number | "" = "";
   header.forEach((cell, i) => {
     const h = cell.toLowerCase();
     if (name === "" && /name/.test(h) && !/church|branch/.test(h)) name = i;
@@ -1022,7 +1074,9 @@ function guessColumns(
       momoPhone = i;
     }
     if (church === "" && /(church|branch|assembly)/.test(h)) church = i;
+    if (pledge === "" && /(amount|pledge)/.test(h)) pledge = i;
   });
   if (!momoRequired) momoPhone = "";
-  return { name, momoPhone, whatsappPhone, church };
+  if (!collectsPledge) pledge = "";
+  return { name, momoPhone, whatsappPhone, church, pledge };
 }

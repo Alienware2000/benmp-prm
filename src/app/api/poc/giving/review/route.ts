@@ -4,11 +4,12 @@ import { revalidateTag } from "next/cache";
 import {
   assertPaymentRowsExist,
   buildPaymentRows,
-  ghanaLastNineKey,
   parseJsonObject,
   type NormalizedPaymentRow,
   type PartnerForPaymentMatch,
 } from "@/lib/poc/payment-upload";
+import { planAcceptAll } from "@/lib/poc/accept-all";
+import { inListChunks } from "@/lib/poc/in-list";
 
 export const dynamic = "force-dynamic";
 
@@ -187,106 +188,79 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * Accept all: create a partner for each unmatched row (using payer name + phone
- * for deduplication), promote every row into payments, and mark them resolved.
- * Rows whose payer name matches an existing partner (by exact name or last-9 phone)
- * are linked to that partner instead of creating a duplicate.
+ * Accept all: admit every waiting row into the ledger. Each row is linked to an
+ * existing partner or to a new Unlisted partner per `planAcceptAll` (phone is the
+ * identity when present — Decision 0028), then promoted and marked resolved with
+ * its partner.
  */
 async function handleAcceptAll(): Promise<NextResponse> {
   const [reviewRows, existingPartners] = await Promise.all([
     rest<ReviewRow[]>(
-      "payment_import_rows?select=id,payment_reference,normalized_row,raw_row,notes,created_at&match_status=eq.needs_review&order=created_at.desc&limit=5000",
+      "payment_import_rows?select=id,payment_reference,normalized_row,raw_row,notes,created_at&match_status=eq.needs_review&order=created_at.asc&limit=5000",
     ),
     loadPartners(),
   ]);
 
   if (reviewRows.length === 0) {
-    return NextResponse.json({ ok: true, created: 0, promoted: 0 });
+    return NextResponse.json({ ok: true, created: 0, linked: 0, promoted: 0 });
   }
 
-  // Build lookup maps from existing partners
-  const partnerByLast9 = new Map<string, PartnerForPaymentMatch>();
-  const partnerByName = new Map<string, PartnerForPaymentMatch>();
-  for (const p of existingPartners) {
-    for (const phone of [p.momoPhoneNumber, p.whatsappNumber]) {
-      const normalized = normalizePhone(phone);
-      if (normalized) {
-        const last9 = ghanaLastNineKey(normalized);
-        if (last9 && !partnerByLast9.has(last9)) partnerByLast9.set(last9, p);
-      }
+  const plan = planAcceptAll(
+    reviewRows.map((reviewRow) => ({ id: reviewRow.id, row: reviewRow.normalized_row })),
+    existingPartners,
+  );
+  const partnersById = new Map(existingPartners.map((partner) => [partner.id, partner]));
+  const created = new Map<string, PartnerForPaymentMatch>();
+  for (const spec of plan.newPartners) {
+    created.set(spec.key, await createPartner(spec.name, spec.phone, spec.country));
+  }
+
+  const resolved = plan.assignments.map((assignment) => {
+    const partner =
+      "partnerId" in assignment
+        ? partnersById.get(assignment.partnerId)
+        : created.get(assignment.newPartnerKey);
+    if (!partner) throw new Error("Accept-all partner was not resolved.");
+    return { reviewRowId: assignment.reviewRowId, row: assignment.row, partner };
+  });
+
+  const paymentRows = buildPaymentRows(resolved);
+  await rest<void>("payments?on_conflict=reference", {
+    method: "POST",
+    headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+    body: JSON.stringify(paymentRows),
+  });
+  await assertPaymentRowsExist(paymentRows, (path) => rest<Array<{ reference: string }>>(path));
+
+  // Mark rows promoted with the partner each was resolved to.
+  const idsByPartner = new Map<string, string[]>();
+  for (const { reviewRowId, partner } of resolved) {
+    idsByPartner.set(partner.id, [...(idsByPartner.get(partner.id) ?? []), reviewRowId]);
+  }
+  const resolvedAt = new Date().toISOString();
+  for (const [partnerId, ids] of idsByPartner) {
+    for (const list of inListChunks(ids)) {
+      await rest<void>(`payment_import_rows?id=in.(${list})`, {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ match_status: "promoted", partner_id: partnerId, resolved_at: resolvedAt }),
+      });
     }
-    const nameKey = p.fullName.trim().toLowerCase();
-    if (nameKey && !partnerByName.has(nameKey)) partnerByName.set(nameKey, p);
   }
 
-  // Deduplicate new partners by name (lowercased) to avoid creating duplicates
-  const newPartnersByName = new Map<string, PartnerForPaymentMatch>();
-  const payments: Array<{ row: NormalizedPaymentRow; partner: PartnerForPaymentMatch }> = [];
-  const promotedIds: string[] = [];
-
-  for (const reviewRow of reviewRows) {
-    const row = reviewRow.normalized_row;
-    const payerName = (row.payerName ?? "").trim() || "Unknown Giver";
-
-    // Try to match existing partner by phone or name
-    let partner: PartnerForPaymentMatch | undefined;
-    const phone = normalizePhone(row.payerPhoneOrAccount);
-    if (phone) {
-      const last9 = ghanaLastNineKey(phone);
-      if (last9) partner = partnerByLast9.get(last9);
-    }
-    if (!partner) {
-      const nameKey = payerName.toLowerCase();
-      partner = partnerByName.get(nameKey);
-    }
-
-    if (!partner) {
-      partner = newPartnersByName.get(payerName.toLowerCase());
-      if (!partner) {
-        partner = await createPartner(payerName, phone, countryForPaymentSource(row.source));
-        newPartnersByName.set(payerName.toLowerCase(), partner);
-        if (partner.momoPhoneNumber || partner.whatsappNumber) {
-          for (const phone of [partner.momoPhoneNumber, partner.whatsappNumber]) {
-            const normalized = normalizePhone(phone);
-            if (normalized) {
-              const last9 = ghanaLastNineKey(normalized);
-              if (last9 && !partnerByLast9.has(last9)) partnerByLast9.set(last9, partner);
-            }
-          }
-        }
-      }
-    }
-
-    payments.push({ row, partner });
-    promotedIds.push(reviewRow.id);
-  }
-
-  // Insert all payments (ignore duplicates). Strip payment_method column — it may not exist yet.
-  if (payments.length > 0) {
-    const paymentRows = buildPaymentRows(payments);
-    await rest<void>("payments?on_conflict=reference", {
-      method: "POST",
-      headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
-      body: JSON.stringify(paymentRows),
-    });
-    await assertPaymentRowsExist(paymentRows, (path) => rest<Array<{ reference: string }>>(path));
-  }
-
-  // Mark all review rows as promoted
-  for (let i = 0; i < promotedIds.length; i += 100) {
-    const chunk = promotedIds.slice(i, i + 100);
-    const list = chunk.map((id) => encodeURIComponent(id)).join(",");
-    await rest<void>(`payment_import_rows?id=in.(${list})`, {
-      method: "PATCH",
-      headers: { Prefer: "return=minimal" },
-      body: JSON.stringify({ match_status: "promoted", resolved_at: new Date().toISOString() }),
-    });
-  }
-
+  console.info(
+    JSON.stringify({
+      event: "review_accept_all",
+      promoted: resolved.length,
+      created: created.size,
+      linked: plan.assignments.filter((a) => "partnerId" in a).length,
+    }),
+  );
   revalidateTag("poc-giving", "max");
   return NextResponse.json({
     ok: true,
-    promoted: promotedIds.length,
-    created: newPartnersByName.size,
+    promoted: resolved.length,
+    created: created.size,
+    linked: plan.assignments.filter((a) => "partnerId" in a).length,
   });
 }

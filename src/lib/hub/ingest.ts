@@ -26,6 +26,8 @@ export type ColumnMap = {
   momoPhone: number | null;
   whatsappPhone: number;
   church: number;
+  /** Amount pledged, in a region that collects pledges (Decision 0030). */
+  pledge?: number | null;
 };
 
 export type HubChurchOption = { id: string; name: string; nameKey: string };
@@ -39,15 +41,20 @@ export type CandidateRow = {
   momoPhone: string;
   whatsappPhone: string;
   church: string;
+  /** Amount pledged as written in the sheet; "" when none (Decision 0030). */
+  pledge?: string;
 };
 
-export type RowField = "name" | "momoPhone" | "whatsappPhone" | "church";
+export type RowField =
+  "name" | "momoPhone" | "whatsappPhone" | "church" | "pledge";
 
 export type RowIssue = { field: RowField; message: string };
 
 export type ValidatedRow = CandidateRow & {
   momoPhoneE164: string | null;
   whatsappPhoneE164: string | null;
+  /** Pledge in minor units (pesewas); null when the row gives none. */
+  pledgeMinor: number | null;
   churchId: string | null;
   /** Canonical display name from the hub list when matched. */
   churchName: string | null;
@@ -145,6 +152,10 @@ export function extractCandidates(
       map.momoPhone === null ? "" : (raw[map.momoPhone] ?? "").trim();
     const whatsappPhone = (raw[map.whatsappPhone] ?? "").trim();
     const church = (raw[map.church] ?? "").trim();
+    const pledge =
+      map.pledge === null || map.pledge === undefined
+        ? ""
+        : (raw[map.pledge] ?? "").trim();
     if (
       name === "" &&
       momoPhone === "" &&
@@ -152,7 +163,15 @@ export function extractCandidates(
       church === ""
     )
       continue;
-    out.push({ rowIndex: i + 1, raw, name, momoPhone, whatsappPhone, church });
+    out.push({
+      rowIndex: i + 1,
+      raw,
+      name,
+      momoPhone,
+      whatsappPhone,
+      church,
+      pledge,
+    });
   }
   return out;
 }
@@ -160,6 +179,24 @@ export function extractCandidates(
 // ---------------------------------------------------------------------------
 // Validation
 // ---------------------------------------------------------------------------
+
+/**
+ * An amount pledged, as people type it in a sheet: "200", "1,200", "200.50",
+ * "GHS 200", "GH₵ 200", "₵200", "200 cedis". Returns minor units (pesewas), or
+ * null for an empty cell. Anything else, including negatives, is "invalid".
+ */
+export function parsePledge(raw: string): number | null | "invalid" {
+  const s = raw
+    .trim()
+    .replace(/^(GH[S₵]|GHC|GH¢|₵|¢)\s*/i, "")
+    .replace(/\s*(GH[S₵]|GHC|cedis?)$/i, "")
+    .replace(/,/g, "")
+    .trim();
+  if (s === "") return null;
+  if (!/^\d+(\.\d{1,2})?$/.test(s)) return "invalid";
+  const [whole, frac = ""] = s.split(".");
+  return Number(whole) * 100 + Number(frac.padEnd(2, "0"));
+}
 
 /** Office-language problem with a name, or null when acceptable. */
 export function validateName(name: string): string | null {
@@ -237,6 +274,8 @@ export type ValidationContext = {
    * country code.
    */
   whatsappCallingCode?: string | null;
+  /** The region records an amount pledged per partner (Decision 0030). */
+  collectsPledge?: boolean;
 };
 
 /**
@@ -344,6 +383,20 @@ export function validateCandidates(
       }
     }
 
+    let pledgeMinor: number | null = null;
+    if (ctx.collectsPledge) {
+      const parsed = parsePledge(cand.pledge ?? "");
+      if (parsed === "invalid") {
+        issues.push({
+          field: "pledge",
+          message:
+            "Not an amount. Use digits only, for example 200 or 1,200.50.",
+        });
+      } else {
+        pledgeMinor = parsed;
+      }
+    }
+
     // ---- which existing partner (if any) does this row edit? ----------------
     //
     // A person is their name AND their number (Decision 0028). A row updates an
@@ -428,6 +481,7 @@ export function validateCandidates(
       ...cand,
       momoPhoneE164,
       whatsappPhoneE164,
+      pledgeMinor,
       churchId,
       churchName,
       updatesPartnerId,

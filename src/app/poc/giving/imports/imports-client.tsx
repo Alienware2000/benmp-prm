@@ -12,6 +12,7 @@ type Batch = {
   matched_count: number;
   ambiguous_count: number;
   file_hash: string | null;
+  storage_path: string | null;
   created_at: string;
 };
 
@@ -221,6 +222,7 @@ export function ImportsClient() {
                 <th className="px-3 py-2 text-right font-medium">Ambiguous</th>
                 <th className="px-3 py-2 font-medium">Uploaded</th>
                 <th className="px-3 py-2 font-medium">Hash</th>
+                <th className="px-3 py-2 font-medium">Original</th>
               </tr>
             </thead>
             <tbody>
@@ -286,10 +288,25 @@ function BatchRow({
             {shortHash(batch.file_hash)}
           </code>
         </td>
+        <td className="px-3 py-2">
+          {batch.storage_path ? (
+            <a
+              href={`/api/poc/giving/imports/${batch.id}/file`}
+              onClick={(event) => event.stopPropagation()}
+              className="text-xs font-medium text-brand underline-offset-2 hover:underline"
+            >
+              Download
+            </a>
+          ) : (
+            <span className="text-xs text-muted-foreground" title="Imported before the statement vault">
+              —
+            </span>
+          )}
+        </td>
       </tr>
       {expanded && (
         <tr className="border-t border-border bg-muted/30">
-          <td colSpan={8} className="px-3 py-3">
+          <td colSpan={9} className="px-3 py-3">
             {rowsLoading ? (
               <div className="text-sm text-muted-foreground">Loading rows…</div>
             ) : rowsError ? (

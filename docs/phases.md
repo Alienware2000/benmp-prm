@@ -523,6 +523,7 @@ Hub admins get a read view of their own hub's ingested partners and church list.
 
 ## As-built notes
 
+- **Statement vault + Excel uploads (2026-10-10, completes subsystem #2 upload hardening)**: the payment uploader now keeps every imported original in a private `statement-vault` Storage bucket (migration 0024: bucket + `payment_imports.storage_path`/`file_size_bytes`/`content_type`), filed `<provider>/<YYYY-MM>/<sha256>-<filename>`, saved before the batch is written. Staff download originals from `/poc/giving/imports` via `GET /api/poc/giving/imports/:id/file` (signed URL). Every source now accepts CSV or Excel — the September Paystack export arrived as `.xlsx` and the CSV-only path could not read it. Batches imported before 0024 have no original.
 - **MoMo per-region (2026-09-20, Decision 0026)**: `regions.momo_required` (migration 0013); Africa/Europe wizards skip the MoMo column and validation, Ghana regions unchanged; partner country now stamped from the hub instead of hard-coded Ghana.
 - **WhatsApp per-country (2026-09-22, Decision 0027)**: `normalizeWhatsappPhone` + `callingCodeForCountry`; non-Ghana hubs read local-form and +-stripped numbers as their own country (first Malawi upload was failing). Ghana regions unchanged.
 - **Tanzania hub (2026-09-22)**: 32nd Africa hub (Talanta International, 11 branches) from Paul GTWC's DOC-20260914-WA0028.xlsx; seeded with the same idempotent SQL pattern as Burkina Faso.

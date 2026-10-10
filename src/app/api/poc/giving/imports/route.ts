@@ -15,6 +15,7 @@ type ImportBatch = {
   matched_count: number;
   ambiguous_count: number;
   file_hash: string | null;
+  storage_path: string | null;
   created_at: string;
 };
 
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
   const filterStr = filters.length > 0 ? `&${filters.join("&")}` : "";
 
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/payment_imports?select=id,provider,filename,status,row_count,matched_count,ambiguous_count,file_hash,created_at&order=created_at.desc&limit=500${filterStr}`,
+    `${SUPABASE_URL}/rest/v1/payment_imports?select=id,provider,filename,status,row_count,matched_count,ambiguous_count,file_hash,storage_path,created_at&order=created_at.desc&limit=500${filterStr}`,
     { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }, cache: "no-store" },
   );
   if (!res.ok) {

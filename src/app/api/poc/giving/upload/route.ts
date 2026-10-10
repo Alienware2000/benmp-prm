@@ -19,6 +19,13 @@ import {
   type PocPaymentInsertRow,
 } from "@/lib/poc/payment-upload";
 import { computeFileHash, findDuplicateBatch } from "@/lib/poc/import-dedup";
+import {
+  contentTypeFor,
+  isSpreadsheetFile,
+  statementMonth,
+  vaultObjectPath,
+} from "@/lib/poc/statement-file";
+import { saveStatementFile } from "@/lib/poc/statement-vault";
 
 export const dynamic = "force-dynamic";
 
@@ -144,12 +151,18 @@ async function createImportBatch({
   rowCount,
   matchedCount,
   ambiguousCount,
+  storagePath,
+  fileSizeBytes,
+  contentType,
 }: {
   provider: string;
   filename: string;
   rowCount: number;
   matchedCount: number;
   ambiguousCount: number;
+  storagePath: string;
+  fileSizeBytes: number;
+  contentType: string;
 }): Promise<string> {
   // The file_hash is NOT set here — it is stamped after rows and payments
   // succeed, so a failed import can be retried without hitting the unique
@@ -165,6 +178,9 @@ async function createImportBatch({
         row_count: rowCount,
         matched_count: matchedCount,
         ambiguous_count: ambiguousCount,
+        storage_path: storagePath,
+        file_size_bytes: fileSizeBytes,
+        content_type: contentType,
       },
     ]),
   });
@@ -268,11 +284,20 @@ function parseWorkbook(buffer: Buffer): Record<string, string>[] {
   });
 }
 
-async function parseUploadedRows(file: File, source: PaymentSource): Promise<ReturnType<typeof parseMomoRows>> {
-  if (source === "momo") return parseMomoRows(parseCsv(await file.text()));
-  if (source === "ecobank") return parseEcobankRows(parseWorkbook(Buffer.from(await file.arrayBuffer())));
-  if (source === "paystack_onetime") return parsePaystackOnetimeRows(parseCsv(await file.text()));
-  if (source === "paystack_recurring") return parsePaystackRecurringRows(parseCsv(await file.text()));
+// Every source accepts CSV or Excel — detected from the file itself, so a Paystack
+// .xlsx export or a MoMo sheet saved from Excel reads the same as its CSV.
+function parseUploadedRows(
+  filename: string,
+  buffer: ArrayBuffer,
+  source: PaymentSource,
+): ReturnType<typeof parseMomoRows> {
+  const rawRows = isSpreadsheetFile(filename, buffer)
+    ? parseWorkbook(Buffer.from(buffer))
+    : parseCsv(new TextDecoder().decode(buffer));
+  if (source === "momo") return parseMomoRows(rawRows);
+  if (source === "ecobank") return parseEcobankRows(rawRows);
+  if (source === "paystack_onetime") return parsePaystackOnetimeRows(rawRows);
+  if (source === "paystack_recurring") return parsePaystackRecurringRows(rawRows);
   throw new Error(`Unknown source: ${source}`);
 }
 
@@ -384,10 +409,8 @@ export async function POST(req: NextRequest) {
 
     const fileBuffer = await file.arrayBuffer();
     const fileHash = computeFileHash(fileBuffer);
-    const [parsed, partners] = await Promise.all([
-      parseUploadedRows(file, source),
-      loadPartners(),
-    ]);
+    const parsed = parseUploadedRows(file.name, fileBuffer, source);
+    const partners = await loadPartners();
     const matches = matchNormalizedRows(parsed.rows, partners);
 
     // File-level dedup: only the `import` action creates a batch with a
@@ -417,12 +440,29 @@ export async function POST(req: NextRequest) {
         .filter((match) => match.status === "auto")
         .map((match) => ({ row: match.row, partner: match.partner }));
       const reviewMatches = matches.filter((match) => match.status === "review");
+      const filename = file.name || `${source}-upload`;
+      // Vault the original before any ledger writes: if storage fails, nothing is
+      // imported, so every batch from here on has its source file.
+      const storagePath = vaultObjectPath({
+        source,
+        month: statementMonth(parsed.rows),
+        fileHash,
+        filename,
+      });
+      const contentType = file.type || contentTypeFor(filename);
+      await saveStatementFile(storagePath, fileBuffer, contentType);
+      console.info(
+        JSON.stringify({ event: "statement_vaulted", source, filename, storagePath, bytes: fileBuffer.byteLength }),
+      );
       const importId = await createImportBatch({
         provider: source,
-        filename: file.name || `${source}-upload`,
+        filename,
         rowCount: parsed.rows.length,
         matchedCount: accepted.length,
         ambiguousCount: reviewMatches.length,
+        storagePath,
+        fileSizeBytes: fileBuffer.byteLength,
+        contentType,
       });
       await insertImportRows({ importId, matches });
       await insertPayments(buildPaymentRows(accepted));

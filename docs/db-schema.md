@@ -298,6 +298,8 @@ Fields:
 - `matched_count`
 - `ambiguous_count`
 - `file_hash` (SHA-256 hex of uploaded file content; unique per provider — prevents re-uploading the same file as a new batch, migration 0022)
+- `storage_path` (object path of the original file in the private `statement-vault` Storage bucket: `<provider>/<YYYY-MM>/<sha256>-<filename>`; null for batches imported before migration 0024)
+- `file_size_bytes`, `content_type` (of the vaulted original, migration 0024)
  - timestamps
 
 Rules:
@@ -305,6 +307,7 @@ Rules:
 - Filenames should not reveal private account numbers.
 - Real payment CSV files should not be committed.
 - Re-uploading the same file content for the same provider is blocked by a partial unique index on `(provider, file_hash)` — no double-counting at the batch level.
+- Statement vault (migration 0024): every `import` stores the original file in the private `statement-vault` bucket *before* the batch row is written, so a batch with `storage_path` always has its source file. The bucket has no `storage.objects` policies — only the service role reads or writes; staff download via a 60-second signed URL. The `YYYY-MM` folder is the month most of the file's rows fall in.
 
 ### `payment_import_rows`
 

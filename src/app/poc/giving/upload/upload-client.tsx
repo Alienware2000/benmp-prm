@@ -221,10 +221,10 @@ export function GivingUploadClient() {
               }}
               className={inputClass}
             >
-              <option value="momo">MoMo CSV</option>
-              <option value="ecobank">Ecobank XLS</option>
-              <option value="paystack_onetime">Paystack One-time CSV</option>
-              <option value="paystack_recurring">Paystack Recurring CSV</option>
+              <option value="momo">MoMo</option>
+              <option value="ecobank">Ecobank</option>
+              <option value="paystack_onetime">Paystack One-time</option>
+              <option value="paystack_recurring">Paystack Recurring</option>
             </select>
           </div>
           <div>
@@ -234,7 +234,7 @@ export function GivingUploadClient() {
             <input
               ref={fileRef}
               type="file"
-              accept={source === "ecobank" ? ".xls,.xlsx" : ".csv,text/csv"}
+              accept=".csv,.xls,.xlsx,text/csv"
               className={inputClass + " file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-semibold"}
               onChange={(event) => {
                 setFile(event.target.files?.[0] ?? null);

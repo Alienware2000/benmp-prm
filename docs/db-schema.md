@@ -346,6 +346,8 @@ Fields:
 - `new_registrations int`
 - `lapsed int`
 - `total_cash_minor bigint` (computed sum of giver amounts)
+- `deposits_total_minor bigint` (sum of the reported transfers, migration 0025)
+- `givers_file_path text`, `givers_file_name text` (the uploaded giver sheet in the `statement-vault` bucket, `cash/<YYYY-MM>/<sha256>-<filename>`; null for typed submissions before 0025)
 - `currency text` default `GHS`
 - `submitted_at timestamptz`
 - `status text` (`submitted` | `promoted` | `flagged`)
@@ -376,6 +378,28 @@ Constraint:
 - `unique (submission_id, transaction_ref)` — no duplicate receipt refs within a submission (Postgres treats NULLs as distinct, so empty refs don't conflict).
 
 RLS: both tables have public insert, staff-only select, staff-only update (finance/admin/super_admin). Migration: `0021_cash_submissions.sql`.
+
+### `cash_submission_deposits`
+
+Purpose: the transfers (MoMo, bank, other) that carried a submission's cash to BENMP — one row each, so the cash can be traced to the statement where it arrived (Decision 0030).
+
+Fields:
+
+- `id uuid primary key`
+- `submission_id uuid references cash_submissions` (cascade delete)
+- `row_index int`
+- `transaction_id text` (as the branch typed it)
+- `transaction_key text` (uppercased, whitespace removed)
+- `channel text` (`momo` | `bank` | `other`)
+- `amount_minor bigint` (> 0)
+- `deposited_on date` (from the start of the reporting month to the submission day)
+- `created_at timestamptz`
+
+Constraint:
+
+- unique index on `transaction_key` — a transfer can be reported on one submission only.
+
+RLS: public insert, staff-only select. Migration: `0025_cash_deposits_and_files.sql`.
 
 ## 8. Campaign Tables
 

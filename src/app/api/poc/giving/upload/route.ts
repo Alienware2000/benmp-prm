@@ -1,7 +1,5 @@
 import { normalizePhone } from "@/lib/phone";
 import { NextRequest, NextResponse } from "next/server";
-import Papa from "papaparse";
-import * as XLSX from "xlsx";
 import { revalidateTag } from "next/cache";
 import {
   assertPaymentRowsExist,
@@ -21,12 +19,12 @@ import {
 import { computeFileHash, findDuplicateBatch } from "@/lib/poc/import-dedup";
 import {
   contentTypeFor,
-  isSpreadsheetFile,
   statementMonth,
   vaultObjectPath,
 } from "@/lib/poc/statement-file";
 import { saveStatementFile } from "@/lib/poc/statement-vault";
 import { inListChunks } from "@/lib/poc/in-list";
+import { readSheetRows } from "@/lib/spreadsheet-rows";
 
 export const dynamic = "force-dynamic";
 
@@ -261,29 +259,6 @@ async function updateImportRowStatus(
   }
 }
 
-function parseCsv(text: string): Record<string, string>[] {
-  const parsed = Papa.parse<Record<string, string>>(text, {
-    header: true,
-    skipEmptyLines: true,
-    transformHeader: (header) => header.trim(),
-    transform: (value) => String(value ?? "").trim(),
-  });
-  if (parsed.errors.length > 0) throw new Error(parsed.errors[0].message);
-  return parsed.data;
-}
-
-function parseWorkbook(buffer: Buffer): Record<string, string>[] {
-  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: false });
-  const sheetName = workbook.SheetNames.includes("ReportSheet")
-    ? "ReportSheet"
-    : workbook.SheetNames[0];
-  if (!sheetName) throw new Error("Workbook has no sheets.");
-  return XLSX.utils.sheet_to_json<Record<string, string>>(workbook.Sheets[sheetName], {
-    defval: "",
-    raw: false,
-  });
-}
-
 // Every source accepts CSV or Excel — detected from the file itself, so a Paystack
 // .xlsx export or a MoMo sheet saved from Excel reads the same as its CSV.
 function parseUploadedRows(
@@ -291,9 +266,8 @@ function parseUploadedRows(
   buffer: ArrayBuffer,
   source: PaymentSource,
 ): ReturnType<typeof parseMomoRows> {
-  const rawRows = isSpreadsheetFile(filename, buffer)
-    ? parseWorkbook(Buffer.from(buffer))
-    : parseCsv(new TextDecoder().decode(buffer));
+  // MTN's Excel export keeps the transactions on a sheet named "ReportSheet".
+  const rawRows = readSheetRows(filename, buffer, "ReportSheet");
   if (source === "momo") return parseMomoRows(rawRows);
   if (source === "ecobank") return parseEcobankRows(rawRows);
   if (source === "paystack_onetime") return parsePaystackOnetimeRows(rawRows);

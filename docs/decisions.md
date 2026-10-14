@@ -584,3 +584,14 @@ _2026-09-26_
 **Why**: Paul GTWC, 2026-09-24: admins uploaded wrong files and had no way to take them back.
 
 **Said no to**: soft delete (every partner query would need a filter; the audit copy gives recovery without it) · deleting people with giving (detaches money from a person) · undoing an upload's *updates* (the previous values aren't stored per row; the filter shows only the people an upload added).
+
+## 0030 — Branches upload cash givers and report the month's transaction IDs
+
+_2026-10-14_
+
+**Decided**: the public cash form (`/cash`) takes the giver list as an uploaded Excel/CSV sheet (template at `/api/cash/template`; previewed before submit, re-read on the server) instead of typed rows, and requires a second section: the transaction ID, channel (MoMo/Bank/Other), amount and date of every transfer that carried the month's cash to BENMP. The sheet is kept in the statement vault under `cash/<YYYY-MM>/`. A transaction ID can be reported once across all submissions. A difference between the transfers' total and the givers' total is shown to the branch and to staff but does not block the submission.
+
+**Why**: office, 2026-10-14: branches keep their givers in spreadsheets, and typing them was the wrong workflow; the transaction IDs let staff trace each month's cash to the MoMo or bank statement where it arrived.
+
+**Said no to**: blocking on a total mismatch (a branch may legitimately send fees or a partial transfer; staff judge it) · matching transaction IDs to statement rows automatically (the trigger: the first month with several branches filing, when staff reconcile by hand and the pattern of IDs is known).
+

@@ -7,6 +7,18 @@ export type GiverRowInput = {
   transactionRef: string;
 };
 
+/** How the month's cash reached BENMP — one row per transfer, so it can be traced. */
+export type DepositChannel = "momo" | "bank" | "other";
+export const DEPOSIT_CHANNELS: DepositChannel[] = ["momo", "bank", "other"];
+
+export type DepositInput = {
+  transactionId: string;
+  channel: DepositChannel;
+  amountMinor: number;
+  /** YYYY-MM-DD */
+  depositedOn: string;
+};
+
 export type SubmitPayload = {
   regionCode: string;
   hubId: string;
@@ -19,6 +31,7 @@ export type SubmitPayload = {
     lapsed: number;
   };
   givers: GiverRowInput[];
+  deposits: DepositInput[];
 };
 
 export type ValidationResult = { ok: true } | { ok: false; error: string };
@@ -76,6 +89,40 @@ export function validateSummaryCounts(summary: SubmitPayload["summary"]): Valida
   const { totalRegistered, activePartners, newRegistrations, lapsed } = summary;
   if (totalRegistered < 0 || activePartners < 0 || newRegistrations < 0 || lapsed < 0) {
     return { ok: false, error: "Summary counts cannot be negative." };
+  }
+  return { ok: true };
+}
+/** Uppercased, internal whitespace removed — how a transaction ID is compared. */
+export const transactionIdKey = (id: string) => id.replace(/\s+/g, "").toUpperCase();
+
+/**
+ * The transfers that carried the month's cash to BENMP. At least one is required.
+ * A deposit may land after the month closes, so the date runs from the start of the
+ * reporting month (`YYYY-MM-01`) to today.
+ */
+export function validateDeposits(deposits: DepositInput[], reportingMonth: string, today = new Date()): ValidationResult {
+  if (!Array.isArray(deposits) || deposits.length === 0) {
+    return { ok: false, error: "Add at least one transaction ID for the month's cash." };
+  }
+  const todayIso = today.toISOString().slice(0, 10);
+  const seen = new Set<string>();
+  for (let i = 0; i < deposits.length; i++) {
+    const d = deposits[i];
+    const label = `Transaction ${i + 1}`;
+    const key = transactionIdKey(String(d.transactionId ?? ""));
+    if (key.length < 4) return { ok: false, error: `${label}: enter the transaction ID (at least 4 characters).` };
+    if (seen.has(key)) return { ok: false, error: `${label}: transaction ID "${d.transactionId}" is listed twice.` };
+    seen.add(key);
+    if (!DEPOSIT_CHANNELS.includes(d.channel)) return { ok: false, error: `${label}: choose MoMo, Bank, or Other.` };
+    if (!Number.isSafeInteger(d.amountMinor) || d.amountMinor <= 0) {
+      return { ok: false, error: `${label}: amount must be greater than zero.` };
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d.depositedOn ?? "") || isNaN(Date.parse(d.depositedOn))) {
+      return { ok: false, error: `${label}: enter the transaction date.` };
+    }
+    if (d.depositedOn < reportingMonth || d.depositedOn > todayIso) {
+      return { ok: false, error: `${label}: the date must be between the start of the reporting month and today.` };
+    }
   }
   return { ok: true };
 }

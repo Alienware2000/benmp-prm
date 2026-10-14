@@ -4,11 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 type FiledEntry = {
+  submissionId: string;
   churchId: string;
   churchName: string;
   hubLabel: string;
   status: string;
   totalCashMinor: number;
+  depositsTotalMinor: number;
+  hasGiverFile: boolean;
+  deposits: { transactionId: string; channel: string; amountMinor: number; depositedOn: string }[];
   totalRegistered: number;
   activePartners: number;
   newRegistrations: number;
@@ -133,6 +137,8 @@ export function CashMonitoringClient() {
                     <th className="py-2 pr-4">Hub</th>
                     <th className="py-2 pr-4">Status</th>
                     <th className="py-2 pr-4 text-right">Cash</th>
+                    <th className="py-2 pr-4">Transactions</th>
+                    <th className="py-2 pr-4">Giver sheet</th>
                     <th className="py-2 pr-4 text-right">Registered</th>
                     <th className="py-2 pr-4 text-right">Active</th>
                     <th className="py-2 pr-4 text-right">New</th>
@@ -142,7 +148,7 @@ export function CashMonitoringClient() {
                 </thead>
                 <tbody>
                   {data.filed.length === 0 && (
-                    <tr><td colSpan={9} className="py-4 text-center text-muted-foreground">No submissions for this month.</td></tr>
+                    <tr><td colSpan={11} className="py-4 text-center text-muted-foreground">No submissions for this month.</td></tr>
                   )}
                   {data.filed.map((f) => (
                     <tr key={f.churchId} className="border-b border-border/50">
@@ -154,6 +160,33 @@ export function CashMonitoringClient() {
                         </span>
                       </td>
                       <td className="py-2 pr-4 text-right tabular-nums text-foreground">{ghs(f.totalCashMinor)}</td>
+                      <td className="py-2 pr-4 text-muted-foreground">
+                        {f.deposits.length === 0 ? (
+                          "—"
+                        ) : (
+                          <>
+                            {f.deposits.map((d) => (
+                              <div key={d.transactionId} className="whitespace-nowrap font-mono text-xs">
+                                {d.transactionId} · {d.channel} · {ghs(d.amountMinor)} · {d.depositedOn}
+                              </div>
+                            ))}
+                            {f.depositsTotalMinor !== f.totalCashMinor && (
+                              <div className="text-xs text-amber-700">
+                                Differs from givers by {ghs(Math.abs(f.depositsTotalMinor - f.totalCashMinor))}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </td>
+                      <td className="py-2 pr-4">
+                        {f.hasGiverFile ? (
+                          <a href={`/api/poc/cash/${f.submissionId}/file`} className="text-primary underline">
+                            Download
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
                       <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{f.totalRegistered}</td>
                       <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{f.activePartners}</td>
                       <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{f.newRegistrations}</td>

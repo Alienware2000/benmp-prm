@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   parseReportingMonth,
   validateGiverRow,
+  validateDeposits,
   validateGiverRows,
+  type DepositInput,
   type GiverRowInput,
 } from "./validation";
 
@@ -83,5 +85,36 @@ describe("validateGiverRows", () => {
   });
   it("rejects an empty giver list", () => {
     expect(validateGiverRows([]).ok).toBe(false);
+  });
+});
+describe("validateDeposits", () => {
+  const today = new Date("2026-10-14T12:00:00Z");
+  const deposit = (over: Partial<DepositInput> = {}): DepositInput => ({
+    transactionId: "MP261005.1234.A56789",
+    channel: "momo",
+    amountMinor: 50000,
+    depositedOn: "2026-10-05",
+    ...over,
+  });
+
+  it("accepts a valid deposit", () => {
+    expect(validateDeposits([deposit()], "2026-10-01", today)).toEqual({ ok: true });
+  });
+  it("requires at least one deposit", () => {
+    expect(validateDeposits([], "2026-10-01", today).ok).toBe(false);
+  });
+  it("rejects the same transaction ID twice, ignoring case and spaces", () => {
+    const result = validateDeposits([deposit(), deposit({ transactionId: "mp261005.1234. a56789" })], "2026-10-01", today);
+    expect(result).toEqual({ ok: false, error: 'Transaction 2: transaction ID "mp261005.1234. a56789" is listed twice.' });
+  });
+  it("rejects short IDs, bad channels, and non-positive amounts", () => {
+    expect(validateDeposits([deposit({ transactionId: "12" })], "2026-10-01", today).ok).toBe(false);
+    expect(validateDeposits([deposit({ channel: "cheque" as DepositInput["channel"] })], "2026-10-01", today).ok).toBe(false);
+    expect(validateDeposits([deposit({ amountMinor: 0 })], "2026-10-01", today).ok).toBe(false);
+  });
+  it("allows a deposit after the month closes but not before it starts or in the future", () => {
+    expect(validateDeposits([deposit({ depositedOn: "2026-10-03" })], "2026-09-01", today).ok).toBe(true);
+    expect(validateDeposits([deposit({ depositedOn: "2026-08-31" })], "2026-09-01", today).ok).toBe(false);
+    expect(validateDeposits([deposit({ depositedOn: "2026-10-15" })], "2026-10-01", today).ok).toBe(false);
   });
 });

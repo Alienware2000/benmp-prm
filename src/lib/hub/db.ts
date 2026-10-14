@@ -6,6 +6,8 @@
 import type { HubAccountRecord } from "./auth";
 import { normalizeNameKey, type ExistingPartner } from "./ingest";
 import { isSensibleName } from "../poc/directory";
+import { inListChunks } from "../poc/in-list";
+import type { HubGivingPayment } from "./giving";
 import {
   planHubPartnerDeletion,
   type DeletablePartner,
@@ -681,3 +683,46 @@ export async function deleteHubPartners(
 }
 
 type DeletablePartnerRow = DeletablePartner & Record<string, unknown>;
+
+/**
+ * Successful payments matched to any of these partners (`raw_row.matched_partner_id`,
+ * set on every imported payment). Chunked by URL length (chunks fetched in parallel)
+ * and paged under PostgREST's 1,000-row cap.
+ */
+export async function getPaymentsForPartners(
+  partnerIds: string[],
+): Promise<HubGivingPayment[]> {
+  const chunks = await Promise.all(
+    inListChunks(partnerIds).map(async (list) => {
+      const out: HubGivingPayment[] = [];
+      for (let offset = 0; ; offset += 1000) {
+        const rows = await rest<
+          { partner_id: string; paid_at: string; amount_minor: number }[]
+        >(
+          `payments?select=partner_id:raw_row->>matched_partner_id,paid_at,amount_minor` +
+            `&status=eq.Successful&raw_row->>matched_partner_id=in.(${list})` +
+            `&order=paid_at.asc,reference.asc&limit=1000&offset=${offset}`,
+        );
+        for (const r of rows) {
+          out.push({
+            partnerId: r.partner_id,
+            paidAt: r.paid_at,
+            amountMinor: r.amount_minor,
+          });
+        }
+        if (rows.length < 1000) break;
+      }
+      return out;
+    }),
+  );
+  return chunks.flat();
+}
+
+/** The most recent payment date on record, so admins know how current the numbers are. */
+export async function getLatestPaymentDate(): Promise<string | null> {
+  const rows = await rest<{ paid_at: string }[]>(
+    "payments?select=paid_at&status=eq.Successful&order=paid_at.desc&limit=1",
+  );
+  return rows[0]?.paid_at ?? null;
+}
+

@@ -39,6 +39,15 @@ describe("usefulNotes", () => {
       ]),
     ).toEqual(["TRF BO JOHN TANKO BAWA", "INCOMING B/O FRANCIS"]);
   });
+  it("masks phone numbers typed into a note", () => {
+    expect(
+      usefulNotes([
+        "0244123820-Hub 1",
+        "Outward transfer/0551 234 692",
+        "0244123456",
+      ]),
+    ).toEqual(["•••820-Hub 1", "Outward transfer/•••692"]);
+  });
   it("keeps at most three", () => {
     expect(usefulNotes(["aaa", "bbb", "ccc", "ddd"])).toHaveLength(3);
   });
@@ -84,5 +93,18 @@ describe("buildClaimableGivers", () => {
     ]);
     expect(givers[0].phoneHint).toBe("•••002");
     expect(JSON.stringify(givers)).not.toContain("+233");
+  });
+
+  it("masks account numbers inside a name", () => {
+    const [g] = buildClaimableGivers(
+      [
+        {
+          ...row("4", "2026-09-01T00:00:00Z", []),
+          full_name: "KOFI MENSAH A/C # 1441002345678",
+        },
+      ],
+      [],
+    );
+    expect(g.name).toBe("KOFI MENSAH A/C # •••678");
   });
 });

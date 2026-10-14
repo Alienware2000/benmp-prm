@@ -35,15 +35,26 @@ export function maskPhone(phone: string | null | undefined): string | null {
 const UNINFORMATIVE =
   /^(benmp|hjc|hjcm|healing jesus( campaign| crusade)?|offering|seed|tithe|partner(ship)?|donation|payment|momo|transfer)$/i;
 
+/** A run of 7+ digits (spaces, dashes allowed): a phone or account number. */
+const LONG_NUMBER = /\+?\d(?:[\s-]?\d){6,}/g;
+
+/** Mask every long number in free text (names made from bank narrations carry account numbers). */
+export const maskNumbers = (text: string) =>
+  text.replace(LONG_NUMBER, (m) => maskPhone(m) ?? "");
+
 /**
  * Strip Ecobank's boilerplate from a narration: the reference prefix
  * ("H29SIP…//5689…//"), the "RRN:…" token, and the "IFO HEALING JESUS …" tail.
+ * Givers often type their phone into the note ("0244…820-Hub 1"), so long numbers
+ * are masked like the phone column.
  */
 function cleanNote(note: string): string {
-  return note
-    .replace(/^[^\s/]*\/\/[^\s/]*\/\//, "")
-    .replace(/RRN:\S+/g, "")
-    .replace(/\bIFO HEALING JESUS\b.*$/i, "")
+  return maskNumbers(
+    note
+      .replace(/^[^\s/]*\/\/[^\s/]*\/\//, "")
+      .replace(/RRN:\S+/g, "")
+      .replace(/\bIFO HEALING JESUS\b.*$/i, ""),
+  )
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -56,7 +67,7 @@ export function usefulNotes(
   const seen = new Set<string>();
   for (const raw of notes ?? []) {
     const note = cleanNote(raw);
-    if (note.length < 3 || /^\d+$/.test(note) || UNINFORMATIVE.test(note))
+    if (note.length < 3 || !/[a-z]/i.test(note) || UNINFORMATIVE.test(note))
       continue;
     const key = note.toLowerCase();
     if (seen.has(key)) continue;
@@ -100,7 +111,7 @@ export function buildClaimableGivers(
       const notes = usefulNotes(row.recent_notes);
       return {
         id: row.id,
-        name: row.full_name,
+        name: maskNumbers(row.full_name),
         phoneHint: maskPhone(row.phone),
         lastGiftAt: row.last_gift_at,
         giftCount: row.gift_count,

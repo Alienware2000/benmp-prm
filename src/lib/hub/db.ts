@@ -296,6 +296,13 @@ export type PartnerInsert = {
   preferred_communication_method: "whatsapp";
   hub_id: string;
   church_id: string;
+  /**
+   * Pledge in minor units and its currency (Decision 0030). Only ever sent for a
+   * region that collects pledges, so other regions' inserts never name columns
+   * that a database without migration 0024 would not have.
+   */
+  pledged_amount_minor?: number | null;
+  pledge_currency?: string;
 };
 
 /** One bulk POST per 500 — each chunk is a single atomic statement. */
@@ -321,6 +328,8 @@ export type PartnerUpdate = {
       | "church"
       | "church_id"
       | "source"
+      | "pledged_amount_minor"
+      | "pledge_currency"
     >
   >;
 };
@@ -399,6 +408,8 @@ export type HubPartnerRow = {
   whatsapp_number: string;
   church: string | null;
   created_at: string;
+  /** Present only when the hub's region collects pledges (Decision 0030). */
+  pledged_amount_minor?: number | null;
 };
 
 /**
@@ -406,13 +417,17 @@ export type HubPartnerRow = {
  * silent 1000-row cap; hubs run tens-to-hundreds of rows, but a big hub must
  * not silently truncate.
  */
-export async function getHubPartners(hubId: string): Promise<HubPartnerRow[]> {
+export async function getHubPartners(
+  hubId: string,
+  withPledge = false,
+): Promise<HubPartnerRow[]> {
   const out: HubPartnerRow[] = [];
   const page = 1000;
   for (let offset = 0; ; offset += page) {
     const rows = await rest<HubPartnerRow[]>(
       `partners?hub_id=eq.${encodeURIComponent(hubId)}` +
         `&select=id,full_name,momo_phone_number,whatsapp_number,church,created_at` +
+        (withPledge ? ",pledged_amount_minor" : "") +
         `&order=created_at.desc,id.asc&limit=${page}&offset=${offset}`,
     );
     out.push(...rows);
@@ -438,6 +453,24 @@ export async function getRegionMomoRequired(
   );
   // Unknown region reads as MoMo-required: the strict default is the safe one.
   return rows?.[0]?.momo_required ?? true;
+}
+
+/**
+ * Whether the region records an amount pledged per partner (Decision 0030). A
+ * database that predates migration 0024 has no such column: that reads as "no",
+ * so the upload keeps working for every region until the migration runs.
+ */
+export async function getRegionCollectsPledge(
+  regionCode: string,
+): Promise<boolean> {
+  try {
+    const rows = await rest<{ collects_pledge: boolean }[]>(
+      `regions?code=eq.${encodeURIComponent(regionCode)}&select=collects_pledge`,
+    );
+    return rows?.[0]?.collects_pledge ?? false;
+  } catch {
+    return false;
+  }
 }
 
 export type HubSummary = {

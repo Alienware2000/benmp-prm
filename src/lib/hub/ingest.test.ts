@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractCandidates,
   parseCsv,
+  parsePledge,
   validateCandidates,
   validateName,
   type CandidateRow,
@@ -320,5 +321,77 @@ describe("validateCandidates: WhatsApp numbers resolve to the hub's country (Dec
     );
     expect(rows[0].issues.some((i) => i.field === "whatsappPhone")).toBe(true);
     expect(rows[1].whatsappPhoneE164).toBe("+447700900123");
+  });
+});
+
+describe("pledges (Decision 0030)", () => {
+  it("parsePledge reads amounts the way people type them, in pesewas", () => {
+    expect(parsePledge("200")).toBe(20000);
+    expect(parsePledge("1,200")).toBe(120000);
+    expect(parsePledge("200.5")).toBe(20050);
+    expect(parsePledge("200.50")).toBe(20050);
+    expect(parsePledge("GHS 200")).toBe(20000);
+    expect(parsePledge("GH₵200")).toBe(20000);
+    expect(parsePledge("₵ 50")).toBe(5000);
+    expect(parsePledge("300 cedis")).toBe(30000);
+    expect(parsePledge("")).toBeNull();
+    expect(parsePledge("  ")).toBeNull();
+  });
+
+  it("parsePledge rejects anything that is not a plain amount", () => {
+    for (const bad of [
+      "-50",
+      "ten",
+      "200.555",
+      "1.2.3",
+      "$200",
+      "200GHS extra",
+    ]) {
+      expect(parsePledge(bad)).toBe("invalid");
+    }
+  });
+
+  it("a region that collects pledges stores the amount, blank is allowed, junk is flagged", () => {
+    const rows = validateCandidates(
+      [
+        cand({ rowIndex: 2, pledge: "250" }),
+        cand({
+          rowIndex: 3,
+          name: "Kofi Boateng",
+          whatsappPhone: "+233551234567",
+          pledge: "",
+        }),
+        cand({
+          rowIndex: 4,
+          name: "Efua Sam",
+          whatsappPhone: "+233551234568",
+          pledge: "a lot",
+        }),
+      ],
+      { ...ctx(), collectsPledge: true },
+    );
+    expect(rows[0].pledgeMinor).toBe(25000);
+    expect(rows[0].issues).toEqual([]);
+    expect(rows[1].pledgeMinor).toBeNull();
+    expect(rows[1].issues).toEqual([]);
+    expect(rows[2].issues.map((i) => i.field)).toEqual(["pledge"]);
+  });
+
+  it("a region that does not collect pledges ignores the column entirely", () => {
+    const [row] = validateCandidates([cand({ pledge: "junk" })], ctx());
+    expect(row.pledgeMinor).toBeNull();
+    expect(row.issues).toEqual([]);
+  });
+
+  it("extractCandidates reads the pledge column when mapped", () => {
+    const out = extractCandidates(
+      [
+        ["NAME", "WHATSAPP", "CHURCH", "AMOUNT"],
+        ["Ama Mensah", "+233244123456", "Agona Nkwanta", "1,000"],
+      ],
+      { name: 0, momoPhone: null, whatsappPhone: 1, church: 2, pledge: 3 },
+      true,
+    );
+    expect(out[0].pledge).toBe("1,000");
   });
 });

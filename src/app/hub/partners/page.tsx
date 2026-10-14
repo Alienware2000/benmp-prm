@@ -7,6 +7,7 @@ import {
 import {
   getHubPartners,
   getHubUploads,
+  getRegionCollectsPledge,
   getRegionMomoRequired,
 } from "@/lib/hub/db";
 import { PartnersTable } from "./partners-table";
@@ -30,8 +31,9 @@ export default async function HubPartnersPage() {
       </p>
     );
   }
+  const collectsPledge = await getRegionCollectsPledge(session.regionCode);
   const [partners, uploads, momoRequired] = await Promise.all([
-    getHubPartners(session.hubId),
+    getHubPartners(session.hubId, collectsPledge),
     getHubUploads(session.hubId),
     getRegionMomoRequired(session.regionCode),
   ]);
@@ -52,6 +54,7 @@ export default async function HubPartnersPage() {
           partners={partners}
           uploads={uploads}
           showMomo={momoRequired}
+          showPledge={collectsPledge}
         />
       )}
     </div>

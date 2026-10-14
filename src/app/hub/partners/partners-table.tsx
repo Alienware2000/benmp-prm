@@ -28,10 +28,12 @@ export function PartnersTable({
   partners,
   uploads,
   showMomo,
+  showPledge,
 }: {
   partners: HubPartnerRow[];
   uploads: HubUpload[];
   showMomo: boolean;
+  showPledge: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -237,6 +239,9 @@ export function PartnersTable({
                 {showMomo && <th className="px-3 py-2">MoMo number</th>}
                 <th className="px-3 py-2">WhatsApp number</th>
                 <th className="px-3 py-2">Church</th>
+                {showPledge && (
+                  <th className="px-3 py-2 text-right">Pledged (GHS)</th>
+                )}
                 <th className="px-3 py-2">Added</th>
               </tr>
             </thead>
@@ -271,6 +276,19 @@ export function PartnersTable({
                   <td className="px-3 py-2 text-foreground">
                     {p.church ?? "—"}
                   </td>
+                  {showPledge && (
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-foreground">
+                      {p.pledged_amount_minor == null
+                        ? "—"
+                        : (p.pledged_amount_minor / 100).toLocaleString(
+                            "en-GB",
+                            {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            },
+                          )}
+                    </td>
+                  )}
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                     {p.created_at.slice(0, 10)}
                   </td>

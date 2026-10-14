@@ -13,6 +13,7 @@ import {
   findHubPartnerNames,
   getHubChurches,
   getHubCountry,
+  getRegionCollectsPledge,
   getRegionMomoRequired,
   insertIngestRows,
   insertPartners,
@@ -36,6 +37,7 @@ type SubmitRow = {
   whatsappPhone: string;
   church: string;
   removed: boolean;
+  pledge?: string;
 };
 
 /**
@@ -91,6 +93,7 @@ export async function POST(req: NextRequest) {
     whatsappPhone: String(r.whatsappPhone ?? "").trim(),
     church: String(r.church ?? "").trim(),
     removed: r.removed === true,
+    pledge: String(r.pledge ?? "").trim(),
   }));
   const accepted = rows.filter((r) => !r.removed);
   if (accepted.length === 0) {
@@ -106,9 +109,10 @@ export async function POST(req: NextRequest) {
     name: c.name,
     nameKey: c.name_key,
   }));
-  const [momoRequired, hubCountry] = await Promise.all([
+  const [momoRequired, hubCountry, collectsPledge] = await Promise.all([
     getRegionMomoRequired(session.regionCode),
     getHubCountry(session.hubId),
+    getRegionCollectsPledge(session.regionCode),
   ]);
   const candidates: CandidateRow[] = accepted.map((r) => ({
     rowIndex: r.rowIndex,
@@ -119,6 +123,7 @@ export async function POST(req: NextRequest) {
     momoPhone: momoRequired ? r.momoPhone : "",
     whatsappPhone: r.whatsappPhone,
     church: r.church,
+    pledge: collectsPledge ? r.pledge : "",
   }));
   const whatsappCallingCode = callingCodeForCountry(hubCountry);
   // The lookup key is E.164, produced by the same normalization the validator
@@ -142,6 +147,7 @@ export async function POST(req: NextRequest) {
     hubId: session.hubId,
     momoRequired,
     whatsappCallingCode,
+    collectsPledge,
   });
 
   const flagged = validated.filter((v) => v.issues.length > 0);
@@ -202,6 +208,9 @@ export async function POST(req: NextRequest) {
       preferred_communication_method: "whatsapp",
       hub_id: session.hubId,
       church_id: v.churchId!,
+      ...(collectsPledge
+        ? { pledged_amount_minor: v.pledgeMinor, pledge_currency: "GHS" }
+        : {}),
     })),
   );
 
@@ -218,6 +227,10 @@ export async function POST(req: NextRequest) {
         church: v.churchName!,
         church_id: v.churchId!,
         source: `hub_ingest_${batchId}`,
+        // A blank amount on a re-upload never wipes a recorded pledge.
+        ...(collectsPledge && v.pledgeMinor !== null
+          ? { pledged_amount_minor: v.pledgeMinor, pledge_currency: "GHS" }
+          : {}),
       },
     })),
   );

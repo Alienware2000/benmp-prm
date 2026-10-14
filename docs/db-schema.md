@@ -381,7 +381,7 @@ RLS: both tables have public insert, staff-only select, staff-only update (finan
 
 ### `cash_submission_deposits`
 
-Purpose: the transfers (MoMo, bank, other) that carried a submission's cash to BENMP — one row each, so the cash can be traced to the statement where it arrived (Decision 0030).
+Purpose: the transfers (MoMo, bank, other) that carried a submission's cash to BENMP — one row each, so the cash can be traced to the statement where it arrived (Decision 0031).
 
 Fields:
 
@@ -757,6 +757,7 @@ The top of the hierarchy: **Region → Hub/Denomination → Church → BENMP Par
 | `name`           | text        | Display label, e.g. `UD Ghana`.                                    |
 | `hub_identifier` | text        | `'number'` or `'name'` — how this region identifies a hub.         |
 | `momo_required` | boolean | Whether this region's wizard collects a Ghana MoMo column (Decision 0026, migration 0013). True for UD/UJ Ghana. |
+| `collects_pledge` | boolean | Whether this region's wizard collects an "Amount pledged" column (Decision 0030, migration 0024). True for RSC Ghana. |
 | `sort_order`     | int         | Order in the login picker.                                         |
 | `created_at`     | timestamptz |                                                                   |
 
@@ -862,3 +863,10 @@ The archived pre-hub Ghana numbers, copied out of `archive.partners_pre_hub` so 
 Populated once by migration 0007 (`insert … on conflict do nothing`, so a re-run is a no-op). RLS on, no anon policies; read server-side with the service role.
 
 **Separation**: nothing joins this table to `partners`. Directory search, giving, reconciliation, branch grouping, partner counts and every hub surface read `partners` and never this. Its only reader is the `legacy-ghana` message audience. Consent is shared, not duplicated — the send path checks `public.opt_outs` by phone, so a STOP from this broadcast also protects the number if it later arrives through a hub upload.
+
+### partners: pledge columns (migration 0024, Decision 0030)
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `pledged_amount_minor` | bigint, null | Amount the partner has pledged, in minor units (pesewas). Never money received. Set by hub uploads in a region with `collects_pledge`. |
+| `pledge_currency` | text, null | `GHS` for RSC Ghana. |

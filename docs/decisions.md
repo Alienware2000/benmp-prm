@@ -596,3 +596,14 @@ _2026-10-10_
 **Said no to**: writing it to `recurring_commitments` now (that table needs a frequency, which RSC hasn't given; move the value there when the cadence is known and the office wants "pledged vs paid") · treating it as a payment (would inflate giving) · requiring an amount on every row (some partners pledge nothing).
 
 **Deploy order**: run migration 0024 before or after the deploy, either is safe. Until it runs, `getRegionCollectsPledge` reads false and no insert names the new columns.
+
+## 0031 — Branches upload cash givers and report the month's transaction IDs
+
+_2026-10-14_
+
+**Decided**: the public cash form (`/cash`) takes the giver list as an uploaded Excel/CSV sheet (template at `/api/cash/template`; previewed before submit, re-read on the server) instead of typed rows, and requires a second section: the transaction ID, channel (MoMo/Bank/Other), amount and date of every transfer that carried the month's cash to BENMP. The sheet is kept in the statement vault under `cash/<YYYY-MM>/`. A transaction ID can be reported once across all submissions. A difference between the transfers' total and the givers' total is shown to the branch and to staff but does not block the submission.
+
+**Why**: office, 2026-10-14: branches keep their givers in spreadsheets, and typing them was the wrong workflow; the transaction IDs let staff trace each month's cash to the MoMo or bank statement where it arrived.
+
+**Said no to**: blocking on a total mismatch (a branch may legitimately send fees or a partial transfer; staff judge it) · matching transaction IDs to statement rows automatically (the trigger: the first month with several branches filing, when staff reconcile by hand and the pattern of IDs is known).
+

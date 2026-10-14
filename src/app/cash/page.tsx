@@ -11,8 +11,9 @@ export default function CashPage() {
           Monthly Cash Collection Form
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Report your church&apos;s cash collections for the month. Select your
-          region, hub, and church below.
+          Report your church&apos;s cash collections for the month: select your
+          church, upload the giver list, and enter the transaction ID of each
+          transfer that sent the cash to BENMP.
         </p>
         <div className="mt-6">
           <CashForm />

@@ -13,6 +13,12 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/api/regions")).toBe(true);
   });
 
+  it("lets a branch fill in the cash form without logging in", () => {
+    for (const p of ["/cash", "/api/cash/preview", "/api/cash/template", "/api/cash/submit"]) {
+      expect(isPublicPath(p), p).toBe(true);
+    }
+  });
+
   it("keeps everything else closed", () => {
     for (const p of [
       "/",
@@ -24,6 +30,7 @@ describe("isPublicPath", () => {
       "/api/regions/secret",
       "/api/regionsfoo",
       "/login/extra",
+      "/api/poc/cash/submissions",
     ]) {
       expect(isPublicPath(p), p).toBe(false);
     }

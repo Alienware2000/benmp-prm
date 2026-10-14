@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   // Fetch all hub_churches with their hub names
   const [churchesRes, submissionsRes, hubsRes] = await Promise.all([
     fetch(`${SUPABASE_URL}/rest/v1/hub_churches?select=id,name,hub_id&limit=5000`, { headers, cache: "no-store" }),
-    fetch(`${SUPABASE_URL}/rest/v1/cash_submissions?select=id,church_id,status,total_cash_minor,total_registered,active_partners,new_registrations,lapsed,submitted_at&reporting_month=eq.${encodeURIComponent(reportingMonth)}&limit=5000`, { headers, cache: "no-store" }),
+    fetch(`${SUPABASE_URL}/rest/v1/cash_submissions?select=id,church_id,status,total_cash_minor,deposits_total_minor,givers_file_path,total_registered,active_partners,new_registrations,lapsed,submitted_at,cash_submission_deposits(transaction_id,channel,amount_minor,deposited_on,row_index)&reporting_month=eq.${encodeURIComponent(reportingMonth)}&limit=5000`, { headers, cache: "no-store" }),
     fetch(`${SUPABASE_URL}/rest/v1/hubs?select=id,name,hub_number&limit=500`, { headers, cache: "no-store" }),
   ]);
 
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   const churches = await churchesRes.json() as { id: string; name: string; hub_id: string }[];
-  const submissions = await submissionsRes.json() as { id: string; church_id: string; status: string; total_cash_minor: number; total_registered: number; active_partners: number; new_registrations: number; lapsed: number; submitted_at: string }[];
+  const submissions = await submissionsRes.json() as { id: string; church_id: string; status: string; total_cash_minor: number; deposits_total_minor: number; givers_file_path: string | null; cash_submission_deposits: { transaction_id: string; channel: string; amount_minor: number; deposited_on: string; row_index: number }[]; total_registered: number; active_partners: number; new_registrations: number; lapsed: number; submitted_at: string }[];
   const hubs = await hubsRes.json() as { id: string; name: string; hub_number: number | null }[];
 
   const hubById = new Map(hubs.map(h => [h.id, h]));
@@ -38,11 +38,17 @@ export async function GET(req: NextRequest) {
       const s = subByChurchId.get(c.id)!;
       const hub = hubById.get(c.hub_id);
       return {
+        submissionId: s.id,
         churchId: c.id,
         churchName: c.name,
         hubLabel: hub ? (hub.hub_number ? `Hub ${hub.hub_number} - ${hub.name}` : hub.name) : c.hub_id,
         status: s.status,
         totalCashMinor: s.total_cash_minor,
+        depositsTotalMinor: s.deposits_total_minor,
+        hasGiverFile: !!s.givers_file_path,
+        deposits: [...(s.cash_submission_deposits ?? [])]
+          .sort((a, b) => a.row_index - b.row_index)
+          .map((d) => ({ transactionId: d.transaction_id, channel: d.channel, amountMinor: d.amount_minor, depositedOn: d.deposited_on })),
         totalRegistered: s.total_registered,
         activePartners: s.active_partners,
         newRegistrations: s.new_registrations,

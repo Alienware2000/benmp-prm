@@ -249,7 +249,7 @@ All require a valid hub session; the proxy additionally blocks them while a pass
 
 ### Middleware gate
 
-`src/proxy.ts` + `src/lib/hub/gate.ts` (pure, tested): `/hub/*` and `/api/hub/*` require a valid hub session; a hub session outside `/hub` is redirected into it (never reaches `/poc`); `mustChange` sessions are forced to `/hub/password`; pages: `/hub` (giving overview, Decision 0032), `/hub/upload`, `/hub/partners`, `/hub/settings`; staff cookies grant no hub access and vice versa.
+`src/proxy.ts` + `src/lib/hub/gate.ts` (pure, tested): `/hub/*` and `/api/hub/*` require a valid hub session; a hub session outside `/hub` is redirected into it (never reaches `/poc`); `mustChange` sessions are forced to `/hub/password`; pages: `/hub` (giving overview, Decision 0032), `/hub/upload`, `/hub/partners`, `/hub/claim` (Decision 0033), `/hub/settings`; staff cookies grant no hub access and vice versa.
 
 ## 6. Payment Intake (CSV-only)
 
@@ -476,6 +476,10 @@ The phone is normalized server-side. A real send still requires the staff confir
 ### `POST /api/hub/partners/delete` (Decision 0029)
 
 Hub session required. Body `{ "partnerIds": string[] }` (UUIDs, max 5,000). Removes those of the session hub's partners with no giving on record, after copying each row to `audit_log`. Returns `{ ok, deleted, kept: [{ id, name, reason }] }`; partners of other hubs are silently ignored. `400` when nothing valid is sent, `401` without a hub session.
+### `POST /api/hub/claim` (Decision 0033)
+
+Hub session required; the hub comes from the session. Body `{ "action": "claim", "partnerId", "churchId" }` gives an unassigned giver (no hub, same country as the hub) to the session hub under one of its churches. First claim wins: `409` if another hub got there first or the giver is not in the hub's country. `{ "action": "release", "partnerId" }` undoes the session hub's own claim, restoring the previous church, and is refused for partners the hub uploaded or another hub claimed. Both write `audit_log` (`hub_partner_claim` / `hub_partner_release`) and a structured log. Page: `/hub/claim`.
+
 ## 13. Cash Payment Form Endpoints
 
 Public form at `/cash` for monthly cash collections. Public endpoints under `/api/cash/*`; staff endpoints under `/api/poc/cash/*` (gated by the POC session).

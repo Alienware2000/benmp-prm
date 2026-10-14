@@ -563,6 +563,12 @@ Index:
 
 - `audit_log_entity_idx`
 
+Hub actions written here: `hub_partner_delete` (Decision 0029), `hub_partner_claim` (before: the hub-less row; after: the claimed row + `hub_label`) and `hub_partner_release` (Decision 0033). `actor_id` is null for hub actions — the hub is in the data.
+
+### View `unassigned_givers` (migration 0026, Decision 0033)
+
+Partners with `hub_id is null` and at least one successful payment (joined on `payments.raw_row->>'matched_partner_id'`). Columns: `id`, `full_name`, `phone` (MoMo, else WhatsApp), `country`, `last_gift_at`, `gift_count`, `recent_notes text[]` (up to 5 most recent MTN "To message" / Ecobank "Narration" values). `security_invoker`; `anon`/`authenticated` have no access, the server reads it with the service role and masks the phone before rendering. Migration 0026 also adds the expression index `payments_matched_partner_id_idx` on `(raw_row->>'matched_partner_id')`.
+
 Rules:
 
 - Required for imports, reconciliation, contribution corrections, message approvals/sends, role changes, provider setting changes, AI approvals, and sensitive prayer actions.

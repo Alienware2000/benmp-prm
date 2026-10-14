@@ -619,3 +619,13 @@ Unassigned givers (people who gave but belong to no hub; 910 people / about GHS 
 
 **Said no to**: the SRS "active yearly" USD 60 threshold for this view (with two months of statements almost nobody qualifies; revisit when a full year is loaded) · per-person amounts on the hub dashboard (the trigger: the office asks for them for thank-you follow-up) · auto-adoption on upload (above).
 
+## 0033 — Hubs claim unassigned givers; first claim wins
+
+_2026-10-14_
+
+**Decided**: a hub portal tab, **Unclaimed givers** (`/hub/claim`), lists everyone who has given but belongs to no hub, limited to the hub's own country. Each row shows the name, the last 3 phone digits (masked on the server), the last gift date, the number of gifts, and up to three cleaned payer notes (MTN "To message", Ecobank narration). Givers whose note names the hub or one of its churches are tagged and listed first. A hub claims a giver under one of its churches; the first claim wins, the claim is recorded in `audit_log`, and the hub can release its own claim. Staff reassign disputed people.
+
+**Why**: on 2026-10-14, 910 givers (about GHS 484k) had no hub, so no hub dashboard counted them. Only a person who knows the member can tell a shared phone or a common name apart (Decision 0032), so assignment is a confirmation, not a match.
+
+**Said no to**: showing full phone numbers (the last 3 digits plus the note are enough to recognise your own member, without giving every Ghana hub the national giver list) · letting hubs outside the giver's country see them · claiming without a church (every hub partner has one) · a staff reassignment screen in this change (the trigger: the first disputed claim; until then the office edits `partners.hub_id`/`church_id` and the audit trail shows the history).
+

@@ -8,6 +8,7 @@ import { normalizeNameKey, type ExistingPartner } from "./ingest";
 import { isSensibleName } from "../poc/directory";
 import { inListChunks } from "../poc/in-list";
 import type { HubGivingPayment } from "./giving";
+import type { UnassignedGiverRow } from "./claim";
 import {
   planHubPartnerDeletion,
   type DeletablePartner,
@@ -724,5 +725,175 @@ export async function getLatestPaymentDate(): Promise<string | null> {
     "payments?select=paid_at&status=eq.Successful&order=paid_at.desc&limit=1",
   );
   return rows[0]?.paid_at ?? null;
+}
+
+// --- Claiming unassigned givers (Decision 0033) -----------------------------
+
+/**
+ * Givers with no hub in this country (the `unassigned_givers` view, migration
+ * 0026), most recent gift first. Rows carry the full phone; callers mask it
+ * before anything reaches the browser.
+ */
+export async function getUnassignedGivers(
+  country: string,
+): Promise<UnassignedGiverRow[]> {
+  const out: UnassignedGiverRow[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const rows = await rest<UnassignedGiverRow[]>(
+      `unassigned_givers?country=eq.${encodeURIComponent(country)}` +
+        `&select=id,full_name,phone,country,last_gift_at,gift_count,recent_notes` +
+        `&order=last_gift_at.desc,id.asc&limit=1000&offset=${offset}`,
+    );
+    out.push(...rows);
+    if (rows.length < 1000) break;
+  }
+  return out;
+}
+
+export type ClaimedPartner = {
+  id: string;
+  full_name: string;
+  church: string | null;
+  claimed_at: string;
+};
+
+/** Partners this hub claimed (rather than uploaded), newest claim first. */
+export async function getClaimedByHub(hubId: string): Promise<ClaimedPartner[]> {
+  const rows = await rest<
+    { entity_id: string; created_at: string; after_data: { hub_id?: string } | null }[]
+  >(
+    `audit_log?action=eq.hub_partner_claim&after_data->>hub_id=eq.${encodeURIComponent(hubId)}` +
+      `&select=entity_id,created_at,after_data&order=created_at.desc&limit=1000`,
+  );
+  const claimedAt = new Map<string, string>();
+  for (const r of rows) if (!claimedAt.has(r.entity_id)) claimedAt.set(r.entity_id, r.created_at);
+  if (claimedAt.size === 0) return [];
+  const out: ClaimedPartner[] = [];
+  for (const list of inListChunks([...claimedAt.keys()])) {
+    const partners = await rest<{ id: string; full_name: string; church: string | null }[]>(
+      `partners?id=in.(${list})&hub_id=eq.${encodeURIComponent(hubId)}&select=id,full_name,church`,
+    );
+    for (const p of partners) out.push({ ...p, claimed_at: claimedAt.get(p.id)! });
+  }
+  return out.sort((a, b) => b.claimed_at.localeCompare(a.claimed_at));
+}
+
+type ClaimablePartnerRow = {
+  id: string;
+  full_name: string;
+  hub_id: string | null;
+  church_id: string | null;
+  church: string | null;
+  country: string | null;
+};
+
+export type ClaimResult =
+  | { ok: true; name: string }
+  | { ok: false; reason: "taken" | "not_found" };
+
+/**
+ * Give an unassigned giver to this hub, under one of its churches. First claim
+ * wins: the update only matches while the partner still has no hub, so a second
+ * hub racing for the same person gets `taken`. The previous values go to
+ * audit_log so staff can reassign and the hub can release.
+ */
+export async function claimPartnerForHub(input: {
+  hubId: string;
+  hubLabel: string;
+  country: string;
+  partnerId: string;
+  church: { id: string; name: string };
+}): Promise<ClaimResult> {
+  const select = "id,full_name,hub_id,church_id,church,country";
+  const [before] = await rest<ClaimablePartnerRow[]>(
+    `partners?id=eq.${encodeURIComponent(input.partnerId)}&select=${select}`,
+  );
+  if (!before || before.country !== input.country) return { ok: false, reason: "not_found" };
+  if (before.hub_id) return { ok: false, reason: "taken" };
+
+  const updated = await rest<ClaimablePartnerRow[]>(
+    `partners?id=eq.${encodeURIComponent(input.partnerId)}&hub_id=is.null&select=${select}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        hub_id: input.hubId,
+        church_id: input.church.id,
+        church: input.church.name,
+      }),
+    },
+  );
+  if (!updated || updated.length === 0) return { ok: false, reason: "taken" };
+
+  await rest("audit_log", {
+    method: "POST",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      action: "hub_partner_claim",
+      entity_table: "partners",
+      entity_id: input.partnerId,
+      before_data: before,
+      after_data: { ...updated[0], hub_label: input.hubLabel },
+    }),
+  });
+  console.log(
+    JSON.stringify({
+      source: "hub_partner_claim",
+      hubId: input.hubId,
+      partnerId: input.partnerId,
+      churchId: input.church.id,
+    }),
+  );
+  return { ok: true, name: updated[0].full_name };
+}
+
+/**
+ * Undo this hub's own claim: the partner goes back to having no hub, with the
+ * church it had before the claim. Only a partner this hub claimed (not uploaded)
+ * can be released, and only while the hub still holds them.
+ */
+export async function releaseHubClaim(input: {
+  hubId: string;
+  hubLabel: string;
+  partnerId: string;
+}): Promise<{ ok: boolean }> {
+  const [claim] = await rest<
+    { before_data: ClaimablePartnerRow | null; after_data: { hub_id?: string } | null }[]
+  >(
+    `audit_log?action=eq.hub_partner_claim&entity_id=eq.${encodeURIComponent(input.partnerId)}` +
+      `&select=before_data,after_data&order=created_at.desc&limit=1`,
+  );
+  if (!claim || claim.after_data?.hub_id !== input.hubId) return { ok: false };
+
+  const select = "id,full_name,hub_id,church_id,church,country";
+  const released = await rest<ClaimablePartnerRow[]>(
+    `partners?id=eq.${encodeURIComponent(input.partnerId)}&hub_id=eq.${encodeURIComponent(input.hubId)}&select=${select}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        hub_id: null,
+        church_id: claim.before_data?.church_id ?? null,
+        church: claim.before_data?.church ?? "Unlisted",
+      }),
+    },
+  );
+  if (!released || released.length === 0) return { ok: false };
+
+  await rest("audit_log", {
+    method: "POST",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      action: "hub_partner_release",
+      entity_table: "partners",
+      entity_id: input.partnerId,
+      before_data: { hub_id: input.hubId, hub_label: input.hubLabel },
+      after_data: released[0],
+    }),
+  });
+  console.log(
+    JSON.stringify({ source: "hub_partner_release", hubId: input.hubId, partnerId: input.partnerId }),
+  );
+  return { ok: true };
 }
 

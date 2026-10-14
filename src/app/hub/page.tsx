@@ -1,58 +1,51 @@
 import { cookies } from "next/headers";
-import { ChevronDown, Church, Users } from "lucide-react";
+import { CalendarClock, HandCoins, UserCheck, Users } from "lucide-react";
 import {
   HUB_SESSION_COOKIE,
   hubSessionSecret,
   verifyHubSessionToken,
 } from "@/lib/hub/session";
 import {
-  findHubPartnerNames,
-  getHubChurches,
-  getHubCountry,
+  getHubPartners,
   getHubSummary,
-  getRegionCollectsPledge,
-  getRegionMomoRequired,
+  getLatestPaymentDate,
+  getPaymentsForPartners,
 } from "@/lib/hub/db";
-import { callingCodeForCountry } from "@/lib/hub/calling-codes";
-import { IngestWizard } from "./ingest-wizard";
+import { summarizeHubGiving } from "@/lib/hub/giving";
+import { GiversList } from "./givers-list";
 
 export const dynamic = "force-dynamic";
 
+const ghs = (minor: number) =>
+  `GHS ${(minor / 100).toLocaleString("en-GH", { maximumFractionDigits: 0 })}`;
+const fmtDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+
 /**
- * Hub home: the upload wizard front and center ("upon log in the page should
- * just have the upload box" — Decision 0018), with the hub's numbers beneath.
+ * Hub home (Decision 0032): the hub's own partners and who among them is giving.
+ * Hub-scoped by the session; giving comes from payments matched to this hub's
+ * partners. Uploading moved to /hub/upload.
  */
-export default async function HubHomePage() {
+export default async function HubDashboardPage() {
   const store = await cookies();
   const session = await verifyHubSessionToken(
     store.get(HUB_SESSION_COOKIE)?.value,
     hubSessionSecret(),
   );
-  const [
-    summary,
-    churches,
-    existingPartners,
-    momoRequired,
-    hubCountry,
-    collectsPledge,
-  ] = session
+  const [summary, partners, latestPayment] = session
     ? await Promise.all([
         getHubSummary(session.hubId),
-        getHubChurches(session.hubId),
-        // Names of partners this hub already has, so the preview can say which rows
-        // will update an existing person rather than add a new one.
-        findHubPartnerNames(session.hubId),
-        // Ghana regions collect MoMo; other regions skip the column (Decision 0026).
-        getRegionMomoRequired(session.regionCode),
-        // WhatsApp numbers resolve to the hub's own country (Decision 0027).
-        getHubCountry(session.hubId),
-        // RSC Ghana records an amount pledged per partner (Decision 0030).
-        getRegionCollectsPledge(session.regionCode),
+        getHubPartners(session.hubId),
+        getLatestPaymentDate(),
       ])
-    : [null, [], [], true, "Ghana", false];
+    : [null, [], null];
 
   if (!session || !summary) {
-    // The proxy should make this unreachable; fail soft rather than crash.
     return (
       <p className="text-sm text-muted-foreground">
         Could not load this hub. Sign out and back in, or contact the BENMP
@@ -60,6 +53,45 @@ export default async function HubHomePage() {
       </p>
     );
   }
+
+  const payments = await getPaymentsForPartners(partners.map((p) => p.id));
+  const giving = summarizeHubGiving(
+    partners.map((p) => ({
+      id: p.id,
+      fullName: p.full_name,
+      phone: p.momo_phone_number || p.whatsapp_number || null,
+      church: p.church,
+    })),
+    payments,
+    new Date(),
+  );
+
+  const tiles = [
+    {
+      label: "Partners",
+      value: giving.partnerCount.toLocaleString(),
+      note: `${summary.churchCount} churches`,
+      icon: Users,
+    },
+    {
+      label: "Active partners",
+      value: giving.activeCount.toLocaleString(),
+      note: `Gave since ${fmtDate(giving.activeSince)}`,
+      icon: UserCheck,
+    },
+    {
+      label: "Given since " + fmtDate(giving.activeSince).replace(/^\d+ /, ""),
+      value: ghs(giving.activeWindowMinor),
+      note: `${ghs(giving.yearMinor)} this year`,
+      icon: HandCoins,
+    },
+    {
+      label: "Lapsed",
+      value: giving.lapsedCount.toLocaleString(),
+      note: `${giving.neverCount.toLocaleString()} have not given yet`,
+      icon: CalendarClock,
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -73,81 +105,39 @@ export default async function HubHomePage() {
         </p>
       </div>
 
-      <IngestWizard
-        hubId={session.hubId}
-        existingPartners={existingPartners}
-        momoRequired={momoRequired}
-        whatsappCallingCode={callingCodeForCountry(hubCountry)}
-        collectsPledge={collectsPledge}
-        churches={churches.map((c) => ({
-          id: c.id,
-          name: c.name,
-          nameKey: c.name_key,
-        }))}
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-border bg-surface p-5">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand/10 text-brand">
-              <Church className="h-5 w-5" aria-hidden />
-            </span>
-            <div>
-              <p className="text-xl font-bold tabular-nums text-foreground">
-                {summary.churchCount}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Churches in this hub
-              </p>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {tiles.map(({ label, value, note, icon: Icon }) => (
+          <div
+            key={label}
+            className="rounded-lg border border-border bg-surface p-4"
+          >
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Icon className="h-3.5 w-3.5" aria-hidden />
+              {label}
             </div>
+            <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
+              {value}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>
           </div>
-        </div>
-        <div className="rounded-lg border border-border bg-surface p-5">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-success/10 text-success">
-              <Users className="h-5 w-5" aria-hidden />
-            </span>
-            <div>
-              <p className="text-xl font-bold tabular-nums text-foreground">
-                {summary.partnerCount}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Partners uploaded by this hub
-              </p>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      <details className="group rounded-lg border border-border bg-surface">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 [&::-webkit-details-marker]:hidden">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">
-              Your hub&apos;s approved church list
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Church names in your uploads must match one of these — open the
-              list to check your spreadsheet before uploading.
-            </p>
-          </div>
-          <ChevronDown
-            className="h-4 w-4 flex-none text-muted-foreground transition-transform group-open:rotate-180"
-            aria-hidden
-          />
-        </summary>
-        <div className="border-t border-border px-5 py-4">
-          <ul className="flex flex-wrap gap-1.5">
-            {churches.map((c) => (
-              <li
-                key={c.id}
-                className="rounded-full border border-border bg-background px-2.5 py-1 text-xs text-foreground"
-              >
-                {c.name}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </details>
+      <p className="text-xs text-muted-foreground">
+        Active means a gift by MoMo, bank or Paystack in this month or the two
+        before it, matched to a partner by phone number.
+        {latestPayment
+          ? ` Statements are recorded up to ${fmtDate(latestPayment)}.`
+          : ""}
+      </p>
+
+      {giving.partnerCount === 0 ? (
+        <p className="rounded-lg border border-border bg-surface p-5 text-sm text-muted-foreground">
+          No partners yet. Use the Upload tab to add your first list.
+        </p>
+      ) : (
+        <GiversList givers={giving.givers} />
+      )}
     </div>
   );
 }

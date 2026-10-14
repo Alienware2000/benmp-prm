@@ -607,3 +607,15 @@ _2026-10-14_
 
 **Said no to**: blocking on a total mismatch (a branch may legitimately send fees or a partial transfer; staff judge it) · matching transaction IDs to statement rows automatically (the trigger: the first month with several branches filing, when staff reconcile by hand and the pattern of IDs is known).
 
+## 0032 — The hub portal opens on a giving dashboard; assignment is never automatic
+
+_2026-10-14_
+
+**Decided**: `/hub` is now an overview of the hub's own partners: partner count, **active** partners (a matched gift in the current calendar month or the two before it), lapsed partners (gave before, not since), the total given in that window and this year, and a searchable Active / Lapsed list with each person's last gift date. Uploading moved to `/hub/upload`. Giving is read from payments whose `raw_row.matched_partner_id` is one of the hub's partners, so a hub sees only its own people. Per-person amounts are not shown, only the hub's totals and each person's last gift date.
+
+Unassigned givers (people who gave but belong to no hub; 910 people / about GHS 484k on 2026-10-14) are **not** adopted automatically when a hub uploads the same number. They are assigned only by a person confirming it: a hub claim screen or staff.
+
+**Why**: office, 2026-10-14: admins should see their partners and who is active, not only upload. Automatic adoption by phone was rejected because one number can be shared by several people (a pastor paying for members, a family phone), and a silent wrong assignment is worse than a slow right one.
+
+**Said no to**: the SRS "active yearly" USD 60 threshold for this view (with two months of statements almost nobody qualifies; revisit when a full year is loaded) · per-person amounts on the hub dashboard (the trigger: the office asks for them for thank-you follow-up) · auto-adoption on upload (above).
+

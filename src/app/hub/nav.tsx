@@ -1,6 +1,6 @@
 "use client";
 
-import { FileUp, LayoutDashboard, Settings, Users } from "lucide-react";
+import { FileUp, LayoutDashboard, Settings, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -8,6 +8,7 @@ const TABS = [
   { href: "/hub", label: "Overview", icon: LayoutDashboard },
   { href: "/hub/upload", label: "Upload", icon: FileUp },
   { href: "/hub/partners", label: "Your partners", icon: Users },
+  { href: "/hub/claim", label: "Unclaimed givers", icon: UserPlus },
   { href: "/hub/settings", label: "Settings", icon: Settings },
 ] as const;
 

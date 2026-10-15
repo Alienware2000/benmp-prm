@@ -2,8 +2,8 @@
  * Calling code for each country a hub can be stamped with (hubs.country), so an
  * international hub's WhatsApp numbers resolve to its own country rather than to
  * Ghana (Decision 0027). Countries seeded in scripts/data/*-hubs-churches.json.
- * A hub whose country isn't here (or "Europe", which spans many) gets null: its
- * numbers must then carry their own country code.
+ * A hub whose country isn't here (or "Europe", "Asia", which span many) gets
+ * null: its numbers must then carry their own country code.
  */
 const CALLING_CODES: Record<string, string> = {
   Ghana: "233",
@@ -40,6 +40,11 @@ const CALLING_CODES: Record<string, string> = {
   Togo: "228",
   Uganda: "256",
   "South Sudan": "211",
+  // ESCHATOS single-country hubs (Decision 0034), read with full national rules
+  // in src/lib/phone.ts. Jamaica shares +1 with North America; "1876" adds its
+  // area code so a bare local number resolves to Jamaica, not the US.
+  Brazil: "55",
+  Jamaica: "1876",
 };
 
 /** Calling code digits (no "+") for a hub's country, or null when unknown/mixed. */

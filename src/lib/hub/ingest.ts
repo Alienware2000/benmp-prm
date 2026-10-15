@@ -16,7 +16,11 @@
  * Duplicate names within one upload are rejected. The same phone number may
  * be listed for more than one name.
  */
-import { normalizePhone, normalizeWhatsappPhone } from "../phone";
+import {
+  normalizePhone,
+  normalizeWhatsappPhone,
+  whatsappFormatHint,
+} from "../phone";
 import { normalizeChurchKey } from "./seed";
 
 /** Which uploaded column holds what (0-based). */
@@ -358,9 +362,7 @@ export function validateCandidates(
           field: "whatsappPhone",
           message: momoRequired
             ? "Not a valid WhatsApp number. Use 0244123456 or +233 244 123 456."
-            : cc
-              ? `Not a valid WhatsApp number. Use the local form (0…) or +${cc} followed by the number.`
-              : "Not a valid WhatsApp number. Include the country code, e.g. +44 7700 900123.",
+            : `Not a valid WhatsApp number. ${whatsappFormatHint(cc)}`,
         });
       }
     }

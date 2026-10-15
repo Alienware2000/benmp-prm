@@ -4,6 +4,7 @@ import {
   normalizePhoneForCallingCode,
   normalizeWhatsappPhone,
   samePhone,
+  whatsappFormatHint,
 } from "./phone";
 
 describe("normalizePhone (Ghana-first)", () => {
@@ -117,7 +118,9 @@ describe("normalizeWhatsappPhone (hubs outside Ghana, Decision 0027)", () => {
 
   it("accepts a number whose + Excel stripped", () => {
     expect(normalizeWhatsappPhone("265999123456", "265")).toBe("+265999123456");
-    expect(normalizeWhatsappPhone("265 999 123 456", "265")).toBe("+265999123456");
+    expect(normalizeWhatsappPhone("265 999 123 456", "265")).toBe(
+      "+265999123456",
+    );
   });
 
   it("accepts a bare national number whose leading 0 Excel dropped", () => {
@@ -125,9 +128,15 @@ describe("normalizeWhatsappPhone (hubs outside Ghana, Decision 0027)", () => {
   });
 
   it("keeps an explicit + or 00 international number from any country", () => {
-    expect(normalizeWhatsappPhone("+254 735 841 428", "265")).toBe("+254735841428");
-    expect(normalizeWhatsappPhone("00254735841428", "265")).toBe("+254735841428");
-    expect(normalizeWhatsappPhone("+44 7700 900123", null)).toBe("+447700900123");
+    expect(normalizeWhatsappPhone("+254 735 841 428", "265")).toBe(
+      "+254735841428",
+    );
+    expect(normalizeWhatsappPhone("00254735841428", "265")).toBe(
+      "+254735841428",
+    );
+    expect(normalizeWhatsappPhone("+44 7911 123456", null)).toBe(
+      "+447911123456",
+    );
   });
 
   it("without a calling code, local-form numbers are rejected rather than guessed", () => {
@@ -140,5 +149,82 @@ describe("normalizeWhatsappPhone (hubs outside Ghana, Decision 0027)", () => {
     expect(normalizeWhatsappPhone("12345", "265")).toBeNull();
     expect(normalizeWhatsappPhone("", "265")).toBeNull();
     expect(normalizeWhatsappPhone(null, "265")).toBeNull();
+  });
+});
+
+describe("WhatsApp numbers must be real numbers (Decision 0034)", () => {
+  // Hubs spanning many countries (ESCHATOS Asia, Middle East, South and Central
+  // America; Europe) have no country to fall back on.
+  it("keeps real international numbers in every shape that carries the code", () => {
+    expect(normalizeWhatsappPhone("+55 11 98765 4321", null)).toBe(
+      "+5511987654321",
+    );
+    expect(normalizeWhatsappPhone("5511987654321", null)).toBe(
+      "+5511987654321",
+    );
+    expect(normalizeWhatsappPhone("00971 50 123 4567", null)).toBe(
+      "+971501234567",
+    );
+    expect(normalizeWhatsappPhone("+1 876 555 1234", null)).toBe(
+      "+18765551234",
+    );
+    expect(normalizeWhatsappPhone("919876543210", null)).toBe("+919876543210");
+  });
+
+  it("flags a local number typed without its country code instead of saving it wrong", () => {
+    expect(normalizeWhatsappPhone("(11) 98765-4321", null)).toBeNull(); // Brazil local
+    expect(normalizeWhatsappPhone("876 555 1234", null)).toBeNull(); // Jamaica local
+    expect(normalizeWhatsappPhone("98765 43210", null)).toBeNull(); // India local
+    expect(normalizeWhatsappPhone("8888 8888", null)).toBeNull(); // Costa Rica local
+    expect(normalizeWhatsappPhone("347 123 4567", null)).toBeNull(); // Italy local
+    expect(normalizeWhatsappPhone("050 123 4567", null)).toBeNull(); // UAE local
+  });
+
+  it("flags a + number that is not a real number", () => {
+    expect(normalizeWhatsappPhone("+11987654321", null)).toBeNull();
+    expect(normalizeWhatsappPhone("+44 7700 900123", null)).toBeNull(); // Ofcom drama range
+  });
+
+  it("Brazil hubs read local numbers as Brazilian", () => {
+    expect(normalizeWhatsappPhone("(11) 98765-4321", "55")).toBe(
+      "+5511987654321",
+    );
+    expect(normalizeWhatsappPhone("011 98765 4321", "55")).toBe(
+      "+5511987654321",
+    );
+    expect(normalizeWhatsappPhone("(11) 3456-7890", "55")).toBe(
+      "+551134567890",
+    );
+    expect(normalizeWhatsappPhone("5511987654321", "55")).toBe(
+      "+5511987654321",
+    );
+    expect(normalizeWhatsappPhone("+971 50 123 4567", "55")).toBe(
+      "+971501234567",
+    );
+    expect(normalizeWhatsappPhone("98765", "55")).toBeNull();
+  });
+
+  it("Jamaica hubs read local numbers as Jamaican, never American", () => {
+    expect(normalizeWhatsappPhone("876 555 1234", "1876")).toBe("+18765551234");
+    expect(normalizeWhatsappPhone("1-876-555-1234", "1876")).toBe(
+      "+18765551234",
+    );
+    expect(normalizeWhatsappPhone("18765551234", "1876")).toBe("+18765551234");
+    expect(normalizeWhatsappPhone("555 1234", "1876")).toBeNull(); // no area code
+  });
+
+  it("hubs with a generic calling code read numbers exactly as before", () => {
+    expect(normalizeWhatsappPhone("0999 123 456", "265")).toBe("+265999123456");
+    expect(normalizeWhatsappPhone("999123456", "265")).toBe("+265999123456");
+    expect(normalizeWhatsappPhone("+254 735 841 428", "265")).toBe(
+      "+254735841428",
+    );
+  });
+
+  it("tells the admin how to fix a number for their kind of hub", () => {
+    expect(whatsappFormatHint(null)).toContain("country code");
+    expect(whatsappFormatHint("1876")).toContain("+1 876");
+    expect(whatsappFormatHint("55")).toContain("+55");
+    expect(whatsappFormatHint("265")).toContain("local form (0…) or +265");
   });
 });

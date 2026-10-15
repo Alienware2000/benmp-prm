@@ -314,13 +314,13 @@ describe("validateCandidates: WhatsApp numbers resolve to the hub's country (Dec
         cand({
           name: "Kofi Boateng",
           momoPhone: "",
-          whatsappPhone: "+44 7700 900123",
+          whatsappPhone: "+44 7911 123456",
         }),
       ],
       europe,
     );
     expect(rows[0].issues.some((i) => i.field === "whatsappPhone")).toBe(true);
-    expect(rows[1].whatsappPhoneE164).toBe("+447700900123");
+    expect(rows[1].whatsappPhoneE164).toBe("+447911123456");
   });
 });
 

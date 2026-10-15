@@ -1,3 +1,8 @@
+import {
+  parsePhoneNumberFromString,
+  type CountryCode,
+} from "libphonenumber-js";
+
 /**
  * Phone normalization to E.164 — the matching key for MoMo payments, messaging, and
  * partner matching across every country in the partner base (not just Ghana).
@@ -102,7 +107,8 @@ export function normalizePhone(
  * country: "0999 123 456" (local trunk form), "999123456" (Excel dropped the 0),
  * "265999123456" (Excel dropped the +), "+265 999 123 456", "00265…". With the
  * hub's calling code known, every shape resolves to that country; without one,
- * only shapes that carry their own country code are accepted.
+ * only shapes that carry their own country code are accepted, and only when
+ * they are a real number in that country (Decision 0034).
  * Returns E.164 or null. Never throws.
  */
 export function normalizeWhatsappPhone(
@@ -113,8 +119,12 @@ export function normalizeWhatsappPhone(
   const trimmed = raw.trim();
   if (!trimmed) return null;
 
+  const country = callingCode ? FULL_RULE_COUNTRIES[callingCode] : undefined;
+  if (country) return normalizeWithCountryRules(trimmed, callingCode!, country);
+
   if (trimmed.startsWith("+")) {
     const digits = trimmed.slice(1).replace(/\D/g, "");
+    if (!callingCode) return validInternational(digits);
     return digits.length >= 8 && digits.length <= 15 ? `+${digits}` : null;
   }
   let digits = trimmed.replace(/\D/g, "");
@@ -122,6 +132,7 @@ export function normalizeWhatsappPhone(
   // "00" is the international dialling prefix in most of the world.
   if (digits.startsWith("00")) {
     digits = digits.slice(2);
+    if (!callingCode) return validInternational(digits);
     return digits.length >= 8 && digits.length <= 15 ? `+${digits}` : null;
   }
   if (callingCode) {
@@ -146,9 +157,64 @@ export function normalizeWhatsappPhone(
     }
   }
   // No calling code known, or a longer number: it must carry its own.
+  if (!callingCode) {
+    return digits.startsWith("0") ? null : validInternational(digits);
+  }
   return digits.length >= 8 && digits.length <= 15 && !digits.startsWith("0")
     ? `+${digits}`
     : null;
+}
+
+/** What to tell an admin whose WhatsApp number was not accepted. */
+export function whatsappFormatHint(callingCode: string | null): string {
+  if (!callingCode) {
+    return "Include the country code, e.g. +44 7911 123456.";
+  }
+  if (FULL_RULE_COUNTRIES[callingCode]) {
+    const shown = callingCode === "1876" ? "+1 876" : `+${callingCode}`;
+    return `Check the area code, or write it with ${shown} in front.`;
+  }
+  return `Use the local form (0…) or +${callingCode} followed by the number.`;
+}
+
+/**
+ * Hubs whose country is read with that country's full numbering rules
+ * (libphonenumber) instead of the generic shapes above, because their local
+ * numbers don't follow the "0 + 7-10 digits" pattern (Decision 0034): Brazil's
+ * mobiles have 11 digits after the trunk 0, and Jamaica shares +1 with North
+ * America, so its prefix is "1876" (calling code 1, area code 876).
+ */
+const FULL_RULE_COUNTRIES: Record<string, CountryCode> = {
+  "55": "BR",
+  "1876": "JM",
+};
+
+/**
+ * A number with no country to fall back on (a hub spanning many countries) is
+ * kept only if it is a real number somewhere: "+" + digits must pass the
+ * country's numbering plan. A local number typed without its country code,
+ * e.g. Brazil's "(11) 98765-4321", would otherwise be saved as "+11987654321",
+ * a wrong number nobody notices (Decision 0034).
+ */
+function validInternational(digits: string): string | null {
+  if (digits.length < 8 || digits.length > 15) return null;
+  const parsed = parsePhoneNumberFromString(`+${digits}`);
+  return parsed?.isValid() ? parsed.number : null;
+}
+
+function normalizeWithCountryRules(
+  trimmed: string,
+  callingCode: string,
+  country: CountryCode,
+): string | null {
+  const digits = trimmed.replace(/\D/g, "");
+  if (!digits) return null;
+  if (trimmed.startsWith("+")) return validInternational(digits);
+  if (digits.startsWith("00")) return validInternational(digits.slice(2));
+  const local = parsePhoneNumberFromString(trimmed, country);
+  if (local?.isValid()) return local.number;
+  // Excel stripped the "+" from a number that already carries the code.
+  return digits.startsWith(callingCode) ? validInternational(digits) : null;
 }
 
 /** True when two raw phone strings normalize to the same E.164 number. */

@@ -874,7 +874,7 @@ export async function releaseHubClaim(input: {
       body: JSON.stringify({
         hub_id: null,
         church_id: claim.before_data?.church_id ?? null,
-        church: claim.before_data?.church ?? "Unlisted",
+        church: claim.before_data?.church ?? null,
       }),
     },
   );

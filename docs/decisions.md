@@ -641,3 +641,13 @@ _2026-10-14_
 **Trade-off accepted**: a genuinely new number range that the pinned metadata doesn't know yet is flagged until the library is updated. The upload preview shows the reason, so the admin can ask the office.
 
 **Said no to**: requiring a typed `+` on every number (Excel strips it, so most correct rows would be flagged) · validating Ghana and Africa numbers the same way in this change (their readers already check digit counts; the trigger to extend it is a wrong number found in those regions) · the larger `max` metadata (it gave the same answers on every case tested, at several times the size in the upload page bundle).
+
+## 0035 — ESCHATOS hubs are countries
+
+_2026-10-15_
+
+**Decided**: in the ESCHATOS region every country is a hub and its branches are the hub's churches: 20 hubs, 37 churches (`scripts/data/eschatos-hubs-churches.json`, loaded by `scripts/load-region-hubs-seed.ts eschatos`). The four section hubs created on 2026-10-13 (Asia, Middle East, South America, Central America) are retired by `scripts/sql/retire-eschatos-section-hubs.sql`; Brazil and Jamaica were already countries and keep their rows and logins. Every ESCHATOS country has a calling code and is read with its own numbering plan (`FULL_RULE_COUNTRIES`), so the multi-country check of Decision 0034 now applies to Europe only. Logins follow Decision 0020: the first password is the hub name as the picker shows it (the UAE hub is named "UAE"; its country is United Arab Emirates), changed on first sign-in.
+
+**Why**: the office (2026-10-15): "every country is a hub". A country hub gives each national leader their own login and list, and a country to read local phone numbers by, which a section spanning seven countries could not.
+
+**Said no to**: keeping the sections as a level (regions → hubs → churches has no slot for it, and the office named no use for it; the source grouping is kept in the seed file's notes) · two "Abu Dhabi" churches (the list repeated it; one row until the office says they are two congregations).

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { normalizeChurchKey, parseHubSeed, parseNamedHubSeed } from "./seed";
+import { callingCodeForCountry } from "./calling-codes";
 
 const validDoc = {
   hubs: [
@@ -156,7 +157,11 @@ describe("church objects with branch pastors (Decision 0025)", () => {
         {
           name: "Togo",
           churches: [
-            { name: "Lome Cathedral", leaderName: " Bishop Francis ", leaderPhone: "22891878933 " },
+            {
+              name: "Lome Cathedral",
+              leaderName: " Bishop Francis ",
+              leaderPhone: "22891878933 ",
+            },
             "Akato Cathedral",
           ],
         },
@@ -196,7 +201,7 @@ describe("church objects with branch pastors (Decision 0025)", () => {
   });
 });
 
-describe("the real Africa and Europe seed files", () => {
+describe("the real Africa, Europe and ESCHATOS seed files", () => {
   it("Africa parses to 33 hubs and 344 churches, every church named", () => {
     const doc = JSON.parse(
       readFileSync(
@@ -269,6 +274,21 @@ describe("the real UJ Ghana seed file", () => {
   it("gives every hub at least one church, Wa included", () => {
     for (const h of parseNamedHubSeed(doc).hubs) {
       expect(h.churches.length, h.name).toBeGreaterThan(0);
+    }
+  });
+
+  it("ESCHATOS parses to 20 country hubs and 37 churches, each with a calling code", () => {
+    const doc = JSON.parse(
+      readFileSync(
+        join(__dirname, "../../../scripts/data/eschatos-hubs-churches.json"),
+        "utf8",
+      ),
+    );
+    const out = parseNamedHubSeed(doc);
+    expect(out.hubs).toHaveLength(20);
+    expect(out.churchCount).toBe(37);
+    for (const h of out.hubs) {
+      expect(callingCodeForCountry(h.country), h.name).not.toBeNull();
     }
   });
 });

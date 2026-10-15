@@ -523,6 +523,7 @@ Hub admins get a read view of their own hub's ingested partners and church list.
 
 ## As-built notes
 
+- **ESCHATOS country hubs (2026-10-15, Decision 0035)**: `scripts/data/eschatos-hubs-churches.json` (20 country hubs, 37 churches) loads through `load-region-hubs-seed.ts eschatos`; `scripts/sql/retire-eschatos-section-hubs.sql` removes the four unused section hubs. Calling codes and `FULL_RULE_COUNTRIES` cover every ESCHATOS country. No schema change.
 - **Real-number check for multi-country hubs (2026-10-14, Decision 0034)**: `normalizeWhatsappPhone` validates numbers with `libphonenumber-js` (pinned 1.13.14) when the hub has no single country, and reads Brazil (`55`) and Jamaica (`1876`) with their national rules; `whatsappFormatHint` words the flag per hub type. Calling codes gained Brazil and Jamaica for the ESCHATOS region (data-only, created by SQL 2026-10-14). Africa and Ghana readers unchanged.
 - **Hub claims (2026-10-14, Decision 0033)**: `/hub/claim` + `POST /api/hub/claim`; `src/lib/hub/claim.ts` (masking, note cleaning, hub/church mention matching); claim/release/list in `src/lib/hub/db.ts`; migration 0026 adds the `unassigned_givers` view and an index on `payments.raw_row->>'matched_partner_id'`.
 - **Hub dashboard (2026-10-14, Decision 0032)**: `/hub` became the overview (tiles + Active/Lapsed list, `src/lib/hub/giving.ts`, `getPaymentsForPartners` / `getLatestPaymentDate` in `src/lib/hub/db.ts`); the upload wizard moved unchanged to `/hub/upload` and the nav gained an Overview tab. No schema change.

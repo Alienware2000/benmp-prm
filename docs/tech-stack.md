@@ -22,7 +22,7 @@ Last updated: 2026-07-09. Companion to `docs/decisions.md` (the *why*) and `docs
 | Testing | **Vitest** (unit/integration) + **Playwright** (E2E) | Installed | TDD model: every task ships an executable green-test gate |
 | Validation | Zod | Installed | Standard across server actions / tool schemas |
 | CSV import | papaparse | Installed | Import-tool emphasis; Phase 4/7 |
-| Phone normalization | `src/lib/phone.ts` (E.164, Ghana-aware) | PLANNED (Phase 4) | Repeated theme: match partners by normalized phone |
+| Phone normalization | `src/lib/phone.ts` (E.164, Ghana-aware); `libphonenumber-js` 1.13.14 validates numbers from hubs with no single country (Decision 0034) | IN USE | Repeated theme: match partners by normalized phone |
 
 ## Core framework
 

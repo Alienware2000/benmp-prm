@@ -629,3 +629,15 @@ _2026-10-14_
 
 **Said no to**: showing full phone numbers (the last 3 digits plus the note are enough to recognise your own member, without giving every Ghana hub the national giver list) · letting hubs outside the giver's country see them · claiming without a church (every hub partner has one) · a staff reassignment screen in this change (the trigger: the first disputed claim; until then the office edits `partners.hub_id`/`church_id` and the audit trail shows the history).
 
+
+## 0034 — A WhatsApp number must be a real number when the hub can't supply the country
+
+_2026-10-14_
+
+**Decided**: for a hub with no single country (ESCHATOS Asia, Middle East, South America, Central America; Europe), a WhatsApp number is kept only when it is a valid number in its country's numbering plan (`libphonenumber-js`, pinned 1.13.14), in any shape that carries the code: `+55 11 98765 4321`, `5511987654321` (Excel dropped the `+`), `00971…`. Anything else is flagged in the upload preview with "Include the country code". The ESCHATOS single-country hubs, Brazil and Jamaica, read local numbers with that country's full rules (`FULL_RULE_COUNTRIES` in `src/lib/phone.ts`; Jamaica's prefix is `1876` because it shares +1 with North America). Hubs with a generic calling code (Africa) and the Ghana regions are unchanged.
+
+**Why**: Paul GTWC created the ESCHATOS region on 2026-10-13. A check of the rule from Decision 0027 showed that, with no country known, any 8 to 15 digit string got a `+` and was saved: Brazil's local `(11) 98765-4321` became `+11987654321`, Jamaica's `876 555 1234` became `+8765551234`, Italy's `347 123 4567` became `+3471234567`. A wrong number saved without a warning is worse than a flagged row, because nobody ever finds out the partner is unreachable.
+
+**Trade-off accepted**: a genuinely new number range that the pinned metadata doesn't know yet is flagged until the library is updated. The upload preview shows the reason, so the admin can ask the office.
+
+**Said no to**: requiring a typed `+` on every number (Excel strips it, so most correct rows would be flagged) · validating Ghana and Africa numbers the same way in this change (their readers already check digit counts; the trigger to extend it is a wrong number found in those regions) · the larger `max` metadata (it gave the same answers on every case tested, at several times the size in the upload page bundle).

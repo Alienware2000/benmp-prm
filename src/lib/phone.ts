@@ -180,13 +180,33 @@ export function whatsappFormatHint(callingCode: string | null): string {
 /**
  * Hubs whose country is read with that country's full numbering rules
  * (libphonenumber) instead of the generic shapes above, because their local
- * numbers don't follow the "0 + 7-10 digits" pattern (Decision 0034): Brazil's
+ * numbers don't follow the "0 + 7-10 digits" pattern (Decisions 0034, 0035): Brazil's
  * mobiles have 11 digits after the trunk 0, and Jamaica shares +1 with North
  * America, so its prefix is "1876" (calling code 1, area code 876).
  */
 const FULL_RULE_COUNTRIES: Record<string, CountryCode> = {
   "55": "BR",
   "1876": "JM",
+  // The other ESCHATOS country hubs (Decision 0035): their local shapes vary
+  // (Costa Rica has no trunk 0, India's is optional), so the plan decides.
+  "506": "CR",
+  "502": "GT",
+  "505": "NI",
+  "507": "PA",
+  "592": "GY",
+  "57": "CO",
+  "56": "CL",
+  "595": "PY",
+  "880": "BD",
+  "855": "KH",
+  "91": "IN",
+  "60": "MY",
+  "886": "TW",
+  "66": "TH",
+  "84": "VN",
+  "212": "MA",
+  "974": "QA",
+  "971": "AE",
 };
 
 /**

@@ -22,5 +22,7 @@ describe("callingCodeForCountry", () => {
   it("knows the ESCHATOS single-country hubs (Decision 0034)", () => {
     expect(callingCodeForCountry("Brazil")).toBe("55");
     expect(callingCodeForCountry("Jamaica")).toBe("1876");
+    expect(callingCodeForCountry("United Arab Emirates")).toBe("971");
+    expect(callingCodeForCountry("Costa Rica")).toBe("506");
   });
 });

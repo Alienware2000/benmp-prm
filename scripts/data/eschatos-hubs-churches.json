@@ -1,0 +1,203 @@
+{
+  "source": "ESCHATOS INTERNATIONAL church locations, sent by the office on WhatsApp, 2026-10-15",
+  "notes": "Canonical ESCHATOS hub/church list. Every COUNTRY is a hub (office instruction 2026-10-15), replacing the six section hubs created on 2026-10-13 (Central America, South America, Asia, Middle East, Jamaica, Brazil). The list groups countries as Central America, South America, Asia, Middle East, Jamaica (Caribbean) and Brazil; the grouping is not stored. UAE is the hub name (it is also the first password); its country is United Arab Emirates. The source listed Abu Dhabi twice; it appears once. No branch pastors were given yet.",
+  "hubs": [
+    {
+      "name": "Costa Rica",
+      "displayName": "Costa Rica",
+      "leader": "",
+      "country": "Costa Rica",
+      "churches": [
+        "San José"
+      ]
+    },
+    {
+      "name": "Guatemala",
+      "displayName": "Guatemala",
+      "leader": "",
+      "country": "Guatemala",
+      "churches": [
+        "Guatemala"
+      ]
+    },
+    {
+      "name": "Nicaragua",
+      "displayName": "Nicaragua",
+      "leader": "",
+      "country": "Nicaragua",
+      "churches": [
+        "Managua",
+        "Masaya"
+      ]
+    },
+    {
+      "name": "Panama",
+      "displayName": "Panama",
+      "leader": "",
+      "country": "Panama",
+      "churches": [
+        "Panama City"
+      ]
+    },
+    {
+      "name": "Guyana",
+      "displayName": "Guyana",
+      "leader": "",
+      "country": "Guyana",
+      "churches": [
+        "West Bank Cathedral",
+        "Georgetown",
+        "New Amsterdam",
+        "Pearl",
+        "Linden"
+      ]
+    },
+    {
+      "name": "Colombia",
+      "displayName": "Colombia",
+      "leader": "",
+      "country": "Colombia",
+      "churches": [
+        "Barranquilla",
+        "Cartagena"
+      ]
+    },
+    {
+      "name": "Chile",
+      "displayName": "Chile",
+      "leader": "",
+      "country": "Chile",
+      "churches": [
+        "Santiago"
+      ]
+    },
+    {
+      "name": "Paraguay",
+      "displayName": "Paraguay",
+      "leader": "",
+      "country": "Paraguay",
+      "churches": [
+        "Paraguay"
+      ]
+    },
+    {
+      "name": "Bangladesh",
+      "displayName": "Bangladesh",
+      "leader": "",
+      "country": "Bangladesh",
+      "churches": [
+        "Dhaka"
+      ]
+    },
+    {
+      "name": "Cambodia",
+      "displayName": "Cambodia",
+      "leader": "",
+      "country": "Cambodia",
+      "churches": [
+        "Phnom Penh"
+      ]
+    },
+    {
+      "name": "India",
+      "displayName": "India",
+      "leader": "",
+      "country": "India",
+      "churches": [
+        "Pune City Church"
+      ]
+    },
+    {
+      "name": "Malaysia",
+      "displayName": "Malaysia",
+      "leader": "",
+      "country": "Malaysia",
+      "churches": [
+        "Malaysia"
+      ]
+    },
+    {
+      "name": "Taiwan",
+      "displayName": "Taiwan",
+      "leader": "",
+      "country": "Taiwan",
+      "churches": [
+        "Taipei"
+      ]
+    },
+    {
+      "name": "Thailand",
+      "displayName": "Thailand",
+      "leader": "",
+      "country": "Thailand",
+      "churches": [
+        "Bangkok"
+      ]
+    },
+    {
+      "name": "Vietnam",
+      "displayName": "Vietnam",
+      "leader": "",
+      "country": "Vietnam",
+      "churches": [
+        "Hanoi"
+      ]
+    },
+    {
+      "name": "Morocco",
+      "displayName": "Morocco",
+      "leader": "",
+      "country": "Morocco",
+      "churches": [
+        "Casablanca",
+        "Rabat"
+      ]
+    },
+    {
+      "name": "Qatar",
+      "displayName": "Qatar",
+      "leader": "",
+      "country": "Qatar",
+      "churches": [
+        "Qatar"
+      ]
+    },
+    {
+      "name": "UAE",
+      "displayName": "UAE",
+      "leader": "",
+      "country": "United Arab Emirates",
+      "churches": [
+        "Abu Bakar",
+        "Abu Dhabi",
+        "Dubai",
+        "Sharjah"
+      ]
+    },
+    {
+      "name": "Jamaica",
+      "displayName": "Jamaica",
+      "leader": "",
+      "country": "Jamaica",
+      "churches": [
+        "Clarendon",
+        "Denham Town Campus",
+        "Old Harbour Campus",
+        "Olympic Way",
+        "Portmore",
+        "The University of the West Indies Campus",
+        "Twickenham Park"
+      ]
+    },
+    {
+      "name": "Brazil",
+      "displayName": "Brazil",
+      "leader": "",
+      "country": "Brazil",
+      "churches": [
+        "Rio",
+        "São Paulo"
+      ]
+    }
+  ]
+}

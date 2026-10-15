@@ -40,11 +40,30 @@ const CALLING_CODES: Record<string, string> = {
   Togo: "228",
   Uganda: "256",
   "South Sudan": "211",
-  // ESCHATOS single-country hubs (Decision 0034), read with full national rules
-  // in src/lib/phone.ts. Jamaica shares +1 with North America; "1876" adds its
-  // area code so a bare local number resolves to Jamaica, not the US.
+  // ESCHATOS: every country is a hub (Decisions 0034, 0035), read with full
+  // national rules in src/lib/phone.ts. Jamaica shares +1 with North America;
+  // "1876" adds its area code so a bare local number resolves to Jamaica, not the US.
   Brazil: "55",
   Jamaica: "1876",
+  "Costa Rica": "506",
+  Guatemala: "502",
+  Nicaragua: "505",
+  Panama: "507",
+  Guyana: "592",
+  Colombia: "57",
+  Chile: "56",
+  Paraguay: "595",
+  Bangladesh: "880",
+  Cambodia: "855",
+  India: "91",
+  Malaysia: "60",
+  Taiwan: "886",
+  Thailand: "66",
+  Vietnam: "84",
+  Morocco: "212",
+  Qatar: "974",
+  "United Arab Emirates": "971",
+  UAE: "971",
 };
 
 /** Calling code digits (no "+") for a hub's country, or null when unknown/mixed. */

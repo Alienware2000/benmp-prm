@@ -17,6 +17,7 @@
  *
  * Run: npx tsx --env-file=.env.local scripts/load-region-hubs-seed.ts africa
  *      npx tsx --env-file=.env.local scripts/load-region-hubs-seed.ts europe
+ *      npx tsx --env-file=.env.local scripts/load-region-hubs-seed.ts eschatos
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -42,6 +43,15 @@ const REGIONS = {
     file: "europe-hubs-churches.json",
     sortOrder: 4,
     defaultCountry: "Europe",
+  },
+  // Every country is a hub (Decision 0035). The region row already exists
+  // (sort_order 6), so the upsert only re-asserts it.
+  eschatos: {
+    code: "ESCHATOS",
+    name: "Eschatos",
+    file: "eschatos-hubs-churches.json",
+    sortOrder: 6,
+    defaultCountry: "Eschatos",
   },
 } as const;
 

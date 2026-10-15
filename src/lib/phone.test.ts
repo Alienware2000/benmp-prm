@@ -213,6 +213,16 @@ describe("WhatsApp numbers must be real numbers (Decision 0034)", () => {
     expect(normalizeWhatsappPhone("555 1234", "1876")).toBeNull(); // no area code
   });
 
+  it("ESCHATOS country hubs read local numbers by their own plan (Decision 0035)", () => {
+    expect(normalizeWhatsappPhone("8312 3456", "506")).toBe("+50683123456"); // Costa Rica, no trunk 0
+    expect(normalizeWhatsappPhone("98765 43210", "91")).toBe("+919876543210"); // India
+    expect(normalizeWhatsappPhone("098765 43210", "91")).toBe("+919876543210");
+    expect(normalizeWhatsappPhone("050 123 4567", "971")).toBe("+971501234567"); // UAE
+    expect(normalizeWhatsappPhone("609 1234", "592")).toBe("+5926091234"); // Guyana
+    expect(normalizeWhatsappPhone("0612-345678", "212")).toBe("+212612345678"); // Morocco
+    expect(normalizeWhatsappPhone("123", "506")).toBeNull();
+  });
+
   it("hubs with a generic calling code read numbers exactly as before", () => {
     expect(normalizeWhatsappPhone("0999 123 456", "265")).toBe("+265999123456");
     expect(normalizeWhatsappPhone("999123456", "265")).toBe("+265999123456");

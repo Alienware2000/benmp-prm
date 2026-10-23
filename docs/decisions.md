@@ -651,3 +651,15 @@ _2026-10-15_
 **Why**: the office (2026-10-15): "every country is a hub". A country hub gives each national leader their own login and list, and a country to read local phone numbers by, which a section spanning seven countries could not.
 
 **Said no to**: keeping the sections as a level (regions → hubs → churches has no slot for it, and the office named no use for it; the source grouping is kept in the seed file's notes) · two "Abu Dhabi" churches (the list repeated it; one row until the office says they are two congregations).
+
+## 0036 — The office Admins tab: nine blocks, then hubs, then branches
+
+_2026-10-22_
+
+**Decided**: the staff workspace gets an **Admins** tab (`/poc/admins`). Its first screen is the nine blocks the office listed, in its order and with its short names (UD GH, UJ, RSC, UD AF, UD EU, UD NA, Eschatos Int, UI, First Love), each with hubs, admins signed in, partners, branches, cash reports filed and giving for a chosen month. A block opens its hubs (`/poc/admins/<region>`: admin, last sign-in, partners, cash reports filed, giving); a hub opens its branches (`/poc/admins/<region>/<hubId>`: pastor, partners, giving, cash report filed or not). The block labels live in code (`ADMIN_BLOCKS` in `src/lib/poc/admins-overview.ts`), so the hub login screen keeps the existing region names. Blocks with no region yet (UD NA, UI, First Love) show as "not set up"; a region the list does not name is added at the end rather than hidden. Giving reuses `aggregateMoneyByChurch`, so the figures match the Money by Church page. No schema change.
+
+**Why**: the office asked for "a tab for Admins, to see the admins' reports" (BENMP PORTAL WORKSHOP, 2026-10-14), chased on 2026-10-15, with the nine blocks as its first screen; it is also the office-admin tier Charlie described (2026-10-22): oversight of every hub and branch, including who has filed the month's cash report. The reports partly existed (Money by Church, Partners by Church, Cash Form Monitoring) but were not linked from the workspace menu.
+
+**Said no to**: renaming `regions.name` to the short labels (the office wants them on this tab; the login screen keeps its names for now) · creating empty UD NA, UI and First Love regions now (they would appear on the login screen with no hubs; create them with their first hubs) · separate API routes for the tab (server components read the data directly, one tested aggregation feeds all three screens).
+
+Also in this change: the workspace header shows its tabs from 1024px (it overflowed with seven at 768px), and the phone menu scrolls sideways with full labels (Dashboard reads "Home" there).

@@ -1,6 +1,6 @@
 export default function PocLoading() {
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-7 sm:px-6 md:pb-12">
+    <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-7 sm:px-6 lg:pb-12">
       <div className="animate-pulse">
         <div className="h-7 w-44 rounded bg-muted" />
         <div className="mt-2 h-4 w-full max-w-md rounded bg-muted" />

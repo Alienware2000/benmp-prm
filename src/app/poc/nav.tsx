@@ -10,7 +10,7 @@ export function PocShell({
   children: React.ReactNode;
 }) {
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 pb-28 sm:px-6 md:pb-12">
+    <main className="mx-auto w-full max-w-6xl px-4 pb-28 sm:px-6 lg:pb-12">
       <section className="flex flex-col gap-4 pb-5 pt-7 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-[-0.035em] text-[#06283d]">

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Building2,
   HandCoins,
   LayoutDashboard,
   MessageCircleMore,
@@ -12,7 +13,8 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 const TABS = [
-  { href: "/poc", label: "Dashboard", Icon: LayoutDashboard },
+  { href: "/poc", label: "Dashboard", short: "Home", Icon: LayoutDashboard },
+  { href: "/poc/admins", label: "Admins", Icon: Building2 },
   { href: "/poc/giving", label: "Giving", Icon: HandCoins },
   { href: "/poc/giving/upload", label: "Upload", Icon: Upload },
   { href: "/poc/giving/review", label: "Review", Icon: ClipboardCheck },
@@ -42,10 +44,12 @@ export function WorkspaceNav({ mobile = false }: { mobile?: boolean }) {
     return (
       <nav
         aria-label="Workspace sections"
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-8px_30px_rgba(17,24,39,0.08)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-8px_30px_rgba(17,24,39,0.08)] backdrop-blur lg:hidden"
       >
-        <div className="mx-auto grid max-w-lg grid-cols-6">
-          {TABS.map(({ href, label, Icon }) => {
+        <div className="mx-auto flex max-w-xl overflow-x-auto [scrollbar-width:none]">
+          {TABS.map((tab) => {
+            const { href, label, Icon } = tab;
+            const shortLabel = "short" in tab ? tab.short : label;
             const active = isActive(pathname, href);
             return (
               <Link
@@ -54,7 +58,7 @@ export function WorkspaceNav({ mobile = false }: { mobile?: boolean }) {
                 prefetch
                 aria-current={active ? "page" : undefined}
                 className={
-                  "flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors " +
+                  "flex min-h-14 min-w-[62px] flex-[1_0_auto] flex-col px-2 items-center justify-center gap-1 text-[11px] font-semibold transition-colors " +
                   (active
                     ? "text-brand"
                     : "text-muted-foreground hover:text-foreground")
@@ -68,7 +72,7 @@ export function WorkspaceNav({ mobile = false }: { mobile?: boolean }) {
                 >
                   <Icon className="h-[18px] w-[18px]" aria-hidden />
                 </span>
-                {label}
+                <span className="whitespace-nowrap">{shortLabel}</span>
               </Link>
             );
           })}
@@ -80,7 +84,7 @@ export function WorkspaceNav({ mobile = false }: { mobile?: boolean }) {
   return (
     <nav
       aria-label="Workspace sections"
-      className="hidden items-stretch self-stretch md:flex"
+      className="hidden items-stretch self-stretch lg:flex"
     >
       {TABS.map(({ href, label, Icon }) => {
         const active = isActive(pathname, href);
@@ -91,7 +95,7 @@ export function WorkspaceNav({ mobile = false }: { mobile?: boolean }) {
             prefetch
             aria-current={active ? "page" : undefined}
             className={
-              "relative flex min-h-16 items-center gap-2 px-4 text-sm font-semibold transition-colors " +
+              "relative flex min-h-16 items-center gap-2 whitespace-nowrap px-3 text-sm font-semibold transition-colors xl:px-4 " +
               (active
                 ? "text-[#073b4c] font-bold"
                 : "text-[#607789] font-medium hover:text-[#073b4c]")
@@ -100,7 +104,7 @@ export function WorkspaceNav({ mobile = false }: { mobile?: boolean }) {
             <Icon className="h-4 w-4" aria-hidden />
             {label}
             {active && (
-              <span className="absolute inset-x-4 bottom-0 h-[3px] rounded-full bg-[#16b89a]" />
+              <span className="absolute inset-x-3 bottom-0 h-[3px] rounded-full bg-[#16b89a] xl:inset-x-4" />
             )}
           </Link>
         );

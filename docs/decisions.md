@@ -1,6 +1,8 @@
 # Decisions
 
-One file, all decisions. Each entry: **what we decided → why → what we said no to.** Check here before relitigating something that looks arbitrary. New decisions get appended with the next number.
+Each entry: **what we decided → why → what we said no to.** Check here before relitigating something that looks arbitrary.
+
+> **New decisions go in [`decisions/`](decisions/), one file each** (`NNNN-slug.md`, next unused number), so parallel PRs never edit the same lines (Decision 0042). This file holds 0001–0037 and 0039. 0038, 0040 and later are in the folder.
 
 ---
 

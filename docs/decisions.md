@@ -664,6 +664,18 @@ _2026-10-22_
 
 Also in this change: the workspace header shows its tabs from 1024px (it overflowed with seven at 768px), and the phone menu scrolls sideways with full labels (Dashboard reads "Home" there).
 
+## 0037 — Statements from every bank, read as the bank sends them
+
+_2026-11-14_
+
+**Decided**: the giving uploader (and `scripts/ingest-statements.ts`, which runs the same pipeline from `src/lib/poc/statement-import.ts`) takes **Stanbic** (Excel or PDF), **Zenith** (PDF) and **Fidelity** (PDF) alongside MoMo, Ecobank and Paystack, plus MTN's headerless single-wallet export (read as MoMo). Spreadsheet sources find their header row wherever it is instead of assuming row 1. Bank PDFs are read from their text layer (`unpdf`, pinned 2.1.0) with one parser per bank, because each wraps descriptions differently. **Every bank row must reconcile with the statement's running balance** (that is how credits are told from debits); a row that doesn't rejects the whole file. A difference between the parsed credits and the bank's own printed total is a **warning** shown to staff, not a block. MoMo transfers that arrive through MTN's interoperability bridge (bank or other-network senders) take the sender's name, and phone when present, from the transfer message; the bridge's number is never used for matching.
+
+**Why**: the October 2026 statements (folder `OCT/`) arrived as MTN and Paystack Excel with a title row, Ecobank Excel with a title row, Stanbic Excel under an account block, and Stanbic/Zenith/Fidelity PDFs. The three that were uploaded on 2026-11-14 each recorded 0 rows and then blocked themselves as duplicates. Fidelity's statement covers Aug–Oct and no Fidelity giving had ever been recorded. Stanbic's Excel summary prints GHS 10,590 of credits while its lines (all balance-consistent) add to GHS 10,490: blocking on that would stop a correct import over a bank-side summary, so it's surfaced instead. The bridge's two numbers had been matched like givers' numbers: one belongs to a placeholder partner "INTEROPERABILITY PULL OVA" created in the September review, the other to a real hub partner, so every bridged gift would credit one of them.
+
+**Said no to**: OCR for scanned PDFs (none received; a scanned file fails with a clear message) · trusting column x-positions to tell debit from credit (the balance is unambiguous) · putting bank account numbers in the phone field (a 13-digit account's last nine digits could collide with a phone).
+
+**Ledger references**: banks use `<account>:<date>:<amount minor>:<description>` with `#n` for an identical repeat, stable when the same period is exported again; the MTN wallet export uses the transaction id, the same id space as the main MoMo statement. Ecobank keeps its existing shape (empty account part) so Aug/Sep references can't be duplicated by a re-export.
+
 ## 0038 — Hubs see their month: all giving, cash, and who has filed
 
 _2026-11-14_
@@ -693,14 +705,3 @@ _2026-11-14_
 **Why**: the office (2026-11-14): "drill down from hub/denomination to church to member by month at the member level", from both the office admin and hub admin logins.
 
 **Said no to**: a separate per-member page (the table already is the member-by-month view) · attributing form cash to members (the form doesn't say who gave it).
-
-## 0041 — Download a month's givers as a contact CSV for broadcasts
-
-_2026-11-14_
-
-**Decided**: a **Download <Month> givers (CSV)** button sits beside the month picker on the hub's Monthly summary (whole hub) and church page, and on the office's hub and church pages. It downloads everyone who gave in that month: members with statement giving (MoMo, bank, Paystack) matched to them, plus the cash givers listed on the month's Monthly Summary Forms, merged by phone so a person appears once. Columns: **Name, Phone (E.164), Church, Given (GHS), Gave by** (Statement / Cash / Statement and cash); sorted by church then name; UTF-8 with a byte-order mark so Excel shows accented names. Names and churches starting with `= + - @` are prefixed with `'` so a spreadsheet cannot run them as formulas (they partly come from a public form); the phone keeps its `+`. Routes: `GET /api/hub/givers` (the session's own hub only) and `GET /api/poc/givers` (staff). A church outside the hub is refused (404) on both. Every download is written to `audit_log` (`giver_contacts_export`: who — hub or office — hub, church, month, contact count) and logged.
-
-**Why**: the office (2026-11-14): "a button to download the names and numbers of those who have given for a given month as a csv of contacts so we can send them a broadcast".
-
-**Said no to**: sending the broadcast from here (the existing Messages tab and the office's broadcast tools do that; this is the list) · leaving out people without a phone (the list should be complete; broadcast tools skip blanks) · dropping the `+` to stop Excel showing long numbers in scientific form (broadcast tools need E.164).
-

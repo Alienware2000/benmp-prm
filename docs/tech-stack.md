@@ -77,6 +77,7 @@ Last updated: 2026-07-09. Companion to `docs/decisions.md` (the *why*) and `docs
 | --- | --- | --- |
 | `zod` | ^4.4.3 | Input validation, AI tool schemas |
 | `papaparse` | ^5.5.4 | CSV import (partners, statements) |
+| `unpdf` | 2.1.0 (pinned) | Text from bank statement PDFs (Stanbic, Zenith, Fidelity), Decision 0037 |
 | `date-fns` | ^4.4.0 | Dates |
 | `@tanstack/react-table` | ^8.21.3 | Admin tables |
 | `recharts` | ^3.9.2 | Reports charts |

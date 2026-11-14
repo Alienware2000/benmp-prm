@@ -2,7 +2,38 @@ import { normalizePhone } from "../phone";
 import { collapseDoubledName, parseAmountToMinor } from "../ingest";
 import { inListChunks } from "./in-list";
 
-export type PaymentSource = "momo" | "ecobank" | "paystack_onetime" | "paystack_recurring";
+export type PaymentSource =
+  | "momo"
+  | "ecobank"
+  | "stanbic"
+  | "zenith"
+  | "fidelity"
+  | "paystack_onetime"
+  | "paystack_recurring";
+
+export const PAYMENT_SOURCES: readonly PaymentSource[] = [
+  "momo",
+  "ecobank",
+  "stanbic",
+  "zenith",
+  "fidelity",
+  "paystack_onetime",
+  "paystack_recurring",
+];
+
+export function isPaymentSource(value: string): value is PaymentSource {
+  return (PAYMENT_SOURCES as readonly string[]).includes(value);
+}
+
+/** Ghana bank or MoMo statements; Paystack payers can be anywhere. */
+export function isGhanaStatementSource(source: PaymentSource): boolean {
+  return !source.startsWith("paystack");
+}
+
+/** Country for a partner created from a statement row. */
+export function countryForPaymentSource(source: PaymentSource): string {
+  return isGhanaStatementSource(source) ? "Ghana" : "Unknown";
+}
 
 export type RawPaymentRow = Record<string, string>;
 
@@ -28,6 +59,8 @@ export type PaymentParseResult = {
   rows: NormalizedPaymentRow[];
   rejects: PaymentParseReject[];
   skipped: PaymentParseReject[];
+  /** Statement-level discrepancies staff should see but that don't block import. */
+  warnings?: string[];
 };
 
 export type PartnerForPaymentMatch = {
@@ -147,6 +180,28 @@ function parseDate(raw: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+/**
+ * Transfers into the wallet from a bank or another network arrive through MTN's
+ * interoperability bridge: "From" is the bridge ("INTEROPERABILITY PULL [OVA]"),
+ * shared by every such sender, and the real sender is in "To message" as
+ * "NAME ,ACCOUNT-OR-PHONE,narration from INSTITUTION". The bridge's number must
+ * never be used for matching — it would credit every bridged gift to one partner.
+ * Returns null for ordinary wallet-to-wallet rows.
+ */
+export function interoperabilitySender(
+  fromName: string,
+  message: string,
+): { name: string | null; phone: string | null } | null {
+  if (!/^INTEROPERABILITY\b/i.test(fromName.trim())) return null;
+  const [rawName = "", rawId = ""] = message.split(",").map((part) => part.trim());
+  const name = collapseDoubledName(rawName).replace(/\s+/g, " ").trim() || null;
+  // Telecel/AirtelTigo senders carry a real number (233XXXXXXXXX or 9 digits);
+  // bank senders carry a masked account ("10xxxxxx18").
+  const digits = /^\d+$/.test(rawId) ? rawId : "";
+  const phone = digits.length === 9 ? normalizePhone(`0${digits}`) : normalizePhone(digits || null);
+  return { name, phone };
+}
+
 export function parseMomoRows(rows: RawPaymentRow[]): PaymentParseResult {
   const out: NormalizedPaymentRow[] = [];
   const rejects: PaymentParseReject[] = [];
@@ -172,9 +227,11 @@ export function parseMomoRows(rows: RawPaymentRow[]): PaymentParseResult {
       rejects.push({ index, reason: "invalid date", rawRow: row });
       return;
     }
-    const payerName = collapseDoubledName(cell(row, "From name")) || null;
-    const payerPhoneOrAccount =
-      extractMomoPhone(cell(row, "From")) ?? extractMomoPhone(cell(row, "From account"));
+    const bridged = interoperabilitySender(cell(row, "From name"), cell(row, "To message"));
+    const payerName = bridged ? bridged.name : collapseDoubledName(cell(row, "From name")) || null;
+    const payerPhoneOrAccount = bridged
+      ? bridged.phone
+      : extractMomoPhone(cell(row, "From")) ?? extractMomoPhone(cell(row, "From account"));
     out.push({
       source: "momo",
       sourceRowId: id,
@@ -237,7 +294,10 @@ export function parseEcobankRows(rows: RawPaymentRow[]): PaymentParseResult {
       rejects.push({ index, reason: "invalid value date", rawRow: row });
       return;
     }
-    const account = cell(row, "Account");
+    // References from the Aug/Sep 2026 imports were built while the export's
+    // untrimmed "Account " header left this empty; it stays empty so a re-export
+    // of an imported month can't create a second reference for the same credit.
+    const account = "";
     const srNo = cell(row, "Sr. No.") || String(index + 1);
     const narration = cell(row, "Narration");
     const datePart = transactionDate.slice(0, 10);
@@ -520,7 +580,10 @@ function resolvePaymentMethod(row: NormalizedPaymentRow): string | null {
   if (typeof rawMethod === "string") return rawMethod;
   switch (row.source) {
     case "momo": return "mobile_money";
-    case "ecobank": return "bank_transfer";
+    case "ecobank":
+    case "stanbic":
+    case "zenith":
+    case "fidelity": return "bank_transfer";
     case "paystack_onetime":
     case "paystack_recurring": return "paystack_card";
     default: return null;

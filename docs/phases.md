@@ -1,6 +1,6 @@
 # BENMP PRM — Phased Implementation Plan
 
-> The build playbook and keystone of the docs set. Each phase is self-contained and deliverable by an AI agent in 1–3 days, in strict dependency order (parallel only where noted). Hand the **Prompt** block at the bottom of each phase to the agent verbatim — it references the rest of `docs/`. The agent should always read [README.md](./README.md), [srs.md](./srs.md), [tech-stack.md](./tech-stack.md), [db-schema.md](./db-schema.md), and [decisions.md](./decisions.md) before coding. This build is **test-driven**: each phase's `VERIFY` block lists the executable tests that must be green before the next phase starts. Record deviations as **"As-built notes (Phase N, date)"**; the schema is authoritative.
+> The build playbook and keystone of the docs set. Each phase is self-contained and deliverable by an AI agent in 1–3 days, in strict dependency order (parallel only where noted). Hand the **Prompt** block at the bottom of each phase to the agent verbatim — it references the rest of `docs/`. The agent should always read [README.md](./README.md), [srs.md](./srs.md), [tech-stack.md](./tech-stack.md), [db-schema.md](./db-schema.md), and [decisions.md](./decisions.md) before coding. This build is **test-driven**: each phase's `VERIFY` block lists the executable tests that must be green before the next phase starts. Record deviations as an as-built note: **one new file in [`as-built/`](as-built/)** (`YYYY-MM-DD-slug.md`; Decision 0042). The "As-built notes" list at the end holds the notes up to Decision 0040 and is no longer added to. The schema is authoritative.
 
 ## Definition of done
 
@@ -522,8 +522,6 @@ Hub admins get a read view of their own hub's ingested partners and church list.
 **VERIFY**: archive row counts equal live counts before clearing · CSV exports open and match row counts · after clearing, the hub platform works against the empty live tables · archive schema is unreachable from every app route.
 
 ## As-built notes
-
-> **New notes go in [`as-built/`](as-built/), one file each** (`YYYY-MM-DD-slug.md`), so parallel PRs never edit the same lines (Decision 0042). The list below runs up to 2026-11-14 and is no longer added to.
 
 - **Statements from every bank (2026-11-14, Decision 0037)**: `src/lib/poc/statement-parse.ts` (one entry point per source), `bank-statements.ts` (Stanbic Excel/PDF, Zenith PDF, Fidelity PDF, MTN wallet export; balance-checked), `src/lib/pdf-lines.ts` (positioned PDF text via `unpdf`), header-row detection in `src/lib/spreadsheet-rows.ts`. The upload route's import steps moved to `src/lib/poc/statement-import.ts`, shared with `scripts/ingest-statements.ts` (dry run by default, `--commit`, `--clear-empty-duplicates`). No schema change: `payment_imports.provider` and `payments.payment_method` are free text; the vault has no MIME allow-list.
 - **Office Admins tab (2026-10-22, Decision 0036)**: `/poc/admins` (nine blocks) -> `/poc/admins/[region]` (hubs) -> `/poc/admins/[region]/[hubId]` (branches), server components over `src/lib/poc/admins-data.ts` (loads regions, hubs, logins, branches, partners, the month's payments and cash submissions) and the pure `src/lib/poc/admins-overview.ts` (tested). Admins added to the workspace menu; header tabs from `lg`, phone menu scrolls. No schema change, no new API route.

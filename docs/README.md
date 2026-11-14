@@ -27,7 +27,7 @@ A staff-only console + AI assistant for the BENMP office (~40,000 partners world
 | [phases.md](phases.md)                                 | **What to build**: the authoritative 14-phase test-driven plan             | 15 min                            |
 | [delivery-plan.md](delivery-plan.md)                   | Companion: Workstreams, one-week sprint, Cross-phase rules (phase list superseded by phases.md) | 10 min (your track only) |
 | [design-spec.md](design-spec.md)                       | Every design detail + the UI redesign proposal (Appendix A)                | Reference - use the section map   |
-| [decisions.md](decisions.md) + [decisions/](decisions/) | Why we chose X; 0001–0037 and 0039 in the file, newer ones one file each in the folder | Skim before relitigating anything |
+| [decisions.md](decisions.md) + [decisions/](decisions/) | Why we chose X; up to 0040 in the file, 0041 on one file each in the folder | Skim before relitigating anything |
 | [security.md](security.md)                             | Auth, RLS, CSV import safety, consent, AI approval, audit                   | Before backend/provider work      |
 | [deployment.md](deployment.md)                         | Vercel/Supabase setup, env vars, migrations, backups, release checklist    | Before going live                 |
 | [api-spec.md](api-spec.md)                             | Planned API/server-action/webhook contract                                 | Before backend routes             |

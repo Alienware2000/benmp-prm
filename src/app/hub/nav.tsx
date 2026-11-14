@@ -1,11 +1,19 @@
 "use client";
 
-import { FileUp, LayoutDashboard, Settings, UserPlus, Users } from "lucide-react";
+import {
+  CalendarRange,
+  FileUp,
+  LayoutDashboard,
+  Settings,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/hub", label: "Overview", icon: LayoutDashboard },
+  { href: "/hub/summary", label: "Monthly summary", icon: CalendarRange },
   { href: "/hub/upload", label: "Upload", icon: FileUp },
   { href: "/hub/partners", label: "Your partners", icon: Users },
   { href: "/hub/claim", label: "Unclaimed givers", icon: UserPlus },

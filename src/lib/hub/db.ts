@@ -8,6 +8,7 @@ import { normalizeNameKey, type ExistingPartner } from "./ingest";
 import { isSensibleName } from "../poc/directory";
 import { inListChunks } from "../poc/in-list";
 import type { HubGivingPayment } from "./giving";
+import type { HubMonthlyInput } from "./monthly";
 import type { UnassignedGiverRow } from "./claim";
 import {
   planHubPartnerDeletion,
@@ -717,6 +718,54 @@ export async function getPaymentsForPartners(
     }),
   );
   return chunks.flat();
+}
+
+/** All pages of a PostgREST read (it silently caps at 1,000 rows). */
+async function restAll<T>(path: string): Promise<T[]> {
+  const out: T[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const rows = await rest<T[]>(`${path}&limit=1000&offset=${offset}`);
+    out.push(...rows);
+    if (rows.length < 1000) return out;
+  }
+}
+
+/**
+ * Everything the hub's Monthly summary needs from `fromMonth` ("YYYY-MM")
+ * onwards (Decision 0038): its churches, its partners' churches, payments
+ * matched to its partners, and its churches' cash reports. Every read is
+ * filtered by this hub, so one hub never sees another's figures.
+ */
+export async function getHubMonthlyInput(
+  hubId: string,
+  fromMonth: string,
+): Promise<HubMonthlyInput> {
+  const hub = encodeURIComponent(hubId);
+  const from = `${fromMonth}-01`;
+  const [churches, partners, cashReports] = await Promise.all([
+    restAll<HubMonthlyInput["churches"][number]>(
+      `hub_churches?hub_id=eq.${hub}&select=id,name,leader_name&order=name.asc,id.asc`,
+    ),
+    restAll<HubMonthlyInput["partners"][number]>(
+      `partners?hub_id=eq.${hub}&select=id,church_id&order=id.asc`,
+    ),
+    restAll<HubMonthlyInput["cashReports"][number]>(
+      `cash_submissions?hub_id=eq.${hub}&reporting_month=gte.${from}` +
+        `&select=church_id,reporting_month,total_cash_minor,submitted_at&order=reporting_month.asc,id.asc`,
+    ),
+  ]);
+  const payments = (
+    await Promise.all(
+      inListChunks(partners.map((p) => p.id)).map((list) =>
+        restAll<HubMonthlyInput["payments"][number]>(
+          `payments?select=partner_id:raw_row->>matched_partner_id,paid_at,amount_minor,payment_method,raw_method:raw_row->>_payment_method,raw_source:raw_row->>source` +
+            `&status=eq.Successful&paid_at=gte.${from}&raw_row->>matched_partner_id=in.(${list})` +
+            `&order=paid_at.asc,reference.asc`,
+        ),
+      ),
+    )
+  ).flat();
+  return { churches, partners, payments, cashReports };
 }
 
 /** The most recent payment date on record, so admins know how current the numbers are. */

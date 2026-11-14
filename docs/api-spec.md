@@ -413,27 +413,29 @@ Gates (unchanged from 0008 §6): `opt_outs` is enforced, `BENMP_SEND_ALLOWLIST` 
 
 ### `POST /api/poc/giving/upload`
 
-Uploads the fixed MoMo CSV or Ecobank XLS statement format from `/poc/giving/upload`.
+Uploads a giving statement from `/poc/giving/upload` (Decision 0037). Shares its pipeline with `scripts/ingest-statements.ts` (`src/lib/poc/statement-import.ts`).
 
 Multipart form fields:
 
 - `action`: `preview` or `commit`.
 - Preferred `action`: `import` — one-click parse + safe-match insert + unresolved rows returned for review.
-- `source`: `momo`, `ecobank`, `paystack_onetime`, or `paystack_recurring`.
-- `file`: statement file — CSV or Excel (`.xls`/`.xlsx`) for every source; the format is detected from the file's content signature, falling back to the extension.
+- `source`: `momo`, `ecobank`, `stanbic`, `zenith`, `fidelity`, `paystack_onetime`, or `paystack_recurring`.
+- `file`: statement file. MoMo, Ecobank and Paystack: CSV or Excel (`.xls`/`.xlsx`), header row located wherever it is (title rows above it are fine); MoMo also accepts MTN's headerless single-wallet export. Stanbic: Excel or PDF. Zenith, Fidelity: the bank's downloaded PDF (a scan without a text layer is refused). Format is detected from the file's content signature, falling back to the extension.
 - `decisions`: JSON object for `commit`, keyed by normalized row id. Each value is `{ action: "match", partnerId }`, `{ action: "create", name }`, or `{ action: "dismiss" }`.
 
 Rules:
 
 - MoMo imports only successful rows and matches the `From` MSISDN phone first, then `From account`, then `From name`.
 - Ecobank imports only `Credit` rows; `Debit` rows never create gifts.
+- Stanbic/Zenith/Fidelity import credits only; each row must reconcile with the running balance or the request fails and nothing is written. A mismatch with the statement's printed credit total is returned in `warnings: string[]` (preview and import) without blocking.
+- MoMo rows from MTN's interoperability bridge (`From name` "INTEROPERABILITY PULL…") take payer name/phone from `To message`; the bridge's own number is never matched.
 - Safe exact phone matches auto-apply, including Ghana last-9-digit comparisons across `024...`, `23324...`, `+23324...`, and statement `FRI:23324.../MSISDN` shapes.
 - Unique normalized full-name matches and unique first-name + last-name matches auto-apply after titles are stripped.
 - Ambiguous or unmatched rows are reviewed by staff: match existing, create partner, or dismiss.
 - Upload commit is non-blocking: omitted review decisions are counted as `deferred` instead of dismissed, so safe matches can import immediately while staff review unresolved rows later.
-- Accepted rows are inserted idempotently into the POC `payments` ledger with references prefixed by source (`momo:` / `ecobank:`). Name-only bank matches carry `raw_row.matched_partner_id` so the giving ledger can attribute them to a partner.
+- Accepted rows are inserted idempotently into the POC `payments` ledger with references prefixed by source (`momo:`, `ecobank:`, `stanbic:`, `zenith:`, `fidelity:`, `paystack_onetime:`, …). Name-only bank matches carry `raw_row.matched_partner_id` so the giving ledger can attribute them to a partner.
 - Uploads revalidate the `poc-giving` cache tag after commit.
-- Newly created partners from MoMo/Ecobank rows are assigned Ghana; Paystack-created partners are assigned `Unknown` until staff supplies a country, so dashboard regional totals do not infer a country from an unknown Paystack export.
+- Newly created partners from MoMo and bank rows are assigned Ghana; Paystack-created partners are assigned `Unknown` until staff supplies a country, so dashboard regional totals do not infer a country from an unknown Paystack export.
 - Every parsed row is also stored in `payment_import_rows` under a `payment_imports` batch. Safe rows are marked `promoted`; unresolved rows are marked `needs_review` and appear in `/poc/giving/review`.
 - File-level dedup (migration 0022): the `import` and `commit` actions compute a SHA-256 hash of the file content and reject re-uploads with `409 { error: "duplicate_file", existingBatch: { id, filename, created_at, row_count } }`. The `preview` action returns `fileHash` in its response so the client can warn before import. A different file with the same filename produces a different hash and succeeds.
 - Statement vault (migration 0024): `import` saves the original file to the private `statement-vault` bucket before writing the batch (logs `statement_vaulted`), and records `storage_path`, `file_size_bytes`, `content_type` on the batch. If the vault upload fails, nothing is imported.
@@ -463,7 +465,7 @@ Staff. Lists the `payment_import_rows` for a specific batch. Returns `{ ok, rows
 
 Staff. Aggregates all successful payments by church, with method breakdowns (MoMo / bank / cash / Paystack / other), rolling up to hub, country, and region. Optional `?month=YYYY-MM` filter. Returns `{ ok, churches: [...], rollups: { byHub, byCountry, byRegion }, unattributed: { totalMinor, paymentCount, byMethod } }`. Payments without a matched partner are counted in `unattributed`.
 
-`/poc` (dashboard) · `/poc/giving` (filterable ledger) · `/poc/giving/upload` (MoMo/Ecobank giving import) · `/poc/messages` (send to one number or selected partners). `/poc/directory` redirects to the selected-partners mode in Messages, and `/poc/giving/test` redirects to the single-number mode. Giving and partner search take their filters as **GET query params** so filtered views remain linkable.
+`/poc` (dashboard) · `/poc/giving` (filterable ledger) · `/poc/giving/upload` (MoMo, bank and Paystack statement import) · `/poc/messages` (send to one number or selected partners). `/poc/directory` redirects to the selected-partners mode in Messages, and `/poc/giving/test` redirects to the single-number mode. Giving and partner search take their filters as **GET query params** so filtered views remain linkable.
 
 ### `POST /api/poc/messages/direct`
 

@@ -113,6 +113,25 @@ describe("payment upload parsers", () => {
     expect(result.rows[0].payerPhoneOrAccount).toBe("+233244123456");
   });
 
+  it("takes bridged (bank/other-network) senders from the message, never the bridge's number", () => {
+    const bridged = (from: string, fromName: string, message: string) =>
+      parseMomoRows([
+        { Id: "2001", Date: "2026-10-02 11:05:40", Status: "Successful", From: from, "From account": "FRI:104435872/MM", "From name": fromName, "To message": message, Amount: "20" },
+      ]).rows[0];
+
+    expect(bridged("FRI:mmipull/USER", "INTEROPERABILITY PULL OVA", "AMA SERWAA ,10xxxxxx18,Hub 25 benmp from FBL Fidelity Bank Limited")).toMatchObject({
+      payerName: "AMA SERWAA",
+      payerPhoneOrAccount: null,
+    });
+    expect(bridged("FRI:233597000000/MSISDN", "INTEROPERABILITY PULL", "KOFI MENSAH ,233501234567,LCC from VODAFONE")).toMatchObject({
+      payerName: "KOFI MENSAH",
+      payerPhoneOrAccount: "+233501234567",
+    });
+    expect(bridged("FRI:mmipull/USER", "INTEROPERABILITY PULL OVA", "ESI DOE ,265782052,Funds transfer wallet to wallet from AIRTEL").payerPhoneOrAccount).toBe(
+      "+233265782052",
+    );
+  });
+
   it("parses Ecobank credit rows and ignores debit rows", () => {
     const result = parseEcobankRows([
       {
@@ -148,7 +167,8 @@ describe("payment upload parsers", () => {
       payerName: "DR. JOSEPH ATO QUANSAH",
       payerPhoneOrAccount: null,
     });
-    expect(result.rows[0].sourceRowId).toContain("1441000220876:3:2026-08-03");
+    // The account part stays empty to match references already in the ledger.
+    expect(result.rows[0].sourceRowId).toMatch(/^:3:2026-08-03:2500:/);
   });
 
   it("extracts payer names from common Ecobank narration patterns", () => {

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import {
   assertPaymentRowsExist,
+  countryForPaymentSource,
   buildPaymentRows,
   parseJsonObject,
   type NormalizedPaymentRow,
@@ -82,10 +83,6 @@ async function loadPartners(): Promise<PartnerForPaymentMatch[]> {
     offset += pageSize;
   }
   return allRows.map(toPartner);
-}
-
-function countryForPaymentSource(source: NormalizedPaymentRow["source"]): string {
-  return source === "momo" || source === "ecobank" ? "Ghana" : "Unknown";
 }
 
 async function createPartner(

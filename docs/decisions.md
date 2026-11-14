@@ -684,3 +684,13 @@ _2026-11-14_
 
 **Said no to**: letting the public form edit existing partners (anyone with the link could overwrite a person's number) · requiring cash in Ghana (some churches have none in a month) · renaming the table or URL (links already sent to churches keep working).
 
+## 0040 — Drill down to each church's members, month by month
+
+_2026-11-14_
+
+**Decided**: below the hub, both logins open a church: the office from Admins → block → hub → **church** (`/poc/admins/<region>/<hubId>/<churchId>`), the hub admin from Monthly summary → **church** (`/hub/summary/<churchId>`). The page shows the church's Monthly Summary Form for the chosen month (submitted with its four numbers, or not), tiles (members, members who gave and giving in the month, giving over six months), and a **member × month** table for the six months ending at the chosen month: each member's statement giving (MoMo, bank, Paystack matched to them) per month and in total, givers first; then monthly totals, members who gave, and, for Ghana churches, the cash on the form. Form cash is reported per church, not per member, so it is its own line; ledger rows in the cash group are left out of member figures. One pure function (`buildChurchMemberView`, tested) and one table component (`MemberMonthGrid`) serve both logins. `getChurchMemberInput(hubId, churchId, …)` returns nothing unless the church belongs to that hub, so a hub admin cannot open another hub's church by editing the address (checked: 404).
+
+**Why**: the office (2026-11-14): "drill down from hub/denomination to church to member by month at the member level", from both the office admin and hub admin logins.
+
+**Said no to**: a separate per-member page (the table already is the member-by-month view) · attributing form cash to members (the form doesn't say who gave it).
+

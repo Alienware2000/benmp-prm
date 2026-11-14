@@ -249,7 +249,7 @@ All require a valid hub session; the proxy additionally blocks them while a pass
 
 ### Middleware gate
 
-`src/proxy.ts` + `src/lib/hub/gate.ts` (pure, tested): `/hub/*` and `/api/hub/*` require a valid hub session; a hub session outside `/hub` is redirected into it (never reaches `/poc`); `mustChange` sessions are forced to `/hub/password`; pages: `/hub` (giving overview, Decision 0032), `/hub/summary` (monthly summary: giving, the Monthly Summary Form's four numbers summed, churches submitted / not submitted, month by month; cash for Ghana hubs only; Decisions 0038, 0039), `/hub/upload`, `/hub/partners`, `/hub/claim` (Decision 0033), `/hub/settings`; staff cookies grant no hub access and vice versa.
+`src/proxy.ts` + `src/lib/hub/gate.ts` (pure, tested): `/hub/*` and `/api/hub/*` require a valid hub session; a hub session outside `/hub` is redirected into it (never reaches `/poc`); `mustChange` sessions are forced to `/hub/password`; pages: `/hub` (giving overview, Decision 0032), `/hub/summary/<churchId>` (one church, member × month; Decision 0040), `/hub/summary` (monthly summary: giving, the Monthly Summary Form's four numbers summed, churches submitted / not submitted, month by month; cash for Ghana hubs only; Decisions 0038, 0039), `/hub/upload`, `/hub/partners`, `/hub/claim` (Decision 0033), `/hub/settings`; staff cookies grant no hub access and vice versa.
 
 ## 6. Payment Intake (CSV-only)
 

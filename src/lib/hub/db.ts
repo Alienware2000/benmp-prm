@@ -9,6 +9,7 @@ import { isSensibleName } from "../poc/directory";
 import { inListChunks } from "../poc/in-list";
 import type { HubGivingPayment } from "./giving";
 import type { HubMonthlyInput } from "./monthly";
+import type { ChurchMemberInput } from "./church-members";
 import type { UnassignedGiverRow } from "./claim";
 import {
   planHubPartnerDeletion,
@@ -481,6 +482,8 @@ export type HubSummary = {
   hubNumber: number | null;
   hubLabel: string;
   regionName: string;
+  /** regions.code, e.g. "UD_GHANA"; null for a hub with no region. */
+  regionCode: string | null;
   leaderName: string;
   churchCount: number;
   partnerCount: number;
@@ -493,9 +496,9 @@ export async function getHubSummary(hubId: string): Promise<HubSummary | null> {
       hub_number: number | null;
       name: string;
       leader_name: string;
-      regions: { name: string } | null;
+      regions: { name: string; code: string } | null;
     }[]
-  >(`hubs?id=eq.${id}&select=hub_number,name,leader_name,regions(name)`);
+  >(`hubs?id=eq.${id}&select=hub_number,name,leader_name,regions(name,code)`);
   const hub = hubs?.[0];
   if (!hub) return null;
 
@@ -518,6 +521,7 @@ export async function getHubSummary(hubId: string): Promise<HubSummary | null> {
     hubNumber: hub.hub_number,
     hubLabel: hubLabel(hub.hub_number, hub.name),
     regionName: hub.regions?.name ?? "UD Ghana",
+    regionCode: hub.regions?.code ?? null,
     leaderName: hub.leader_name,
     churchCount,
     partnerCount,
@@ -766,6 +770,49 @@ export async function getHubMonthlyInput(
     )
   ).flat();
   return { churches, partners, payments, cashReports };
+}
+
+/**
+ * One church's members, their matched payments and the church's Monthly Summary
+ * Forms from `fromMonth` ("YYYY-MM") onwards (Decision 0040). Null unless the
+ * church belongs to `hubId`: a hub can only open its own churches, whatever
+ * id is put in the address.
+ */
+export async function getChurchMemberInput(
+  hubId: string,
+  churchId: string,
+  fromMonth: string,
+): Promise<ChurchMemberInput | null> {
+  const hub = encodeURIComponent(hubId);
+  const church = encodeURIComponent(churchId);
+  const from = `${fromMonth}-01`;
+  const churches = await rest<ChurchMemberInput["church"][]>(
+    `hub_churches?id=eq.${church}&hub_id=eq.${hub}&select=id,name,leader_name,hub_id`,
+  );
+  if (!churches?.[0]) return null;
+  const [partners, forms] = await Promise.all([
+    restAll<ChurchMemberInput["partners"][number]>(
+      `partners?hub_id=eq.${hub}&church_id=eq.${church}` +
+        `&select=id,full_name,momo_phone_number,whatsapp_number&order=full_name.asc,id.asc`,
+    ),
+    restAll<ChurchMemberInput["forms"][number]>(
+      `cash_submissions?church_id=eq.${church}&reporting_month=gte.${from}` +
+        `&select=reporting_month,total_cash_minor,submitted_at,total_registered,active_partners,new_registrations,lapsed` +
+        `&order=reporting_month.asc,id.asc`,
+    ),
+  ]);
+  const payments = (
+    await Promise.all(
+      inListChunks(partners.map((p) => p.id)).map((list) =>
+        restAll<ChurchMemberInput["payments"][number]>(
+          `payments?select=partner_id:raw_row->>matched_partner_id,paid_at,amount_minor,payment_method,raw_method:raw_row->>_payment_method,raw_source:raw_row->>source` +
+            `&status=eq.Successful&paid_at=gte.${from}&raw_row->>matched_partner_id=in.(${list})` +
+            `&order=paid_at.asc,reference.asc`,
+        ),
+      ),
+    )
+  ).flat();
+  return { church: churches[0], partners, payments, forms };
 }
 
 /** The most recent payment date on record, so admins know how current the numbers are. */

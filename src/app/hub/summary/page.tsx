@@ -230,8 +230,8 @@ export default async function HubSummaryPage({
         </div>
       </section>
 
-      <SubmittedTable rows={m.filed} reportsCash={reportsCash} />
-      <NotSubmittedTable rows={m.notFiled} />
+      <SubmittedTable rows={m.filed} reportsCash={reportsCash} month={month} />
+      <NotSubmittedTable rows={m.notFiled} month={month} />
 
       {m.noChurchMinor > 0 && (
         <p className="text-sm text-muted-foreground">
@@ -314,9 +314,11 @@ export default async function HubSummaryPage({
 function SubmittedTable({
   rows,
   reportsCash,
+  month,
 }: {
   rows: ChurchMonthRow[];
   reportsCash: boolean;
+  month: string;
 }) {
   return (
     <section>
@@ -356,7 +358,7 @@ function SubmittedTable({
                   className="border-b border-border last:border-0"
                 >
                   <td className="px-3 py-3">
-                    <span className="font-semibold">{row.name}</span>
+                    <ChurchLink row={row} month={month} />
                     {row.pastor && (
                       <span className="block text-xs text-muted-foreground">
                         {row.pastor}
@@ -389,7 +391,13 @@ function SubmittedTable({
   );
 }
 
-function NotSubmittedTable({ rows }: { rows: ChurchMonthRow[] }) {
+function NotSubmittedTable({
+  rows,
+  month,
+}: {
+  rows: ChurchMonthRow[];
+  month: string;
+}) {
   return (
     <section>
       <h2 className="mb-2 text-base font-bold text-red-700">
@@ -416,7 +424,9 @@ function NotSubmittedTable({ rows }: { rows: ChurchMonthRow[] }) {
                   key={row.churchId}
                   className="border-b border-border last:border-0"
                 >
-                  <td className="px-3 py-3 font-semibold">{row.name}</td>
+                  <td className="px-3 py-3">
+                    <ChurchLink row={row} month={month} />
+                  </td>
                   <td className="hidden px-3 py-3 sm:table-cell">
                     {row.pastor || "Not on record"}
                   </td>
@@ -433,5 +443,17 @@ function NotSubmittedTable({ rows }: { rows: ChurchMonthRow[] }) {
         </div>
       )}
     </section>
+  );
+}
+
+/** Church name linking to its member-by-month view (Decision 0040). */
+function ChurchLink({ row, month }: { row: ChurchMonthRow; month: string }) {
+  return (
+    <Link
+      href={`/hub/summary/${row.churchId}?month=${month}`}
+      className="font-semibold text-brand hover:underline"
+    >
+      {row.name}
+    </Link>
   );
 }

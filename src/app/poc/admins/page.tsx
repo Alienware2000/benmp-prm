@@ -98,6 +98,33 @@ export default async function AdminsPage({
               <div key={b.label}>{card}</div>
             );
           })}
+
+          {/* The public form branches use to file the "Cash reports filed" above. */}
+          <div className="flex h-full flex-col rounded-lg border border-dashed border-brand/50 bg-surface p-4 shadow-sm">
+            <h2 className="text-lg font-bold text-foreground">
+              Cash giving form
+            </h2>
+            <p className="mt-2 flex-1 text-sm text-muted-foreground">
+              Where each church reports its cash collections for the month. Open
+              it to file a report, or copy the link to send to a branch.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <a
+                href="/cash"
+                target="_blank"
+                rel="noopener"
+                className="rounded bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90"
+              >
+                Open form
+              </a>
+              <Link
+                href="/poc/cash/monitoring"
+                className="text-sm font-semibold text-brand hover:underline"
+              >
+                Filed reports
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </div>

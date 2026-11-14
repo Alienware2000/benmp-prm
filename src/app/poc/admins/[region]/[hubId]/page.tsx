@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DownloadGiversLink } from "@/components/giving/member-month-grid";
 import { loadAdminsInput } from "@/lib/poc/admins-data";
 import {
   ADMIN_BLOCKS,
@@ -57,10 +58,16 @@ export default async function AdminsHubPage({
               {dateLabel(hub.lastSignIn)}.
             </p>
           </div>
-          <MonthPicker
-            month={month}
-            action={`/poc/admins/${code.toLowerCase()}/${hubId}`}
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            <MonthPicker
+              month={month}
+              action={`/poc/admins/${code.toLowerCase()}/${hubId}`}
+            />
+            <DownloadGiversLink
+              href={`/api/poc/givers?hubId=${hubId}&month=${month}`}
+              month={month}
+            />
+          </div>
         </div>
 
         <div className="mt-6 grid gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-4">

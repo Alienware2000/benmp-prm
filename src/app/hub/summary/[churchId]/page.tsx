@@ -11,6 +11,7 @@ import { buildChurchMemberView } from "@/lib/hub/church-members";
 import { monthsEndingAt } from "@/lib/hub/monthly";
 import { resolveMonth } from "@/lib/poc/admins-overview";
 import {
+  DownloadGiversLink,
   FormLine,
   MemberMonthGrid,
 } from "@/components/giving/member-month-grid";
@@ -108,6 +109,12 @@ export default async function HubChurchPage({
             Show
           </button>
         </form>
+      </div>
+      <div className="flex justify-end">
+        <DownloadGiversLink
+          href={`/api/hub/givers?month=${month}&churchId=${churchId}`}
+          month={month}
+        />
       </div>
 
       <FormLine view={view} month={month} />

@@ -179,3 +179,27 @@ export function FormLine({
     </p>
   );
 }
+
+/** Downloads the month's givers as a contact CSV for a broadcast (Decision 0041). */
+export function DownloadGiversLink({
+  href,
+  month,
+}: {
+  href: string;
+  month: string;
+}) {
+  const label = new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return (
+    <a
+      href={href}
+      download
+      className="inline-flex items-center gap-1.5 rounded border border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand/5"
+    >
+      Download {label} givers (CSV)
+    </a>
+  );
+}

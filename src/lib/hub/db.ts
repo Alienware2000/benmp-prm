@@ -10,6 +10,7 @@ import { inListChunks } from "../poc/in-list";
 import type { HubGivingPayment } from "./giving";
 import type { HubMonthlyInput } from "./monthly";
 import type { ChurchMemberInput } from "./church-members";
+import type { GiverContactInput } from "./giver-contacts";
 import type { UnassignedGiverRow } from "./claim";
 import {
   planHubPartnerDeletion,
@@ -813,6 +814,90 @@ export async function getChurchMemberInput(
     )
   ).flat();
   return { church: churches[0], partners, payments, forms };
+}
+
+/**
+ * Everyone who gave in `month` ("YYYY-MM") for one hub, or one of its churches
+ * when `churchId` is given (Decision 0041). Null when that church is not the
+ * hub's, so neither login can export another hub's people.
+ */
+export async function getGiverContactInput(
+  hubId: string,
+  month: string,
+  churchId?: string,
+): Promise<(GiverContactInput & { churchName: string | null }) | null> {
+  const hub = encodeURIComponent(hubId);
+  const churchRows = await rest<{ id: string; name: string }[]>(
+    `hub_churches?hub_id=eq.${hub}&select=id,name`,
+  );
+  const churchName = new Map(churchRows.map((c) => [c.id, c.name]));
+  if (churchId && !churchName.has(churchId)) return null;
+  const churchFilter = churchId ? `&church_id=eq.${encodeURIComponent(churchId)}` : "";
+  const [y, m] = month.split("-").map(Number);
+  const start = `${month}-01`;
+  const end = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
+
+  const [partners, forms] = await Promise.all([
+    restAll<GiverContactInput["partners"][number]>(
+      `partners?hub_id=eq.${hub}${churchFilter}` +
+        `&select=id,full_name,momo_phone_number,whatsapp_number,church&order=id.asc`,
+    ),
+    restAll<{ id: string; church_id: string }>(
+      `cash_submissions?hub_id=eq.${hub}${churchFilter}&reporting_month=eq.${start}&select=id,church_id&order=id.asc`,
+    ),
+  ]);
+  const [payments, givers] = await Promise.all([
+    Promise.all(
+      inListChunks(partners.map((p) => p.id)).map((list) =>
+        restAll<GiverContactInput["payments"][number]>(
+          `payments?select=partner_id:raw_row->>matched_partner_id,paid_at,amount_minor,payment_method,raw_method:raw_row->>_payment_method,raw_source:raw_row->>source` +
+            `&status=eq.Successful&paid_at=gte.${start}&paid_at=lt.${end}&raw_row->>matched_partner_id=in.(${list})` +
+            `&order=paid_at.asc,reference.asc`,
+        ),
+      ),
+    ).then((chunks) => chunks.flat()),
+    Promise.all(
+      inListChunks(forms.map((f) => f.id)).map((list) =>
+        restAll<{ submission_id: string; giver_name: string | null; giver_phone: string | null; amount_minor: number }>(
+          `cash_submission_givers?submission_id=in.(${list})` +
+            `&select=submission_id,giver_name,giver_phone,amount_minor&order=submission_id.asc,row_index.asc`,
+        ),
+      ),
+    ).then((chunks) => chunks.flat()),
+  ]);
+  const formChurch = new Map(forms.map((f) => [f.id, churchName.get(f.church_id) ?? ""]));
+  return {
+    partners,
+    payments,
+    cashGivers: givers.map((g) => ({ ...g, church: formChurch.get(g.submission_id) ?? "" })),
+    churchName: churchId ? (churchName.get(churchId) ?? null) : null,
+  };
+}
+
+/** Record a contact-list download in audit_log (who, scope, month, how many). */
+export async function auditGiverExport(entry: {
+  by: "hub" | "office";
+  hubId: string;
+  churchId: string | null;
+  month: string;
+  contacts: number;
+}): Promise<void> {
+  await rest(`audit_log`, {
+    method: "POST",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      action: "giver_contacts_export",
+      entity_table: entry.churchId ? "hub_churches" : "hubs",
+      entity_id: entry.churchId ?? entry.hubId,
+      after_data: {
+        exported_by: entry.by,
+        hub_id: entry.hubId,
+        church_id: entry.churchId,
+        month: entry.month,
+        contacts: entry.contacts,
+      },
+    }),
+  });
 }
 
 /** The most recent payment date on record, so admins know how current the numbers are. */

@@ -663,3 +663,16 @@ _2026-10-22_
 **Said no to**: renaming `regions.name` to the short labels (the office wants them on this tab; the login screen keeps its names for now) · creating empty UD NA, UI and First Love regions now (they would appear on the login screen with no hubs; create them with their first hubs) · separate API routes for the tab (server components read the data directly, one tested aggregation feeds all three screens).
 
 Also in this change: the workspace header shows its tabs from 1024px (it overflowed with seven at 768px), and the phone menu scrolls sideways with full labels (Dashboard reads "Home" there).
+
+## 0037 — Statements from every bank, read as the bank sends them
+
+_2026-11-14_
+
+**Decided**: the giving uploader (and `scripts/ingest-statements.ts`, which runs the same pipeline from `src/lib/poc/statement-import.ts`) takes **Stanbic** (Excel or PDF), **Zenith** (PDF) and **Fidelity** (PDF) alongside MoMo, Ecobank and Paystack, plus MTN's headerless single-wallet export (read as MoMo). Spreadsheet sources find their header row wherever it is instead of assuming row 1. Bank PDFs are read from their text layer (`unpdf`, pinned 2.1.0) with one parser per bank, because each wraps descriptions differently. **Every bank row must reconcile with the statement's running balance** (that is how credits are told from debits); a row that doesn't rejects the whole file. A difference between the parsed credits and the bank's own printed total is a **warning** shown to staff, not a block. MoMo transfers that arrive through MTN's interoperability bridge (bank or other-network senders) take the sender's name, and phone when present, from the transfer message; the bridge's number is never used for matching.
+
+**Why**: the October 2026 statements (folder `OCT/`) arrived as MTN and Paystack Excel with a title row, Ecobank Excel with a title row, Stanbic Excel under an account block, and Stanbic/Zenith/Fidelity PDFs. The three that were uploaded on 2026-11-14 each recorded 0 rows and then blocked themselves as duplicates. Fidelity's statement covers Aug–Oct and no Fidelity giving had ever been recorded. Stanbic's Excel summary prints GHS 10,590 of credits while its lines (all balance-consistent) add to GHS 10,490: blocking on that would stop a correct import over a bank-side summary, so it's surfaced instead. The bridge's two numbers had been matched like givers' numbers: one belongs to a placeholder partner "INTEROPERABILITY PULL OVA" created in the September review, the other to a real hub partner, so every bridged gift would credit one of them.
+
+**Said no to**: OCR for scanned PDFs (none received; a scanned file fails with a clear message) · trusting column x-positions to tell debit from credit (the balance is unambiguous) · putting bank account numbers in the phone field (a 13-digit account's last nine digits could collide with a phone).
+
+**Ledger references**: banks use `<account>:<date>:<amount minor>:<description>` with `#n` for an identical repeat, stable when the same period is exported again; the MTN wallet export uses the transaction id, the same id space as the main MoMo statement. Ecobank keeps its existing shape (empty account part) so Aug/Sep references can't be duplicated by a re-export.
+

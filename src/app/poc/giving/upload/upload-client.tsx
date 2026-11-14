@@ -3,8 +3,9 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, FileUp, LoaderCircle, TriangleAlert } from "lucide-react";
+import type { PaymentSource } from "@/lib/poc/payment-upload";
 
-type Source = "momo" | "ecobank" | "paystack_onetime" | "paystack_recurring";
+type Source = PaymentSource;
 
 type PreviewPartner = {
   id: string;
@@ -39,6 +40,7 @@ type PreviewResponse = {
   partnerOptions: Array<{ id: string; name: string; phone: string | null }>;
   rejects: Array<{ index: number; reason: string }>;
   skipped: number;
+  warnings?: string[];
 };
 
 type CommitResponse = {
@@ -55,6 +57,7 @@ type CommitResponse = {
   };
   rows?: PreviewRow[];
   partnerOptions?: PreviewResponse["partnerOptions"];
+  warnings?: string[];
 };
 
 type Decision =
@@ -223,6 +226,9 @@ export function GivingUploadClient() {
             >
               <option value="momo">MoMo</option>
               <option value="ecobank">Ecobank</option>
+              <option value="stanbic">Stanbic (Excel or PDF)</option>
+              <option value="zenith">Zenith (PDF)</option>
+              <option value="fidelity">Fidelity (PDF)</option>
               <option value="paystack_onetime">Paystack One-time</option>
               <option value="paystack_recurring">Paystack Recurring</option>
             </select>
@@ -234,7 +240,7 @@ export function GivingUploadClient() {
             <input
               ref={fileRef}
               type="file"
-              accept=".csv,.xls,.xlsx,text/csv"
+              accept=".csv,.xls,.xlsx,.pdf,text/csv,application/pdf"
               className={inputClass + " file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-semibold"}
               onChange={(event) => {
                 setFile(event.target.files?.[0] ?? null);
@@ -254,7 +260,7 @@ export function GivingUploadClient() {
           </button>
         </div>
         <p className="mt-3 text-xs leading-5 text-muted-foreground">
-          MoMo, Ecobank, and Paystack files import safe matches immediately. Unmatched or ambiguous rows move into the review queue below.
+          MoMo, bank (Ecobank, Stanbic, Zenith, Fidelity) and Paystack statements import safe matches immediately. Bank PDFs must be the bank&apos;s downloaded statement, not a scan. Unmatched or ambiguous rows move into the review queue below.
         </p>
       </section>
 
@@ -263,6 +269,15 @@ export function GivingUploadClient() {
           {error}
         </p>
       )}
+
+      {(preview?.warnings ?? committed?.warnings ?? []).map((warning) => (
+        <p
+          key={warning}
+          className="flex gap-2 rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning"
+        >
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" /> {warning}
+        </p>
+      ))}
 
       {preview && (
         <>

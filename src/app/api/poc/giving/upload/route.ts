@@ -1,30 +1,24 @@
-import { normalizePhone } from "@/lib/phone";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import {
-  assertPaymentRowsExist,
   buildPaymentRows,
-  matchNormalizedRows,
-  parseEcobankRows,
+  countryForPaymentSource,
+  isPaymentSource,
   parseJsonArray,
   parseJsonObject,
-  parseMomoRows,
-  parsePaystackOnetimeRows,
-  parsePaystackRecurringRows,
   type NormalizedPaymentRow,
   type PartnerForPaymentMatch,
-  type PaymentSource,
-  type PocPaymentInsertRow,
 } from "@/lib/poc/payment-upload";
-import { computeFileHash, findDuplicateBatch } from "@/lib/poc/import-dedup";
 import {
-  contentTypeFor,
-  statementMonth,
-  vaultObjectPath,
-} from "@/lib/poc/statement-file";
-import { saveStatementFile } from "@/lib/poc/statement-vault";
-import { inListChunks } from "@/lib/poc/in-list";
-import { readSheetRows } from "@/lib/spreadsheet-rows";
+  createPartner,
+  importPreparedStatement,
+  insertPayments,
+  loadPartners,
+  paymentReference,
+  prepareStatement,
+  serializeRow,
+  updateImportRowStatus,
+} from "@/lib/poc/statement-import";
 
 export const dynamic = "force-dynamic";
 
@@ -32,262 +26,6 @@ type CommitDecision =
   | { action: "match"; partnerId: string }
   | { action: "create"; name: string }
   | { action: "dismiss" };
-
-type PartnerRow = {
-  id: string;
-  full_name: string;
-  momo_phone_number: string | null;
-  whatsapp_number: string | null;
-  church: string | null;
-  country: string | null;
-};
-
-type ImportRow = { id: string };
-
-function paymentReference(row: NormalizedPaymentRow): string {
-  return `${row.source}:${row.providerReference}`;
-}
-
-function env() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Supabase env is not configured.");
-  return { url, key };
-}
-
-async function rest<T>(pathAndQuery: string, init?: RequestInit): Promise<T> {
-  const { url, key } = env();
-  const response = await fetch(`${url}/rest/v1/${pathAndQuery}`, {
-    ...init,
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      ...(init?.headers ?? {}),
-    },
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`Supabase ${pathAndQuery}: ${response.status} ${await response.text()}`);
-  }
-  if (response.status === 204) return undefined as T;
-  const text = await response.text();
-  if (!text.trim()) return undefined as T;
-  return JSON.parse(text) as T;
-}
-
-function toPartner(row: PartnerRow): PartnerForPaymentMatch {
-  return {
-    id: row.id,
-    fullName: row.full_name,
-    momoPhoneNumber: row.momo_phone_number,
-    whatsappNumber: row.whatsapp_number,
-    church: row.church,
-    country: row.country,
-  };
-}
-
-async function loadPartners(): Promise<PartnerForPaymentMatch[]> {
-  const allRows: PartnerRow[] = [];
-  let offset = 0;
-  const pageSize = 1000;
-  while (true) {
-    const rows = await rest<PartnerRow[]>(
-      `partners?select=id,full_name,momo_phone_number,whatsapp_number,church,country&order=full_name.asc&limit=${pageSize}&offset=${offset}`,
-    );
-    if (!rows || rows.length === 0) break;
-    allRows.push(...rows);
-    if (rows.length < pageSize) break;
-    offset += pageSize;
-  }
-  return allRows.map(toPartner);
-}
-function countryForPaymentSource(source: PaymentSource): string {
-  return source === "momo" || source === "ecobank" ? "Ghana" : "Unknown";
-}
-
-
-async function createPartner(
-  name: string,
-  phone: string | null = null,
-  country = "Unknown",
-): Promise<PartnerForPaymentMatch> {
-  const cleanName = name.trim();
-  if (!cleanName) throw new Error("New partner name is required.");
-  const normalizedPhone = normalizePhone(phone);
-  const rows = await rest<PartnerRow[]>("partners?select=id,full_name,momo_phone_number,whatsapp_number,church,country", {
-    method: "POST",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify([
-      {
-        full_name: cleanName,
-        momo_phone_number: normalizedPhone,
-        country,
-        church: "Unlisted",
-        denomination: "Unlisted",
-        source: "payment_upload_review",
-        status: "active",
-      },
-    ]),
-  });
-  return toPartner(rows[0]);
-}
-
-async function insertPayments(rows: PocPaymentInsertRow[]): Promise<void> {
-  if (rows.length === 0) return;
-  await rest<void>("payments?on_conflict=reference", {
-    method: "POST",
-    headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
-    body: JSON.stringify(rows),
-  });
-
-  await assertPaymentRowsExist(rows, (path) => rest<Array<{ reference: string }>>(path));
-}
-
-async function createImportBatch({
-  provider,
-  filename,
-  rowCount,
-  matchedCount,
-  ambiguousCount,
-  storagePath,
-  fileSizeBytes,
-  contentType,
-}: {
-  provider: string;
-  filename: string;
-  rowCount: number;
-  matchedCount: number;
-  ambiguousCount: number;
-  storagePath: string;
-  fileSizeBytes: number;
-  contentType: string;
-}): Promise<string> {
-  // The file_hash is NOT set here — it is stamped after rows and payments
-  // succeed, so a failed import can be retried without hitting the unique
-  // (provider, file_hash) constraint on an incomplete batch.
-  const rows = await rest<ImportRow[]>("payment_imports?select=id", {
-    method: "POST",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify([
-      {
-        provider,
-        filename,
-        status: "processed",
-        row_count: rowCount,
-        matched_count: matchedCount,
-        ambiguous_count: ambiguousCount,
-        storage_path: storagePath,
-        file_size_bytes: fileSizeBytes,
-        content_type: contentType,
-      },
-    ]),
-  });
-  return rows[0].id;
-}
-
-async function stampFileHash(importId: string, fileHash: string): Promise<void> {
-  await rest<void>(
-    `payment_imports?id=eq.${encodeURIComponent(importId)}`,
-    {
-      method: "PATCH",
-      headers: { Prefer: "return=minimal" },
-      body: JSON.stringify({ file_hash: fileHash }),
-    },
-  );
-}
-
-async function insertImportRows({
-  importId,
-  matches,
-}: {
-  importId: string;
-  matches: ReturnType<typeof matchNormalizedRows>;
-}): Promise<void> {
-  if (matches.length === 0) return;
-  const refs = matches.map((match) => paymentReference(match.row));
-  const existingRefs = await existingImportPaymentReferences(refs);
-  const newMatches = matches.filter((match) => !existingRefs.has(paymentReference(match.row)));
-  if (newMatches.length === 0) return;
-  await rest<void>("payment_import_rows", {
-    method: "POST",
-    headers: { Prefer: "return=minimal" },
-    body: JSON.stringify(
-      newMatches.map((match) => ({
-        import_id: importId,
-        partner_id: match.partner?.id ?? null,
-        payment_reference: paymentReference(match.row),
-        raw_row: match.row.rawRow,
-        normalized_row: serializeRow(match.row),
-        match_status: match.status === "auto" ? "promoted" : "needs_review",
-        match_confidence: match.status === "auto" ? 100 : 0,
-        notes: match.reason,
-        resolved_at: match.status === "auto" ? new Date().toISOString() : null,
-      })),
-    ),
-  });
-}
-
-async function existingImportPaymentReferences(refs: string[]): Promise<Set<string>> {
-  if (refs.length === 0) return new Set();
-  const existing = new Set<string>();
-  for (const list of inListChunks(refs, { maxValues: 100 })) {
-    const rows = await rest<Array<{ payment_reference: string | null }>>(
-      `payment_import_rows?select=payment_reference&payment_reference=in.(${list})&limit=1000`,
-    );
-    for (const row of rows) if (row.payment_reference) existing.add(row.payment_reference);
-  }
-  return existing;
-}
-
-async function updateImportRowStatus(
-  paymentReferences: string[],
-  status: "promoted" | "dismissed" | "needs_review",
-  partnerId?: string | null,
-): Promise<void> {
-  const body = JSON.stringify({
-    match_status: status,
-    ...(partnerId !== undefined ? { partner_id: partnerId } : {}),
-    resolved_at: status === "needs_review" ? null : new Date().toISOString(),
-  });
-  for (const list of inListChunks(paymentReferences)) {
-    await rest<void>(`payment_import_rows?payment_reference=in.(${list})`, {
-      method: "PATCH",
-      headers: { Prefer: "return=minimal" },
-      body,
-    });
-  }
-}
-
-// Every source accepts CSV or Excel — detected from the file itself, so a Paystack
-// .xlsx export or a MoMo sheet saved from Excel reads the same as its CSV.
-function parseUploadedRows(
-  filename: string,
-  buffer: ArrayBuffer,
-  source: PaymentSource,
-): ReturnType<typeof parseMomoRows> {
-  // MTN's Excel export keeps the transactions on a sheet named "ReportSheet".
-  const rawRows = readSheetRows(filename, buffer, "ReportSheet");
-  if (source === "momo") return parseMomoRows(rawRows);
-  if (source === "ecobank") return parseEcobankRows(rawRows);
-  if (source === "paystack_onetime") return parsePaystackOnetimeRows(rawRows);
-  if (source === "paystack_recurring") return parsePaystackRecurringRows(rawRows);
-  throw new Error(`Unknown source: ${source}`);
-}
-
-function serializeRow(row: NormalizedPaymentRow) {
-  return {
-    source: row.source,
-    sourceRowId: row.sourceRowId,
-    transactionDate: row.transactionDate,
-    amountMinor: row.amountMinor,
-    currency: row.currency,
-    payerName: row.payerName,
-    payerPhoneOrAccount: row.payerPhoneOrAccount,
-    providerReference: row.providerReference,
-    rawRow: row.rawRow,
-  };
-}
 
 function isNormalizedPaymentRow(value: unknown): value is NormalizedPaymentRow {
   return (
@@ -301,6 +39,15 @@ function isNormalizedPaymentRow(value: unknown): value is NormalizedPaymentRow {
     "providerReference" in value &&
     "rawRow" in value
   );
+}
+
+function partnerOptions(partners: PartnerForPaymentMatch[]) {
+  return partners.map((partner) => ({
+    id: partner.id,
+    name: partner.fullName,
+    phone: partner.momoPhoneNumber ?? partner.whatsappNumber,
+    church: partner.church,
+  }));
 }
 
 export async function POST(req: NextRequest) {
@@ -372,9 +119,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const source = String(form.get("source") ?? "") as PaymentSource;
+    const source = String(form.get("source") ?? "");
     const file = form.get("file");
-    if (source !== "momo" && source !== "ecobank" && source !== "paystack_onetime" && source !== "paystack_recurring") {
+    if (!isPaymentSource(source)) {
       return NextResponse.json({ ok: false, error: "Choose a statement type." }, { status: 400 });
     }
     if (!(file instanceof File)) {
@@ -382,18 +129,15 @@ export async function POST(req: NextRequest) {
     }
 
     const fileBuffer = await file.arrayBuffer();
-    const fileHash = computeFileHash(fileBuffer);
-    const parsed = parseUploadedRows(file.name, fileBuffer, source);
-    const partners = await loadPartners();
-    const matches = matchNormalizedRows(parsed.rows, partners);
+    const filename = file.name || `${source}-upload`;
+    const prepared = await prepareStatement(source, filename, fileBuffer);
+    const { parsed, partners, matches, fileHash } = prepared;
+    const warnings = parsed.warnings ?? [];
 
-    // File-level dedup: only the `import` action creates a batch with a
-    // file_hash, so only it can detect a re-upload. The `commit` action
-    // inserts payments without a batch — ledger-level on_conflict=reference
-    // already prevents duplicate payments there.
     if (action === "import") {
-      const existing = await findDuplicateBatch(source, fileHash, rest);
-      if (existing) {
+      const outcome = await importPreparedStatement(prepared, fileBuffer, file.type);
+      if (!outcome.ok) {
+        const existing = outcome.duplicate;
         return NextResponse.json(
           {
             ok: false,
@@ -408,67 +152,28 @@ export async function POST(req: NextRequest) {
           { status: 409 },
         );
       }
-    }
-    if (action === "import") {
-      const accepted = matches
-        .filter((match) => match.status === "auto")
-        .map((match) => ({ row: match.row, partner: match.partner }));
-      const reviewMatches = matches.filter((match) => match.status === "review");
-      const filename = file.name || `${source}-upload`;
-      // Vault the original before any ledger writes: if storage fails, nothing is
-      // imported, so every batch from here on has its source file.
-      const storagePath = vaultObjectPath({
-        source,
-        month: statementMonth(parsed.rows),
-        fileHash,
-        filename,
-      });
-      const contentType = file.type || contentTypeFor(filename);
-      await saveStatementFile(storagePath, fileBuffer, contentType);
-      console.info(
-        JSON.stringify({ event: "statement_vaulted", source, filename, storagePath, bytes: fileBuffer.byteLength }),
-      );
-      const importId = await createImportBatch({
-        provider: source,
-        filename,
-        rowCount: parsed.rows.length,
-        matchedCount: accepted.length,
-        ambiguousCount: reviewMatches.length,
-        storagePath,
-        fileSizeBytes: fileBuffer.byteLength,
-        contentType,
-      });
-      await insertImportRows({ importId, matches });
-      await insertPayments(buildPaymentRows(accepted));
-      // Stamp the file hash only after rows and payments succeed, so a
-      // failed import can be retried without the unique constraint blocking it.
-      await stampFileHash(importId, fileHash);
       revalidateTag("poc-giving", "max");
       return NextResponse.json({
         ok: true,
+        warnings,
         counts: {
-          insertedOrAlreadyPresent: accepted.length,
-          autoMatched: accepted.length,
+          insertedOrAlreadyPresent: outcome.autoMatched,
+          autoMatched: outcome.autoMatched,
           manualMatched: 0,
           created: 0,
           dismissed: 0,
-          deferred: reviewMatches.length,
+          deferred: outcome.review.length,
           rejected: parsed.rejects.length,
           skipped: parsed.skipped.length,
         },
-        rows: reviewMatches.map((match) => ({
+        rows: outcome.review.map((match) => ({
           row: serializeRow(match.row),
           status: match.status,
           reason: match.reason,
           partner: match.partner,
           candidates: match.candidates,
         })),
-        partnerOptions: partners.map((partner) => ({
-          id: partner.id,
-          name: partner.fullName,
-          phone: partner.momoPhoneNumber ?? partner.whatsappNumber,
-          church: partner.church,
-        })),
+        partnerOptions: partnerOptions(partners),
       });
     }
 
@@ -476,6 +181,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         ok: true,
         fileHash,
+        warnings,
         counts: {
           rows: parsed.rows.length,
           auto: matches.filter((m) => m.status === "auto").length,
@@ -490,12 +196,7 @@ export async function POST(req: NextRequest) {
           partner: match.partner,
           candidates: match.candidates,
         })),
-        partnerOptions: partners.map((partner) => ({
-          id: partner.id,
-          name: partner.fullName,
-          phone: partner.momoPhoneNumber ?? partner.whatsappNumber,
-          church: partner.church,
-        })),
+        partnerOptions: partnerOptions(partners),
         rejects: parsed.rejects.map((reject) => ({ index: reject.index, reason: reject.reason })),
         skipped: parsed.skipped.length,
       });

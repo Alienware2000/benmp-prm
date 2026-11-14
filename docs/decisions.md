@@ -678,6 +678,16 @@ _2026-11-14_
 
 **Ledger references**: banks use `<account>:<date>:<amount minor>:<description>` with `#n` for an identical repeat, stable when the same period is exported again; the MTN wallet export uses the transaction id, the same id space as the main MoMo statement. Ecobank keeps its existing shape (empty account part) so Aug/Sep references can't be duplicated by a re-export.
 
+## 0038 — Hubs see their month: all giving, cash, and who has filed
+
+_2026-11-14_
+
+**Decided**: the hub login gets a **Monthly summary** tab (`/hub/summary?month=YYYY-MM`, default the current month). For the chosen month it shows all giving, statement giving (MoMo / bank / Paystack, by method), cash giving and "cash reports filed N of M"; then the hub's churches split into **Cash report filed** (statement giving, cash, date filed) and **Not filed yet**; then a six-month month-by-month table whose months link to their own summary. Statement giving is payments matched to the hub's partners, by the month the money arrived; cash is the churches' cash reports for that reporting month, counted whether or not the office has promoted them. Ledger rows in the cash group are left out of statement giving, so promoted cash is never counted twice. Every read is filtered by the session's hub. Pure logic in `src/lib/hub/monthly.ts` (tested); data from `getHubMonthlyInput` in `src/lib/hub/db.ts`.
+
+**Why**: the office asked that each hub login give "an overview of all giving and cash giving", a breakdown of which churches have submitted and which have not, and a summary the hub admin can see for each month (2026-11-14). The Overview tab (Decision 0032) is about partners' active/lapsed status over a rolling window, not a month, and the per-branch cash view existed only in the office's Admins tab (Decision 0036).
+
+**Said no to**: adding the month to the Overview tab (it answers a different question; both stay) · using only promoted (ledger) cash (a hub would see its own filed report as GHS 0 until the office acts) · per-partner rows here (that's Your partners / Overview).
+
 ## 0039 — The cash form becomes the Monthly Summary Form
 
 _2026-11-14_
@@ -688,3 +698,12 @@ _2026-11-14_
 
 **Said no to**: letting the public form edit existing partners (anyone with the link could overwrite a person's number) · requiring cash in Ghana (some churches have none in a month) · renaming the table or URL (links already sent to churches keep working).
 
+## 0040 — Drill down to each church's members, month by month
+
+_2026-11-14_
+
+**Decided**: below the hub, both logins open a church: the office from Admins → block → hub → **church** (`/poc/admins/<region>/<hubId>/<churchId>`), the hub admin from Monthly summary → **church** (`/hub/summary/<churchId>`). The page shows the church's Monthly Summary Form for the chosen month (submitted with its four numbers, or not), tiles (members, members who gave and giving in the month, giving over six months), and a **member × month** table for the six months ending at the chosen month: each member's statement giving (MoMo, bank, Paystack matched to them) per month and in total, givers first; then monthly totals, members who gave, and, for Ghana churches, the cash on the form. Form cash is reported per church, not per member, so it is its own line; ledger rows in the cash group are left out of member figures. One pure function (`buildChurchMemberView`, tested) and one table component (`MemberMonthGrid`) serve both logins. `getChurchMemberInput(hubId, churchId, …)` returns nothing unless the church belongs to that hub, so a hub admin cannot open another hub's church by editing the address (checked: 404).
+
+**Why**: the office (2026-11-14): "drill down from hub/denomination to church to member by month at the member level", from both the office admin and hub admin logins.
+
+**Said no to**: a separate per-member page (the table already is the member-by-month view) · attributing form cash to members (the form doesn't say who gave it).

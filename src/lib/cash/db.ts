@@ -31,11 +31,18 @@ async function rest<T>(path: string, init?: RequestInit): Promise<T> {
 
 // --- Cascading dropdown data ---
 
-export type RegionOption = { id: string; code: string; name: string; hubIdentifier: string };
+export type RegionOption = {
+  id: string;
+  code: string;
+  name: string;
+  hub_identifier: string;
+  /** The Ghana regions (Decision 0026); only they report cash on the form (Decision 0039). */
+  momo_required: boolean;
+};
 
 export async function listAllRegions(): Promise<RegionOption[]> {
   return rest<RegionOption[]>(
-    "regions?select=id,code,name,hub_identifier&order=sort_order.asc",
+    "regions?select=id,code,name,hub_identifier,momo_required&order=sort_order.asc",
   );
 }
 
@@ -164,6 +171,14 @@ export async function insertSubmission(
   }
 
   return submissionId;
+}
+
+/** Remove a submission (its givers and deposits cascade), e.g. when a later step fails. */
+export async function deleteSubmission(submissionId: string): Promise<void> {
+  await rest<void>(`cash_submissions?id=eq.${encodeURIComponent(submissionId)}`, {
+    method: "DELETE",
+    headers: { Prefer: "return=minimal" },
+  });
 }
 
 /** Transaction IDs (by key) that an earlier submission already reported. */

@@ -1,12 +1,13 @@
 // src/lib/hub/monthly.ts
-// A hub admin's month (Decision 0038, /hub/summary): all giving, cash giving,
-// and which of the hub's churches have filed their cash report. Pure; the page
-// loads the hub's own churches, partners, matched payments and cash reports.
+// A hub admin's month (Decisions 0038, 0039; /hub/summary): all giving, cash
+// giving, which of the hub's churches have submitted the Monthly Summary Form,
+// and the sums of its four numbers. Pure; the page loads the hub's own
+// churches, partners, matched payments and submitted forms.
 //
 // Two sources, never double-counted:
 // - Statement giving (MoMo, bank, Paystack) comes from payments matched to the
 //   hub's partners, by the month the money arrived.
-// - Cash comes from the churches' cash reports for that reporting month, whether
+// - Cash comes from the churches' submitted forms for that reporting month, whether
 //   or not the office has promoted them into the ledger yet. Ledger rows in the
 //   cash group are therefore left out of statement giving.
 import {
@@ -26,14 +27,34 @@ export type HubMonthlyInput = {
     /** raw_row.source; the only method hint on older MoMo/Ecobank imports. */
     raw_source: string | null;
   }[];
+  /** Monthly Summary Forms (`cash_submissions`), one per church per month. */
   cashReports: {
     church_id: string;
     /** "YYYY-MM-01" */
     reporting_month: string;
     total_cash_minor: number;
     submitted_at: string | null;
+    total_registered: number;
+    active_partners: number;
+    new_registrations: number;
+    lapsed: number;
   }[];
 };
+
+/** The four numbers every church reports on the Monthly Summary Form. */
+export type SummaryCounts = {
+  totalRegistered: number;
+  activePartners: number;
+  newRegistrations: number;
+  lapsed: number;
+};
+
+const zeroCounts = (): SummaryCounts => ({
+  totalRegistered: 0,
+  activePartners: 0,
+  newRegistrations: 0,
+  lapsed: 0,
+});
 
 export type StatementMethod = Exclude<PaymentMethodGroup, "cash">;
 
@@ -45,6 +66,8 @@ export type ChurchMonthRow = {
   statementMinor: number;
   cashMinor: number;
   filedAt: string | null;
+  /** The church's four numbers; null when it has not submitted this month. */
+  counts: SummaryCounts | null;
 };
 
 export type HubMonth = {
@@ -55,8 +78,11 @@ export type HubMonth = {
   totalMinor: number;
   /** Distinct partners with a statement gift this month. */
   givers: number;
+  /** Churches that submitted the form this month, and those that have not. */
   filed: ChurchMonthRow[];
   notFiled: ChurchMonthRow[];
+  /** The four numbers added up across the churches that submitted. */
+  summaryTotals: SummaryCounts;
   /** Statement giving from the hub's partners who have no church yet. */
   noChurchMinor: number;
 };
@@ -68,6 +94,7 @@ export type MonthTrailRow = {
   totalMinor: number;
   filed: number;
   churches: number;
+  summaryTotals: SummaryCounts;
 };
 
 const emptyMethods = (): Record<StatementMethod, number> => ({
@@ -129,6 +156,14 @@ export function buildHubMonth(input: HubMonthlyInput, month: string): HubMonth {
       statementMinor: statementByChurch.get(church.id) ?? 0,
       cashMinor: report?.total_cash_minor ?? 0,
       filedAt: report?.submitted_at ?? null,
+      counts: report
+        ? {
+            totalRegistered: report.total_registered,
+            activePartners: report.active_partners,
+            newRegistrations: report.new_registrations,
+            lapsed: report.lapsed,
+          }
+        : null,
     };
     (report ? filed : notFiled).push(row);
   }
@@ -138,6 +173,12 @@ export function buildHubMonth(input: HubMonthlyInput, month: string): HubMonth {
     0,
   );
   const cashMinor = filed.reduce((sum, row) => sum + row.cashMinor, 0);
+  const summaryTotals = zeroCounts();
+  for (const row of filed) {
+    for (const key of Object.keys(summaryTotals) as (keyof SummaryCounts)[]) {
+      summaryTotals[key] += row.counts?.[key] ?? 0;
+    }
+  }
   return {
     month,
     statementByMethod,
@@ -147,6 +188,7 @@ export function buildHubMonth(input: HubMonthlyInput, month: string): HubMonth {
     givers: givers.size,
     filed,
     notFiled,
+    summaryTotals,
     noChurchMinor,
   };
 }
@@ -165,6 +207,7 @@ export function buildMonthTrail(
       totalMinor: m.totalMinor,
       filed: m.filed.length,
       churches: m.filed.length + m.notFiled.length,
+      summaryTotals: m.summaryTotals,
     };
   });
 }

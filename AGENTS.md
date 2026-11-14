@@ -22,7 +22,7 @@ BENMP PRM is an internal Partner Relationship Management system for BENMP and th
 - Build the PRM foundation first: partners, giving, campaigns, communication history, follow-up tasks, imports/exports, roles, audit logs.
 - Keep AI provider-agnostic. Use the AI SDK layer for model calls when AI is introduced, and isolate provider selection behind configuration.
 - Never store payment card data, WhatsApp tokens, API keys, or private partner information in git.
-- Docs update in the same change, never as a follow-up: schema change → `docs/db-schema.md`; new/changed route or server action → `docs/api-spec.md`; plan deviation → "As-built notes" in `docs/phases.md`; workflow/architecture decision → `docs/decisions.md`. Keep docs concise and scannable.
+- Docs update in the same change, never as a follow-up: schema change → `docs/db-schema.md`; new/changed route or server action → `docs/api-spec.md`; plan deviation → a new file in `docs/as-built/` (`YYYY-MM-DD-slug.md`); workflow/architecture decision → a new file in `docs/decisions/` (`NNNN-slug.md`, next unused number). Never append to `decisions.md` or the as-built list in `phases.md`: shared lines conflict between parallel PRs (Decision 0042). Keep docs concise and scannable.
 - Verify with `npm run lint` (the npm script, not a bare `npx eslint` — config resolution differs) plus `npm run typecheck` before calling a change done.
 - CSV import/intake code paths emit structured logs (source, row reference, match outcome, status) — money movements must be greppable. (No payment provider/webhooks — Decision 0007.)
 

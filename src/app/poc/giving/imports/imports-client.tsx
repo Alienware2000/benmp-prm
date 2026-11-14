@@ -32,6 +32,9 @@ const PROVIDERS = [
   { value: "", label: "All providers" },
   { value: "momo", label: "momo" },
   { value: "ecobank", label: "ecobank" },
+  { value: "stanbic", label: "stanbic" },
+  { value: "zenith", label: "zenith" },
+  { value: "fidelity", label: "fidelity" },
   { value: "paystack_onetime", label: "paystack_onetime" },
   { value: "paystack_recurring", label: "paystack_recurring" },
 ];
@@ -46,6 +49,9 @@ function providerBadgeClass(provider: string): string {
     case "momo":
       return "bg-blue-100 text-blue-800";
     case "ecobank":
+    case "stanbic":
+    case "zenith":
+    case "fidelity":
       return "bg-emerald-100 text-emerald-800";
     case "paystack_onetime":
       return "bg-purple-100 text-purple-800";

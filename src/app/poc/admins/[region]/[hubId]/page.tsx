@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadAdminsInput } from "@/lib/poc/admins-data";
 import {
@@ -90,7 +91,14 @@ export default async function AdminsHubPage({
                   key={b.churchId}
                   className="border-b border-border last:border-0"
                 >
-                  <td className="px-4 py-3 font-semibold">{b.name}</td>
+                  <td className="px-4 py-3 font-semibold">
+                    <Link
+                      href={`/poc/admins/${code.toLowerCase()}/${hubId}/${b.churchId}?month=${month}`}
+                      className="text-brand hover:underline"
+                    >
+                      {b.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3">{b.pastor || "Not on record"}</td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     {b.partners.toLocaleString("en-US")}

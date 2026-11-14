@@ -19,16 +19,28 @@ export type DepositInput = {
   depositedOn: string;
 };
 
+/** A new member to add to the church's partner list from the form. */
+export type NewMemberInput = {
+  name: string;
+  whatsappPhone: string;
+  /** Ghana regions only; "" elsewhere. */
+  momoPhone: string;
+};
+
+/** Most new members one form can add; a bigger list belongs in the hub's Upload tab. */
+export const MAX_NEW_MEMBERS = 50;
+
 export type SubmitPayload = {
   regionCode: string;
   hubId: string;
   churchId: string;
   reportingMonth: string;
+  /** The four monthly numbers; all required (null = left blank). */
   summary: {
-    totalRegistered: number;
-    activePartners: number;
-    newRegistrations: number;
-    lapsed: number;
+    totalRegistered: number | null;
+    activePartners: number | null;
+    newRegistrations: number | null;
+    lapsed: number | null;
   };
   givers: GiverRowInput[];
   deposits: DepositInput[];
@@ -85,10 +97,21 @@ export function validateGiverRows(rows: GiverRowInput[]): ValidationResult {
   return { ok: true };
 }
 
+const SUMMARY_LABELS: Record<keyof SubmitPayload["summary"], string> = {
+  totalRegistered: "Total registered",
+  activePartners: "Active partners",
+  newRegistrations: "New registrations",
+  lapsed: "Lapsed",
+};
+
+/** The monthly summary is the compulsory part of the form: all four whole numbers, none negative. */
 export function validateSummaryCounts(summary: SubmitPayload["summary"]): ValidationResult {
-  const { totalRegistered, activePartners, newRegistrations, lapsed } = summary;
-  if (totalRegistered < 0 || activePartners < 0 || newRegistrations < 0 || lapsed < 0) {
-    return { ok: false, error: "Summary counts cannot be negative." };
+  for (const key of Object.keys(SUMMARY_LABELS) as (keyof SubmitPayload["summary"])[]) {
+    const value = summary?.[key];
+    if (value === null || value === undefined || !Number.isInteger(value)) {
+      return { ok: false, error: `Fill in "${SUMMARY_LABELS[key]}" in the monthly summary.` };
+    }
+    if (value < 0) return { ok: false, error: `"${SUMMARY_LABELS[key]}" cannot be negative.` };
   }
   return { ok: true };
 }
@@ -96,14 +119,13 @@ export function validateSummaryCounts(summary: SubmitPayload["summary"]): Valida
 export const transactionIdKey = (id: string) => id.replace(/\s+/g, "").toUpperCase();
 
 /**
- * The transfers that carried the month's cash to BENMP. At least one is required.
+ * The transfers that carried the month's cash to BENMP. Optional (Ghana regions
+ * only report cash at all); every row given must be complete.
  * A deposit may land after the month closes, so the date runs from the start of the
  * reporting month (`YYYY-MM-01`) to today.
  */
 export function validateDeposits(deposits: DepositInput[], reportingMonth: string, today = new Date()): ValidationResult {
-  if (!Array.isArray(deposits) || deposits.length === 0) {
-    return { ok: false, error: "Add at least one transaction ID for the month's cash." };
-  }
+  if (!Array.isArray(deposits)) return { ok: false, error: "The cash transactions could not be read." };
   const todayIso = today.toISOString().slice(0, 10);
   const seen = new Set<string>();
   for (let i = 0; i < deposits.length; i++) {

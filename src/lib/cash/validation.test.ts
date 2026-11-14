@@ -4,6 +4,7 @@ import {
   validateGiverRow,
   validateDeposits,
   validateGiverRows,
+  validateSummaryCounts,
   type DepositInput,
   type GiverRowInput,
 } from "./validation";
@@ -100,8 +101,8 @@ describe("validateDeposits", () => {
   it("accepts a valid deposit", () => {
     expect(validateDeposits([deposit()], "2026-10-01", today)).toEqual({ ok: true });
   });
-  it("requires at least one deposit", () => {
-    expect(validateDeposits([], "2026-10-01", today).ok).toBe(false);
+  it("allows no deposits: cash transactions are optional", () => {
+    expect(validateDeposits([], "2026-10-01", today)).toEqual({ ok: true });
   });
   it("rejects the same transaction ID twice, ignoring case and spaces", () => {
     const result = validateDeposits([deposit(), deposit({ transactionId: "mp261005.1234. a56789" })], "2026-10-01", today);
@@ -116,5 +117,23 @@ describe("validateDeposits", () => {
     expect(validateDeposits([deposit({ depositedOn: "2026-10-03" })], "2026-09-01", today).ok).toBe(true);
     expect(validateDeposits([deposit({ depositedOn: "2026-08-31" })], "2026-09-01", today).ok).toBe(false);
     expect(validateDeposits([deposit({ depositedOn: "2026-10-15" })], "2026-10-01", today).ok).toBe(false);
+  });
+});
+
+describe("validateSummaryCounts", () => {
+  const full = { totalRegistered: 120, activePartners: 80, newRegistrations: 5, lapsed: 3 };
+  it("accepts four whole numbers, zero included", () => {
+    expect(validateSummaryCounts(full)).toEqual({ ok: true });
+    expect(validateSummaryCounts({ ...full, lapsed: 0 })).toEqual({ ok: true });
+  });
+  it("requires every number: the summary is the compulsory part of the form", () => {
+    expect(validateSummaryCounts({ ...full, activePartners: null })).toEqual({
+      ok: false,
+      error: 'Fill in "Active partners" in the monthly summary.',
+    });
+  });
+  it("rejects negatives and fractions", () => {
+    expect(validateSummaryCounts({ ...full, lapsed: -1 }).ok).toBe(false);
+    expect(validateSummaryCounts({ ...full, newRegistrations: 2.5 }).ok).toBe(false);
   });
 });

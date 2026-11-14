@@ -733,7 +733,7 @@ async function restAll<T>(path: string): Promise<T[]> {
 /**
  * Everything the hub's Monthly summary needs from `fromMonth` ("YYYY-MM")
  * onwards (Decision 0038): its churches, its partners' churches, payments
- * matched to its partners, and its churches' cash reports. Every read is
+ * matched to its partners, and its churches' Monthly Summary Forms (Decision 0039). Every read is
  * filtered by this hub, so one hub never sees another's figures.
  */
 export async function getHubMonthlyInput(
@@ -751,7 +751,7 @@ export async function getHubMonthlyInput(
     ),
     restAll<HubMonthlyInput["cashReports"][number]>(
       `cash_submissions?hub_id=eq.${hub}&reporting_month=gte.${from}` +
-        `&select=church_id,reporting_month,total_cash_minor,submitted_at&order=reporting_month.asc,id.asc`,
+        `&select=church_id,reporting_month,total_cash_minor,submitted_at,total_registered,active_partners,new_registrations,lapsed&order=reporting_month.asc,id.asc`,
     ),
   ]);
   const payments = (

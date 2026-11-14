@@ -676,3 +676,13 @@ _2026-11-14_
 
 **Ledger references**: banks use `<account>:<date>:<amount minor>:<description>` with `#n` for an identical repeat, stable when the same period is exported again; the MTN wallet export uses the transaction id, the same id space as the main MoMo statement. Ecobank keeps its existing shape (empty account part) so Aug/Sep references can't be duplicated by a re-export.
 
+## 0039 — The cash form becomes the Monthly Summary Form
+
+_2026-11-14_
+
+**Decided**: `/cash` is now the **Monthly Summary Form**. Its four numbers (total registered, active partners, new registrations, lapsed) are **required**. A new optional **Add New Members** section adds people to the selected church's partner list, with the hub Upload tab's rules (two names, valid WhatsApp, MoMo in Ghana regions, no number owned by another hub); the batch shows in the hub's upload history as "Monthly Summary Form". Because the form is public, a row naming someone the hub already has is **skipped, never used to edit** that partner. **Cash givers and cash transactions are optional and shown only in Ghana regions** (`regions.momo_required`: UD, UJ, RSC Ghana); other regions never see them and the server ignores them if sent. The hub dropdown reads "Select one…". In each hub's **Monthly summary** tab (Decision 0038) the four numbers are summed across the churches that submitted, each submitted church shows its own four, the lists read **Submitted / Not submitted yet**, and cash tiles and columns appear only for Ghana hubs. Table, routes and URL unchanged (`cash_submissions`, `/api/cash/*`, `/cash`); no migration (the giver-file columns were already nullable and cash totals default to 0).
+
+**Why**: the office (2026-11-14): "we will have the monthly summary as compulsory, and a section to add new members to their church database from the form, and the cash givers and the cash transactions are optional and apply to ghana regions only… on the portal for each admin, the sum and overview of the people that have submitted the form, the sums of the 4 numbers".
+
+**Said no to**: letting the public form edit existing partners (anyone with the link could overwrite a person's number) · requiring cash in Ghana (some churches have none in a month) · renaming the table or URL (links already sent to churches keep working).
+

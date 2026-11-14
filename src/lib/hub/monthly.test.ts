@@ -85,12 +85,31 @@ const input: HubMonthlyInput = {
       reporting_month: "2026-10-01",
       total_cash_minor: 40000,
       submitted_at: "2026-11-02T09:00:00Z",
+      total_registered: 120,
+      active_partners: 80,
+      new_registrations: 5,
+      lapsed: 3,
+    },
+    // A form with the summary only (no cash).
+    {
+      church_id: "c-c",
+      reporting_month: "2026-10-01",
+      total_cash_minor: 0,
+      submitted_at: "2026-11-03T09:00:00Z",
+      total_registered: 30,
+      active_partners: 12,
+      new_registrations: 2,
+      lapsed: 0,
     },
     {
       church_id: "c-a",
       reporting_month: "2026-09-01",
       total_cash_minor: 15000,
       submitted_at: "2026-10-01T09:00:00Z",
+      total_registered: 50,
+      active_partners: 40,
+      new_registrations: 1,
+      lapsed: 1,
     },
   ],
 };
@@ -111,24 +130,40 @@ describe("buildHubMonth", () => {
     expect(m.givers).toBe(3);
   });
 
-  it("splits churches into filed and not filed, alphabetically, with their own figures", () => {
-    expect(m.filed).toEqual([
-      {
-        churchId: "c-b",
-        name: "Bethel",
-        pastor: "Ps Ama",
-        partners: 1,
-        statementMinor: 11000,
-        cashMinor: 40000,
-        filedAt: "2026-11-02T09:00:00Z",
+  it("splits churches into submitted and not submitted, alphabetically, with their own figures", () => {
+    expect(m.filed[0]).toEqual({
+      churchId: "c-b",
+      name: "Bethel",
+      pastor: "Ps Ama",
+      partners: 1,
+      statementMinor: 11000,
+      cashMinor: 40000,
+      filedAt: "2026-11-02T09:00:00Z",
+      counts: {
+        totalRegistered: 120,
+        activePartners: 80,
+        newRegistrations: 5,
+        lapsed: 3,
       },
-    ]);
+    });
+    expect(m.filed.map((row) => row.name)).toEqual(["Bethel", "Calvary"]);
     expect(
-      m.notFiled.map((row) => [row.name, row.partners, row.statementMinor]),
-    ).toEqual([
-      ["Agape", 2, 7000],
-      ["Calvary", 0, 0],
-    ]);
+      m.notFiled.map((row) => [
+        row.name,
+        row.partners,
+        row.statementMinor,
+        row.counts,
+      ]),
+    ).toEqual([["Agape", 2, 7000, null]]);
+  });
+
+  it("adds up the four numbers across the churches that submitted", () => {
+    expect(m.summaryTotals).toEqual({
+      totalRegistered: 150,
+      activePartners: 92,
+      newRegistrations: 7,
+      lapsed: 3,
+    });
   });
 
   it("keeps giving from partners without a church visible", () => {
@@ -162,14 +197,26 @@ describe("month by month", () => {
         totalMinor: 18000,
         filed: 1,
         churches: 3,
+        summaryTotals: {
+          totalRegistered: 50,
+          activePartners: 40,
+          newRegistrations: 1,
+          lapsed: 1,
+        },
       },
       {
         month: "2026-10",
         statementMinor: 18700,
         cashMinor: 40000,
         totalMinor: 58700,
-        filed: 1,
+        filed: 2,
         churches: 3,
+        summaryTotals: {
+          totalRegistered: 150,
+          activePartners: 92,
+          newRegistrations: 7,
+          lapsed: 3,
+        },
       },
     ]);
   });

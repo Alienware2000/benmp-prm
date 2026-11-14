@@ -6,6 +6,7 @@
 // (bank and Paystack), and only when exactly one partner carries that name.
 import { normalizePhone } from "../phone";
 import {
+  countryForPaymentSource,
   ghanaLastNineKey,
   type NormalizedPaymentRow,
   type PartnerForPaymentMatch,
@@ -37,10 +38,6 @@ function phoneKey(raw: string | null | undefined): string | null {
 }
 
 const nameKey = (name: string) => name.trim().replace(/\s+/g, " ").toLowerCase();
-
-function countryForSource(source: NormalizedPaymentRow["source"]): string {
-  return source === "momo" || source === "ecobank" ? "Ghana" : "Unknown";
-}
 
 export function planAcceptAll(
   reviewRows: AcceptAllReviewRow[],
@@ -86,7 +83,7 @@ export function planAcceptAll(
         key,
         name: name || "Unknown Giver",
         phone: normalizePhone(row.payerPhoneOrAccount),
-        country: countryForSource(row.source),
+        country: countryForPaymentSource(row.source),
       });
     }
     assignments.push({ reviewRowId: id, row, newPartnerKey: key });

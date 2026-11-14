@@ -459,6 +459,10 @@ Staff. Downloads the original statement behind a batch: `302` redirect to a 60-s
 
 Staff. Lists the `payment_import_rows` for a specific batch. Returns `{ ok, rows: [{ id, payment_reference, match_status, normalized_row: { payerName, amountMinor, transactionDate }, created_at }] }`.
 
+### `GET /api/poc/givers` · `GET /api/hub/givers`
+
+A month's givers as a contact CSV for a broadcast (Decision 0041). Office (staff): `?hubId=&month=YYYY-MM[&churchId=]`. Hub: `?month=YYYY-MM[&churchId=]`, always the session's own hub. Returns `text/csv` (`attachment; filename="givers-<hub>[-<church>]-<YYYY-MM>.csv"`) with `Name, Phone, Church, Given (GHS), Gave by`: statement givers matched to the hub's partners plus cash givers on the month's Monthly Summary Forms, one row per phone. `400` bad month · `404` unknown hub, or a church not in that hub · `401` no session. Each download writes `audit_log` `giver_contacts_export`.
+
 ### `GET /api/poc/giving/by-church`
 
 Staff. Aggregates all successful payments by church, with method breakdowns (MoMo / bank / cash / Paystack / other), rolling up to hub, country, and region. Optional `?month=YYYY-MM` filter. Returns `{ ok, churches: [...], rollups: { byHub, byCountry, byRegion }, unattributed: { totalMinor, paymentCount, byMethod } }`. Payments without a matched partner are counted in `unattributed`.

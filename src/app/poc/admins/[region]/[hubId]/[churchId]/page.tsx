@@ -8,6 +8,7 @@ import { buildChurchMemberView } from "@/lib/hub/church-members";
 import { monthsEndingAt } from "@/lib/hub/monthly";
 import { ADMIN_BLOCKS, resolveMonth } from "@/lib/poc/admins-overview";
 import {
+  DownloadGiversLink,
   FormLine,
   MemberMonthGrid,
 } from "@/components/giving/member-month-grid";
@@ -83,10 +84,16 @@ export default async function AdminsChurchPage({
               Pastor: {input.church.leader_name || "not on record"}.
             </p>
           </div>
-          <MonthPicker
-            month={month}
-            action={`${regionPath}/${hubId}/${churchId}`}
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            <MonthPicker
+              month={month}
+              action={`${regionPath}/${hubId}/${churchId}`}
+            />
+            <DownloadGiversLink
+              href={`/api/poc/givers?hubId=${hubId}&churchId=${churchId}&month=${month}`}
+              month={month}
+            />
+          </div>
         </div>
 
         <FormLine view={view} month={month} />

@@ -19,6 +19,7 @@ import {
   type SummaryCounts,
 } from "@/lib/hub/monthly";
 import { resolveMonth } from "@/lib/poc/admins-overview";
+import { DownloadGiversLink } from "@/components/giving/member-month-grid";
 
 export const dynamic = "force-dynamic";
 
@@ -182,6 +183,12 @@ export default async function HubSummaryPage({
             Show
           </button>
         </form>
+      </div>
+      <div className="flex justify-end">
+        <DownloadGiversLink
+          href={`/api/hub/givers?month=${month}`}
+          month={month}
+        />
       </div>
 
       <div

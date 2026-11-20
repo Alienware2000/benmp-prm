@@ -5,7 +5,6 @@ import {
   FileUp,
   LayoutDashboard,
   Settings,
-  UserPlus,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -16,7 +15,6 @@ const TABS = [
   { href: "/hub/summary", label: "Monthly summary", icon: CalendarRange },
   { href: "/hub/upload", label: "Upload", icon: FileUp },
   { href: "/hub/partners", label: "Your partners", icon: Users },
-  { href: "/hub/claim", label: "Unclaimed givers", icon: UserPlus },
   { href: "/hub/settings", label: "Settings", icon: Settings },
 ] as const;
 

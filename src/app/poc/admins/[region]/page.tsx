@@ -33,7 +33,7 @@ export default async function AdminsRegionPage({
 
   const label =
     ADMIN_BLOCKS.find((b) => b.regionCode === code)?.label ?? region.name;
-  const hubs = hubsForRegion(input.hubs, computeHubStats(input, month), code);
+  const hubs = hubsForRegion(input.hubs, computeHubStats(input), code);
   const base = `/poc/admins/${code.toLowerCase()}`;
 
   return (
@@ -59,8 +59,8 @@ export default async function AdminsRegionPage({
                 <th className="px-4 py-3">Admin</th>
                 <th className="px-4 py-3">Last sign-in</th>
                 <th className="px-4 py-3 text-right">Partners</th>
-                <th className="px-4 py-3 text-right">Cash reports filed</th>
-                <th className="px-4 py-3 text-right">Giving this month</th>
+                <th className="px-4 py-3 text-right">Forms submitted</th>
+                <th className="px-4 py-3 text-right">Giving reported</th>
               </tr>
             </thead>
             <tbody>

@@ -227,6 +227,30 @@ export default async function GivingPage({
         />
       }
     >
+      {/* A month's statement givers as a contact CSV for a broadcast (Decision 0044). */}
+      <form
+        action="/api/poc/givers"
+        className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-3 text-sm"
+      >
+        <label htmlFor="givers-month" className="text-muted-foreground">
+          Givers contact list for
+        </label>
+        <input
+          id="givers-month"
+          name="month"
+          type="month"
+          required
+          defaultValue={(filters.from || new Date().toISOString()).slice(0, 7)}
+          className="rounded border border-border bg-input px-3 py-1.5"
+        />
+        <button
+          type="submit"
+          className="rounded border border-brand px-3 py-1.5 font-semibold text-brand hover:bg-brand/5"
+        >
+          Download CSV
+        </button>
+      </form>
+
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <article className="col-span-2 rounded-lg bg-brand p-4 text-white shadow-sm sm:col-span-1">
           <div className="flex items-center justify-between gap-3">

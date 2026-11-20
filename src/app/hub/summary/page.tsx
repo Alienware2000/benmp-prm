@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { Banknote, Building2, HandCoins, Wallet } from "lucide-react";
+import { Building2, HandCoins } from "lucide-react";
 import {
   HUB_SESSION_COOKIE,
   hubSessionSecret,
@@ -19,7 +19,6 @@ import {
   type SummaryCounts,
 } from "@/lib/hub/monthly";
 import { resolveMonth } from "@/lib/poc/admins-overview";
-import { DownloadGiversLink } from "@/components/giving/member-month-grid";
 
 export const dynamic = "force-dynamic";
 
@@ -55,18 +54,12 @@ const COUNT_LABELS: {
 ];
 const count = (n: number) => n.toLocaleString("en-US");
 
-const METHOD_LABELS = {
-  mobile_money: "MoMo",
-  bank: "Bank",
-  paystack: "Paystack",
-  other: "Other",
-} as const;
-
 /**
- * Hub Monthly summary (Decisions 0038, 0039): for a chosen month, the giving,
- * which of the hub's churches have submitted the Monthly Summary Form, and the
- * sums of its four numbers. Cash appears only for Ghana hubs (the only ones that
- * report cash). Scoped to the signed-in hub by the session.
+ * Hub Monthly summary (Decisions 0038, 0039, 0044): for a chosen month, which of
+ * the hub's churches have submitted the Monthly Summary Form, the sums of its
+ * four numbers and, for Ghana hubs (the only ones whose form asks for it), the
+ * BENMP giving the churches reported. Everything comes from the forms. Scoped
+ * to the signed-in hub by the session.
  */
 export default async function HubSummaryPage({
   searchParams,
@@ -80,7 +73,7 @@ export default async function HubSummaryPage({
   );
   const month = resolveMonth((await searchParams).month);
   const months = monthsEndingAt(month, TRAIL_MONTHS);
-  const [summary, input, reportsCash] = session
+  const [summary, input, reportsGiving] = session
     ? await Promise.all([
         getHubSummary(session.hubId),
         getHubMonthlyInput(session.hubId, months[0]),
@@ -100,46 +93,17 @@ export default async function HubSummaryPage({
   const m = buildHubMonth(input, month);
   const trail = buildMonthTrail(input, months).reverse();
   const churches = m.filed.length + m.notFiled.length;
-  const methods = (
-    Object.keys(METHOD_LABELS) as (keyof typeof METHOD_LABELS)[]
-  ).filter((k) => m.statementByMethod[k] > 0);
-  const methodNote =
-    methods.length > 0
-      ? methods
-          .map((k) => `${METHOD_LABELS[k]} ${ghs(m.statementByMethod[k])}`)
-          .join(" · ")
-      : "No MoMo, bank or Paystack gifts recorded";
-
   const tiles = [
-    ...(reportsCash
+    ...(reportsGiving
       ? [
           {
-            label: "All giving",
-            value: ghs(m.totalMinor),
-            note: "Statements and cash together",
-            icon: HandCoins,
-          },
-          {
-            label: "Statement giving",
-            value: ghs(m.statementMinor),
-            note: methodNote,
-            icon: Wallet,
-          },
-          {
-            label: "Cash giving",
-            value: ghs(m.cashMinor),
+            label: "BENMP giving reported",
+            value: ghs(m.givingMinor),
             note: "From the churches' monthly summary forms",
-            icon: Banknote,
+            icon: HandCoins,
           },
         ]
-      : [
-          {
-            label: "Giving",
-            value: ghs(m.statementMinor),
-            note: methodNote,
-            icon: HandCoins,
-          },
-        ]),
+      : []),
     {
       label: "Summary forms submitted",
       value: `${m.filed.length} of ${churches}`,
@@ -184,17 +148,10 @@ export default async function HubSummaryPage({
           </button>
         </form>
       </div>
-      <div className="flex justify-end">
-        <DownloadGiversLink
-          href={`/api/hub/givers?month=${month}`}
-          month={month}
-        />
-      </div>
 
       <div
         className={
-          "grid grid-cols-2 gap-3 " +
-          (tiles.length === 4 ? "lg:grid-cols-4" : "")
+"grid grid-cols-2 gap-3"
         }
       >
         {tiles.map(({ label, value, note, icon: Icon }) => (
@@ -237,15 +194,8 @@ export default async function HubSummaryPage({
         </div>
       </section>
 
-      <SubmittedTable rows={m.filed} reportsCash={reportsCash} month={month} />
-      <NotSubmittedTable rows={m.notFiled} month={month} />
-
-      {m.noChurchMinor > 0 && (
-        <p className="text-sm text-muted-foreground">
-          Also {ghs(m.noChurchMinor)} of statement giving this month from
-          partners with no church on record.
-        </p>
-      )}
+      <SubmittedTable rows={m.filed} reportsGiving={reportsGiving} />
+      <NotSubmittedTable rows={m.notFiled} />
 
       <section>
         <h2 className="mb-2 text-base font-bold text-foreground">
@@ -256,9 +206,9 @@ export default async function HubSummaryPage({
             <thead className="border-b border-border text-left text-xs uppercase text-muted-foreground">
               <tr>
                 <th className="px-3 py-3">Month</th>
-                <th className="px-3 py-3 text-right">
-                  {reportsCash ? "All giving" : "Giving"}
-                </th>
+                {reportsGiving && (
+                  <th className="px-3 py-3 text-right">Giving</th>
+                )}
                 {COUNT_LABELS.map(({ key, short }) => (
                   <th
                     key={key}
@@ -287,9 +237,11 @@ export default async function HubSummaryPage({
                       {monthLabel(row.month)}
                     </Link>
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap text-right font-semibold tabular-nums">
-                    {ghs(reportsCash ? row.totalMinor : row.statementMinor)}
-                  </td>
+                  {reportsGiving && (
+                    <td className="px-3 py-3 whitespace-nowrap text-right font-semibold tabular-nums">
+                      {ghs(row.givingMinor)}
+                    </td>
+                  )}
                   {COUNT_LABELS.map(({ key }) => (
                     <td
                       key={key}
@@ -309,10 +261,8 @@ export default async function HubSummaryPage({
       </section>
 
       <p className="text-xs text-muted-foreground">
-        Statement giving is MoMo, bank and Paystack gifts matched to your
-        partners, by the month the money arrived. The four numbers
-        {reportsCash ? " and cash" : ""} are what each church reported on the
-        Monthly Summary Form for the month.
+        Every figure here is what your churches reported on the Monthly Summary
+        Form for the month.
       </p>
     </div>
   );
@@ -320,12 +270,10 @@ export default async function HubSummaryPage({
 
 function SubmittedTable({
   rows,
-  reportsCash,
-  month,
+  reportsGiving,
 }: {
   rows: ChurchMonthRow[];
-  reportsCash: boolean;
-  month: string;
+  reportsGiving: boolean;
 }) {
   return (
     <section>
@@ -347,12 +295,9 @@ function SubmittedTable({
                     {short}
                   </th>
                 ))}
-                <th className="hidden px-3 py-3 text-right sm:table-cell">
-                  Giving
-                </th>
-                {reportsCash && (
+                {reportsGiving && (
                   <th className="hidden px-3 py-3 text-right sm:table-cell">
-                    Cash
+                    Giving
                   </th>
                 )}
                 <th className="hidden px-3 py-3 sm:table-cell">Submitted</th>
@@ -365,7 +310,7 @@ function SubmittedTable({
                   className="border-b border-border last:border-0"
                 >
                   <td className="px-3 py-3">
-                    <ChurchLink row={row} month={month} />
+                    <span className="font-semibold">{row.name}</span>
                     {row.pastor && (
                       <span className="block text-xs text-muted-foreground">
                         {row.pastor}
@@ -377,12 +322,9 @@ function SubmittedTable({
                       {count(row.counts?.[key] ?? 0)}
                     </td>
                   ))}
-                  <td className="hidden px-3 py-3 whitespace-nowrap text-right tabular-nums sm:table-cell">
-                    {ghs(row.statementMinor)}
-                  </td>
-                  {reportsCash && (
+                  {reportsGiving && (
                     <td className="hidden px-3 py-3 whitespace-nowrap text-right tabular-nums sm:table-cell">
-                      {ghs(row.cashMinor)}
+                      {ghs(row.givingMinor)}
                     </td>
                   )}
                   <td className="hidden px-3 py-3 whitespace-nowrap text-muted-foreground sm:table-cell">
@@ -398,13 +340,7 @@ function SubmittedTable({
   );
 }
 
-function NotSubmittedTable({
-  rows,
-  month,
-}: {
-  rows: ChurchMonthRow[];
-  month: string;
-}) {
+function NotSubmittedTable({ rows }: { rows: ChurchMonthRow[] }) {
   return (
     <section>
       <h2 className="mb-2 text-base font-bold text-red-700">
@@ -421,8 +357,6 @@ function NotSubmittedTable({
               <tr>
                 <th className="px-3 py-3">Church</th>
                 <th className="hidden px-3 py-3 sm:table-cell">Pastor</th>
-                <th className="px-3 py-3 text-right">Partners</th>
-                <th className="px-3 py-3 text-right">Giving</th>
               </tr>
             </thead>
             <tbody>
@@ -431,17 +365,9 @@ function NotSubmittedTable({
                   key={row.churchId}
                   className="border-b border-border last:border-0"
                 >
-                  <td className="px-3 py-3">
-                    <ChurchLink row={row} month={month} />
-                  </td>
+                  <td className="px-3 py-3 font-semibold">{row.name}</td>
                   <td className="hidden px-3 py-3 sm:table-cell">
                     {row.pastor || "Not on record"}
-                  </td>
-                  <td className="px-3 py-3 text-right tabular-nums">
-                    {count(row.partners)}
-                  </td>
-                  <td className="px-3 py-3 whitespace-nowrap text-right tabular-nums">
-                    {ghs(row.statementMinor)}
                   </td>
                 </tr>
               ))}
@@ -450,17 +376,5 @@ function NotSubmittedTable({
         </div>
       )}
     </section>
-  );
-}
-
-/** Church name linking to its member-by-month view (Decision 0040). */
-function ChurchLink({ row, month }: { row: ChurchMonthRow; month: string }) {
-  return (
-    <Link
-      href={`/hub/summary/${row.churchId}?month=${month}`}
-      className="font-semibold text-brand hover:underline"
-    >
-      {row.name}
-    </Link>
   );
 }

@@ -1,7 +1,7 @@
 /**
  * Loads everything the office Admins tab needs (Decision 0036), server-side with
  * the service role, the same way the Money by Church and cash monitoring routes
- * do. Only the selected month's payments and cash submissions are read.
+ * do. Only the selected month's Monthly Summary Forms are read.
  */
 
 import type { AdminsInput } from "./admins-overview";
@@ -27,14 +27,6 @@ async function fetchAll<T>(path: string): Promise<T[]> {
   }
 }
 
-/** First day of the month after "YYYY-MM", as "YYYY-MM-01". */
-function nextMonthStart(month: string): string {
-  const [y, m] = month.split("-").map(Number);
-  return m === 12
-    ? `${y + 1}-01-01`
-    : `${y}-${String(m + 1).padStart(2, "0")}-01`;
-}
-
 export async function loadAdminsInput(month: string): Promise<AdminsInput> {
   const start = `${month}-01`;
   const [
@@ -43,7 +35,6 @@ export async function loadAdminsInput(month: string): Promise<AdminsInput> {
     accounts,
     churches,
     partners,
-    payments,
     cashSubmissions,
   ] = await Promise.all([
     fetchAll<AdminsInput["regions"][number]>(
@@ -61,10 +52,6 @@ export async function loadAdminsInput(month: string): Promise<AdminsInput> {
     fetchAll<AdminsInput["partners"][number]>(
       "partners?select=id,hub_id,church_id,country&order=id.asc",
     ),
-    fetchAll<AdminsInput["payments"][number]>(
-      `payments?select=amount_minor,payment_method,raw_row,paid_at&status=eq.Successful` +
-        `&paid_at=gte.${start}&paid_at=lt.${nextMonthStart(month)}&order=id.asc`,
-    ),
     fetchAll<AdminsInput["cashSubmissions"][number]>(
       `cash_submissions?select=church_id,total_cash_minor,status&reporting_month=eq.${start}&order=id.asc`,
     ),
@@ -75,7 +62,6 @@ export async function loadAdminsInput(month: string): Promise<AdminsInput> {
     accounts,
     churches,
     partners,
-    payments,
     cashSubmissions,
   };
 }

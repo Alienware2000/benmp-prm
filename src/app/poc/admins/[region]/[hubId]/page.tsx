@@ -1,6 +1,4 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DownloadGiversLink } from "@/components/giving/member-month-grid";
 import { loadAdminsInput } from "@/lib/poc/admins-data";
 import {
   ADMIN_BLOCKS,
@@ -30,10 +28,10 @@ export default async function AdminsHubPage({
   const code = region.toUpperCase();
   const month = resolveMonth((await searchParams).month);
   const input = await loadAdminsInput(month);
-  const report = buildHubReport(input, month, hubId);
+  const report = buildHubReport(input, hubId);
   if (!report || report.hub.regionCode !== code) notFound();
 
-  const { hub, branches, noBranchGivingMinor } = report;
+  const { hub, branches } = report;
   const regionName = input.regions.find((r) => r.code === code)?.name ?? code;
   const blockLabel =
     ADMIN_BLOCKS.find((b) => b.regionCode === code)?.label ?? regionName;
@@ -58,27 +56,21 @@ export default async function AdminsHubPage({
               {dateLabel(hub.lastSignIn)}.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <MonthPicker
-              month={month}
-              action={`/poc/admins/${code.toLowerCase()}/${hubId}`}
-            />
-            <DownloadGiversLink
-              href={`/api/poc/givers?hubId=${hubId}&month=${month}`}
-              month={month}
-            />
-          </div>
+          <MonthPicker
+            month={month}
+            action={`/poc/admins/${code.toLowerCase()}/${hubId}`}
+          />
         </div>
 
         <div className="mt-6 grid gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-4">
           <Stat label="Partners" value={hub.partners.toLocaleString("en-US")} />
           <Stat label="Branches" value={hub.branches.toLocaleString("en-US")} />
           <Stat
-            label={`Cash reports filed (${monthLabel(month)})`}
+            label={`Forms submitted (${monthLabel(month)})`}
             value={cash.value}
             tone={cash.tone}
           />
-          <Stat label="Giving this month" value={money(hub.givingMinor)} />
+          <Stat label="Giving reported" value={money(hub.givingMinor)} />
         </div>
 
         <div className="mt-6 overflow-x-auto rounded-lg border border-border bg-surface">
@@ -88,8 +80,8 @@ export default async function AdminsHubPage({
                 <th className="px-4 py-3">Branch</th>
                 <th className="px-4 py-3">Pastor</th>
                 <th className="px-4 py-3 text-right">Partners</th>
-                <th className="px-4 py-3 text-right">Giving this month</th>
-                <th className="px-4 py-3">Cash report</th>
+                <th className="px-4 py-3">Monthly Summary Form</th>
+                <th className="px-4 py-3 text-right">Giving reported</th>
               </tr>
             </thead>
             <tbody>
@@ -98,20 +90,10 @@ export default async function AdminsHubPage({
                   key={b.churchId}
                   className="border-b border-border last:border-0"
                 >
-                  <td className="px-4 py-3 font-semibold">
-                    <Link
-                      href={`/poc/admins/${code.toLowerCase()}/${hubId}/${b.churchId}?month=${month}`}
-                      className="text-brand hover:underline"
-                    >
-                      {b.name}
-                    </Link>
-                  </td>
+                  <td className="px-4 py-3 font-semibold">{b.name}</td>
                   <td className="px-4 py-3">{b.pastor || "Not on record"}</td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     {b.partners.toLocaleString("en-US")}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {money(b.givingMinor)}
                   </td>
                   <td
                     className={
@@ -119,7 +101,10 @@ export default async function AdminsHubPage({
                       (b.cashFiled ? "text-emerald-700" : "text-red-700")
                     }
                   >
-                    {b.cashFiled ? `Filed, ${money(b.cashMinor)}` : "Not filed"}
+                    {b.cashFiled ? "Submitted" : "Not submitted"}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {b.cashFiled ? money(b.givingMinor) : ""}
                   </td>
                 </tr>
               ))}
@@ -127,12 +112,6 @@ export default async function AdminsHubPage({
           </table>
         </div>
 
-        {noBranchGivingMinor > 0 && (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Also {money(noBranchGivingMinor)} this month from this hub&apos;s
-            partners who have no branch yet.
-          </p>
-        )}
       </div>
     </div>
   );

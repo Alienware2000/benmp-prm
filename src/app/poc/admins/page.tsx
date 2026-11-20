@@ -16,7 +16,7 @@ export default async function AdminsPage({
 }) {
   const month = resolveMonth((await searchParams).month);
   const input = await loadAdminsInput(month);
-  const blocks = buildBlocks(input.regions, computeHubStats(input, month));
+  const blocks = buildBlocks(input.regions, computeHubStats(input));
 
   return (
     <div className="min-h-screen bg-background px-4 py-8 pb-28 lg:pb-8">
@@ -71,12 +71,12 @@ export default async function AdminsPage({
                       value={b.branches.toLocaleString("en-US")}
                     />
                     <Stat
-                      label="Cash reports filed"
+                      label="Forms submitted"
                       value={cash.value}
                       tone={cash.tone}
                     />
                     <Stat
-                      label="Giving this month"
+                      label="Giving reported"
                       value={money(b.givingMinor)}
                     />
                   </div>
@@ -99,14 +99,15 @@ export default async function AdminsPage({
             );
           })}
 
-          {/* The public form branches use to file the "Cash reports filed" above. */}
+          {/* The public form branches use to file the "Forms submitted" above. */}
           <div className="flex h-full flex-col rounded-lg border border-dashed border-brand/50 bg-surface p-4 shadow-sm">
             <h2 className="text-lg font-bold text-foreground">
-              Cash giving form
+              Monthly Summary Form
             </h2>
             <p className="mt-2 flex-1 text-sm text-muted-foreground">
-              Where each church reports its cash collections for the month. Open
-              it to file a report, or copy the link to send to a branch.
+              Where each church reports its four numbers and its BENMP giving
+              for the month. Open it to file a report, or copy the link to send
+              to a branch.
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <a

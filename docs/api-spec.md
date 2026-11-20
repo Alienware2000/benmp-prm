@@ -249,7 +249,7 @@ All require a valid hub session; the proxy additionally blocks them while a pass
 
 ### Middleware gate
 
-`src/proxy.ts` + `src/lib/hub/gate.ts` (pure, tested): `/hub/*` and `/api/hub/*` require a valid hub session; a hub session outside `/hub` is redirected into it (never reaches `/poc`); `mustChange` sessions are forced to `/hub/password`; pages: `/hub` (giving overview, Decision 0032), `/hub/summary/<churchId>` (one church, member × month; Decision 0040), `/hub/summary` (monthly summary: giving, the Monthly Summary Form's four numbers summed, churches submitted / not submitted, month by month; cash for Ghana hubs only; Decisions 0038, 0039), `/hub/upload`, `/hub/partners`, `/hub/claim` (Decision 0033), `/hub/settings`; staff cookies grant no hub access and vice versa.
+`src/proxy.ts` + `src/lib/hub/gate.ts` (pure, tested): `/hub/*` and `/api/hub/*` require a valid hub session; a hub session outside `/hub` is redirected into it (never reaches `/poc`); `mustChange` sessions are forced to `/hub/password`; pages: `/hub` (overview: registered partners, churches, this month's forms; Decisions 0032, 0044), `/hub/summary` (monthly summary from the Monthly Summary Forms only: the four numbers summed, churches submitted / not submitted, month by month; giving reported for Ghana hubs only; Decisions 0038, 0039, 0044), `/hub/upload`, `/hub/partners`, `/hub/settings`. The member drill-down (Decision 0040) and `/hub/claim` (Decision 0033) were removed (Decision 0044); staff cookies grant no hub access and vice versa.
 
 ## 6. Payment Intake (CSV-only)
 
@@ -461,9 +461,9 @@ Staff. Downloads the original statement behind a batch: `302` redirect to a 60-s
 
 Staff. Lists the `payment_import_rows` for a specific batch. Returns `{ ok, rows: [{ id, payment_reference, match_status, normalized_row: { payerName, amountMinor, transactionDate }, created_at }] }`.
 
-### `GET /api/poc/givers` · `GET /api/hub/givers`
+### `GET /api/poc/givers`
 
-A month's givers as a contact CSV for a broadcast (Decision 0041). Office (staff): `?hubId=&month=YYYY-MM[&churchId=]`. Hub: `?month=YYYY-MM[&churchId=]`, always the session's own hub. Returns `text/csv` (`attachment; filename="givers-<hub>[-<church>]-<YYYY-MM>.csv"`) with `Name, Phone, Church, Given (GHS), Gave by`: statement givers matched to the hub's partners plus cash givers on the month's Monthly Summary Forms, one row per phone. `400` bad month · `404` unknown hub, or a church not in that hub · `401` no session. Each download writes `audit_log` `giver_contacts_export`.
+Staff. `?month=YYYY-MM`: everyone who gave by statement (MoMo, bank, Paystack) that month as a contact CSV for a broadcast (Decisions 0041, 0044). Returns `text/csv` (`attachment; filename="givers-<YYYY-MM>.csv"`) with `Name, Phone, Given (GHS), Gifts`, one row per phone (partners matched to the month's payments; cash ledger rows skipped). No hub, church or form data. `400` bad month · `401` no session. Each download writes `audit_log` `giver_contacts_export`. The download form is on `/poc/giving`. (`GET /api/hub/givers` was removed.)
 
 ### `GET /api/poc/giving/by-church`
 
@@ -482,10 +482,6 @@ The phone is normalized server-side. A real send still requires the staff confir
 ### `POST /api/hub/partners/delete` (Decision 0029)
 
 Hub session required. Body `{ "partnerIds": string[] }` (UUIDs, max 5,000). Removes those of the session hub's partners with no giving on record, after copying each row to `audit_log`. Returns `{ ok, deleted, kept: [{ id, name, reason }] }`; partners of other hubs are silently ignored. `400` when nothing valid is sent, `401` without a hub session.
-### `POST /api/hub/claim` (Decision 0033)
-
-Hub session required; the hub comes from the session. Body `{ "action": "claim", "partnerId", "churchId" }` gives an unassigned giver (no hub, same country as the hub) to the session hub under one of its churches. First claim wins: `409` if another hub got there first or the giver is not in the hub's country. `{ "action": "release", "partnerId" }` undoes the session hub's own claim, restoring the previous church, and is refused for partners the hub uploaded or another hub claimed. Both write `audit_log` (`hub_partner_claim` / `hub_partner_release`) and a structured log. Page: `/hub/claim`.
-
 ## 13. Cash Payment Form Endpoints
 
 Public form at `/cash` for monthly cash collections. Public endpoints under `/api/cash/*`; staff endpoints under `/api/poc/cash/*` (gated by the POC session).

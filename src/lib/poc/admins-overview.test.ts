@@ -63,51 +63,17 @@ function input(): AdminsInput {
       { id: "p6", hub_id: "hk", church_id: "c-nai", country: "Kenya" },
       { id: "p7", hub_id: null, church_id: null, country: "Ghana" },
     ],
-    payments: [
-      {
-        amount_minor: 10000,
-        payment_method: "mtn_momo",
-        raw_row: { matched_partner_id: "p1" },
-        paid_at: "2026-10-03T10:00:00Z",
-      },
-      {
-        amount_minor: 5000,
-        payment_method: "mtn_momo",
-        raw_row: { matched_partner_id: "p3" },
-        paid_at: "2026-10-05T10:00:00Z",
-      },
-      {
-        amount_minor: 2000,
-        payment_method: "mtn_momo",
-        raw_row: { matched_partner_id: "p4" },
-        paid_at: "2026-10-06T10:00:00Z",
-      },
-      // September: must not count for October.
-      {
-        amount_minor: 99900,
-        payment_method: "mtn_momo",
-        raw_row: { matched_partner_id: "p1" },
-        paid_at: "2026-09-30T23:00:00Z",
-      },
-      // A giver with no hub: belongs to no block.
-      {
-        amount_minor: 7000,
-        payment_method: "mtn_momo",
-        raw_row: { matched_partner_id: "p7" },
-        paid_at: "2026-10-07T10:00:00Z",
-      },
-    ],
     cashSubmissions: [
       { church_id: "c-lion", total_cash_minor: 45000, status: "submitted" },
+      { church_id: "c-nai", total_cash_minor: 8000, status: "submitted" },
     ],
   };
 }
 
-const OCT = "2026-10";
 
 describe("office Admins tab (Decision 0036)", () => {
   it("shows the office's nine blocks in the order and names it asked for", () => {
-    const blocks = buildBlocks(input().regions, computeHubStats(input(), OCT));
+    const blocks = buildBlocks(input().regions, computeHubStats(input()));
     expect(blocks.map((b) => b.label)).toEqual([
       "UD GH",
       "UJ",
@@ -123,7 +89,7 @@ describe("office Admins tab (Decision 0036)", () => {
   });
 
   it("marks blocks without a region as not set up, with zero figures", () => {
-    const blocks = buildBlocks(input().regions, computeHubStats(input(), OCT));
+    const blocks = buildBlocks(input().regions, computeHubStats(input()));
     const byLabel = Object.fromEntries(blocks.map((b) => [b.label, b]));
     for (const label of ["UD NA", "UI", "First Love", "UJ"]) {
       expect(byLabel[label].setUp).toBe(false);
@@ -138,7 +104,7 @@ describe("office Admins tab (Decision 0036)", () => {
       ...input().regions,
       { id: "r-x", code: "NEW_REGION", name: "New Region" },
     ];
-    const blocks = buildBlocks(regions, computeHubStats(input(), OCT));
+    const blocks = buildBlocks(regions, computeHubStats(input()));
     expect(blocks.at(-1)).toMatchObject({
       label: "New Region",
       regionCode: "NEW_REGION",
@@ -147,20 +113,20 @@ describe("office Admins tab (Decision 0036)", () => {
     });
   });
 
-  it("totals each block from its hubs: partners, branches, admins, cash filed, giving", () => {
-    const ud = buildBlocks(input().regions, computeHubStats(input(), OCT))[0];
+  it("totals each block from its hubs: partners, branches, admins, forms filed, giving reported", () => {
+    const ud = buildBlocks(input().regions, computeHubStats(input()))[0];
     expect(ud).toMatchObject({
       hubs: 2,
       adminsSignedIn: 1, // Cape Coast signed in; Sefwi-Wiawso never has
       partners: 5, // p1-p5; p7 has no hub
       branches: 3,
       cashFiled: 1,
-      givingMinor: 17000, // October only; the no-hub giver is not in any block
+      givingMinor: 45000, // what Lion of Judah reported on its form
     });
   });
 
-  it("counts a hub's figures for the chosen month only", () => {
-    const stats = computeHubStats(input(), OCT).get("h8")!;
+  it("takes a hub's giving from its churches' forms, not from statements", () => {
+    const stats = computeHubStats(input()).get("h8")!;
     expect(stats).toMatchObject({
       label: "Hub 8 - Cape Coast", // same wording as the office cash monitoring page
       adminName: "Ps Ama",
@@ -168,15 +134,13 @@ describe("office Admins tab (Decision 0036)", () => {
       partners: 4,
       branches: 2,
       cashFiled: 1,
-      givingMinor: 17000,
+      givingMinor: 45000,
     });
-    expect(computeHubStats(input(), "2026-09").get("h8")!.givingMinor).toBe(
-      99900,
-    );
+    expect(computeHubStats(input()).get("hk")!.givingMinor).toBe(8000);
   });
 
   it("lists a region's hubs in login order (hub number, then name)", () => {
-    const stats = computeHubStats(input(), OCT);
+    const stats = computeHubStats(input());
     expect(
       hubsForRegion(input().hubs, stats, "UD_GHANA").map((h) => h.hubId),
     ).toEqual(["h2", "h8"]);
@@ -185,33 +149,30 @@ describe("office Admins tab (Decision 0036)", () => {
     ).toEqual(["hk"]);
   });
 
-  it("reports each branch: pastor, people, giving and whether its cash report is in", () => {
-    const report = buildHubReport(input(), OCT, "h8")!;
+  it("reports each branch: pastor, people, and the giving on its form if it filed", () => {
+    const report = buildHubReport(input(), "h8")!;
     expect(report.branches).toEqual([
       {
         churchId: "c-abura",
         name: "Abura",
         pastor: "",
         partners: 1,
-        givingMinor: 5000,
+        givingMinor: 0,
         cashFiled: false,
-        cashMinor: 0,
       },
       {
         churchId: "c-lion",
         name: "Lion of Judah",
         pastor: "Bishop Paschal",
         partners: 2,
-        givingMinor: 10000,
+        givingMinor: 45000,
         cashFiled: true,
-        cashMinor: 45000,
       },
     ]);
-    expect(report.noBranchGivingMinor).toBe(2000); // p4 gave but has no branch
   });
 
   it("returns nothing for a hub that does not exist", () => {
-    expect(buildHubReport(input(), OCT, "missing")).toBeNull();
+    expect(buildHubReport(input(), "missing")).toBeNull();
   });
 
   it("reads the month from the address, falling back to the current month", () => {

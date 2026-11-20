@@ -3,17 +3,16 @@
  * report, drilled down region block -> hub -> branch. Pure aggregation, no I/O;
  * the data is loaded by ./admins-data.
  *
- * Giving reuses aggregateMoneyByChurch so these totals match the Money by
- * Church page exactly. Cash filing is read from cash_submissions for the month.
+ * Giving and filing come from the churches' Monthly Summary Forms
+ * (`cash_submissions`) for the month only: hub giving tracking is its own
+ * system, not reconciled with statement giving (Decision 0044).
  */
 
-import {
-  aggregateMoneyByChurch,
-  type ChurchMeta,
-  type HubMeta,
-  type PartnerForAggregation,
-  type PaymentForAggregation,
-  type RegionMeta,
+import type {
+  ChurchMeta,
+  HubMeta,
+  PartnerForAggregation,
+  RegionMeta,
 } from "./money-by-church";
 
 /**
@@ -51,9 +50,7 @@ export type AdminsInput = {
   accounts: AccountMeta[];
   churches: (ChurchMeta & { leader_name?: string | null })[];
   partners: PartnerForAggregation[];
-  /** Successful payments; only those in `month` are counted. */
-  payments: PaymentForAggregation[];
-  /** Cash submissions for `month` only. */
+  /** Monthly Summary Forms for `month` only. */
   cashSubmissions: CashSubmissionMeta[];
 };
 
@@ -66,7 +63,9 @@ export type HubStats = {
   lastSignIn: string | null;
   partners: number;
   branches: number;
+  /** Churches that submitted the month's form. */
   cashFiled: number;
+  /** BENMP giving reported on those forms. */
   givingMinor: number;
 };
 
@@ -87,36 +86,22 @@ export type BranchRow = {
   name: string;
   pastor: string;
   partners: number;
+  /** Giving the church reported on the month's form; 0 when not filed. */
   givingMinor: number;
   cashFiled: boolean;
-  cashMinor: number;
 };
 
 export type HubReport = {
   hub: HubStats;
   branches: BranchRow[];
-  /** Giving from this hub's partners who have no branch yet. */
-  noBranchGivingMinor: number;
 };
 
-/** Hub-level figures for every hub, for `month` ("YYYY-MM"). */
-export function computeHubStats(
-  input: AdminsInput,
-  month: string,
-): Map<string, HubStats> {
+/** Hub-level figures for every hub, for the month the input was loaded for. */
+export function computeHubStats(input: AdminsInput): Map<string, HubStats> {
   const regionById = new Map(input.regions.map((r) => [r.id, r]));
   const accountByHub = new Map(input.accounts.map((a) => [a.hub_id, a]));
-  const filedChurches = new Set(input.cashSubmissions.map((s) => s.church_id));
-  const money = aggregateMoneyByChurch(
-    input.payments,
-    input.partners,
-    input.churches,
-    input.hubs,
-    input.regions,
-    month,
-  );
-  const givingByHub = new Map(
-    money.rollups.byHub.map((h) => [h.hubId, h.totalMinor]),
+  const formByChurch = new Map(
+    input.cashSubmissions.map((s) => [s.church_id, s]),
   );
 
   const stats = new Map<string, HubStats>();
@@ -132,14 +117,18 @@ export function computeHubStats(
       partners: 0,
       branches: 0,
       cashFiled: 0,
-      givingMinor: givingByHub.get(h.id) ?? 0,
+      givingMinor: 0,
     });
   }
   for (const c of input.churches) {
     const s = stats.get(c.hub_id);
     if (!s) continue;
     s.branches += 1;
-    if (filedChurches.has(c.id)) s.cashFiled += 1;
+    const form = formByChurch.get(c.id);
+    if (form) {
+      s.cashFiled += 1;
+      s.givingMinor += form.total_cash_minor;
+    }
   }
   for (const p of input.partners) {
     const s = p.hub_id ? stats.get(p.hub_id) : undefined;
@@ -199,26 +188,14 @@ export function hubsForRegion(
     );
 }
 
-/** One hub's branches: people, giving and cash filing for `month`. */
+/** One hub's branches: registered partners and the month's form, per branch. */
 export function buildHubReport(
   input: AdminsInput,
-  month: string,
   hubId: string,
 ): HubReport | null {
-  const hub = computeHubStats(input, month).get(hubId);
+  const hub = computeHubStats(input).get(hubId);
   if (!hub) return null;
 
-  const money = aggregateMoneyByChurch(
-    input.payments,
-    input.partners,
-    input.churches,
-    input.hubs,
-    input.regions,
-    month,
-  );
-  const givingByChurch = new Map(
-    money.churches.map((c) => [c.churchId, c.totalMinor]),
-  );
   const cashByChurch = new Map(
     input.cashSubmissions.map((s) => [s.church_id, s]),
   );
@@ -241,18 +218,13 @@ export function buildHubReport(
         name: c.name,
         pastor: c.leader_name ?? "",
         partners: partnersByChurch.get(c.id) ?? 0,
-        givingMinor: givingByChurch.get(c.id) ?? 0,
+        givingMinor: cash?.total_cash_minor ?? 0,
         cashFiled: Boolean(cash),
-        cashMinor: cash?.total_cash_minor ?? 0,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  return {
-    hub,
-    branches,
-    noBranchGivingMinor: givingByChurch.get(`unassigned:${hubId}`) ?? 0,
-  };
+  return { hub, branches };
 }
 
 /** "YYYY-MM" from a query value, or the current month (UTC) if missing/invalid. */

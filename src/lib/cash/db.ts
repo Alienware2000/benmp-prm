@@ -1,6 +1,5 @@
 // src/lib/cash/db.ts
 import { normalizePhone } from "../phone";
-import { inListChunks } from "../poc/in-list";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -92,23 +91,6 @@ export async function validateChain(
 
 // --- Submission insert ---
 
-export type GiverInsert = {
-  row_index: number;
-  giver_name: string | null;
-  giver_phone: string | null;
-  amount_minor: number;
-  transaction_ref: string | null;
-};
-
-export type DepositInsert = {
-  row_index: number;
-  transaction_id: string;
-  transaction_key: string;
-  channel: string;
-  amount_minor: number;
-  deposited_on: string;
-};
-
 export type SubmissionInsert = {
   region_id: string;
   hub_id: string;
@@ -125,16 +107,7 @@ export type SubmissionInsert = {
   givers_file_name: string | null;
 };
 
-export async function insertSubmission(
-  submission: SubmissionInsert,
-  givers: GiverInsert[],
-  deposits: DepositInsert[],
-): Promise<string> {
-  // PostgREST does not detect the cash_submissions → child relationships for
-  // nested inserts, so insert the parent first, then the children with the
-  // returned id. If a child insert fails, the parent is deleted (children
-  // cascade) so the church can simply submit again instead of hitting the
-  // one-per-month 409. A proper transaction would need an RPC function.
+export async function insertSubmission(submission: SubmissionInsert): Promise<string> {
   const rows = await rest<{ id: string }[]>(
     "cash_submissions?select=id",
     {
@@ -145,32 +118,7 @@ export async function insertSubmission(
   );
   const row = Array.isArray(rows) ? rows[0] : rows;
   if (!row || !row.id) throw new Error("Submission insert returned no id.");
-  const submissionId = row.id;
-
-  try {
-    if (givers.length > 0) {
-      await rest<void>("cash_submission_givers", {
-        method: "POST",
-        headers: { Prefer: "return=minimal" },
-        body: JSON.stringify(givers.map((g) => ({ ...g, submission_id: submissionId }))),
-      });
-    }
-    if (deposits.length > 0) {
-      await rest<void>("cash_submission_deposits", {
-        method: "POST",
-        headers: { Prefer: "return=minimal" },
-        body: JSON.stringify(deposits.map((d) => ({ ...d, submission_id: submissionId }))),
-      });
-    }
-  } catch (err) {
-    await rest<void>(`cash_submissions?id=eq.${encodeURIComponent(submissionId)}`, {
-      method: "DELETE",
-      headers: { Prefer: "return=minimal" },
-    }).catch(() => {});
-    throw err;
-  }
-
-  return submissionId;
+  return row.id;
 }
 
 /** Remove a submission (its givers and deposits cascade), e.g. when a later step fails. */
@@ -179,18 +127,6 @@ export async function deleteSubmission(submissionId: string): Promise<void> {
     method: "DELETE",
     headers: { Prefer: "return=minimal" },
   });
-}
-
-/** Transaction IDs (by key) that an earlier submission already reported. */
-export async function reportedTransactionKeys(keys: string[]): Promise<string[]> {
-  const found: string[] = [];
-  for (const list of inListChunks(keys)) {
-    const rows = await rest<{ transaction_key: string }[]>(
-      `cash_submission_deposits?select=transaction_key&transaction_key=in.(${list})`,
-    );
-    found.push(...rows.map((r) => r.transaction_key));
-  }
-  return found;
 }
 
 export async function submissionExistsForMonth(

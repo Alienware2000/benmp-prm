@@ -4,29 +4,19 @@ import {
   deleteSubmission,
   insertSubmission,
   listAllRegions,
-  reportedTransactionKeys,
   submissionExistsForMonth,
   validateChain,
-  type DepositInsert,
-  type GiverInsert,
   type SubmissionInsert,
 } from "@/lib/cash/db";
 import {
+  parseGivingTotal,
   parseReportingMonth,
-  transactionIdKey,
-  validateDeposits,
-  validateGiverRows,
   validateSummaryCounts,
-  type DepositInput,
   type NewMemberInput,
   type SubmitPayload,
 } from "@/lib/cash/validation";
 import { addNewMembers, checkNewMembers, nonBlankMembers } from "@/lib/cash/new-members";
-import { readGiverUpload } from "@/lib/cash/giver-upload";
 import { checkRateLimit, type RateLimitMap } from "@/lib/cash/rate-limit";
-import { computeFileHash } from "@/lib/poc/import-dedup";
-import { contentTypeFor, vaultObjectPath } from "@/lib/poc/statement-file";
-import { saveStatementFile } from "@/lib/poc/statement-vault";
 
 export const dynamic = "force-dynamic";
 
@@ -44,12 +34,10 @@ function parseJson<T>(raw: FormDataEntryValue | null, fallback: T): T {
 }
 
 /**
- * The Monthly Summary Form (Decision 0039). Multipart: `regionCode`, `hubId`,
- * `churchId`, `reportingMonth`, `summary` (JSON, the four required numbers),
- * `members` (JSON, optional new members) and, in Ghana regions only, the
- * optional cash parts: `file` (giver sheet, CSV or Excel, re-read here rather
- * than trusted from the preview) and `deposits` (JSON array). Everything is
- * checked before anything is written.
+ * The Monthly Summary Form (Decisions 0039, 0043). Multipart: `regionCode`,
+ * `hubId`, `churchId`, `reportingMonth`, `summary` (JSON, the four required
+ * numbers), `members` (JSON, optional new members) and, in Ghana regions only,
+ * `givingTotal` (optional, GHS). Everything is checked before anything is written.
  */
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -67,7 +55,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invalid form submission." }, { status: 400 });
   }
   const field = (name: string) => String(form.get(name) ?? "").trim();
-  const body: Omit<SubmitPayload, "givers"> = {
+  const body: SubmitPayload = {
     regionCode: field("regionCode"),
     hubId: field("hubId"),
     churchId: field("churchId"),
@@ -78,7 +66,6 @@ export async function POST(req: NextRequest) {
       newRegistrations: null,
       lapsed: null,
     }),
-    deposits: parseJson<DepositInput[]>(form.get("deposits"), []),
   };
 
   const reportingMonth = parseReportingMonth(body.reportingMonth);
@@ -112,40 +99,9 @@ export async function POST(req: NextRequest) {
   // Cash is reported in the Ghana regions only, and is optional there.
   const reportsCash = region.momo_required;
 
-  let givers: { name: string; phone: string; amountMinor: number; transactionRef: string }[] = [];
-  let upload: { filename: string; buffer: ArrayBuffer } | null = null;
-  const file = form.get("file");
-  if (reportsCash && file && typeof file !== "string" && file.size > 0) {
-    const read = await readGiverUpload(file);
-    if (!read.ok) {
-      return NextResponse.json({ ok: false, error: read.error }, { status: 400 });
-    }
-    if (read.result.errors.length > 0) {
-      return NextResponse.json(
-        { ok: false, error: `Fix the giver list and upload it again. ${read.result.errors.slice(0, 5).join(" ")}` },
-        { status: 400 },
-      );
-    }
-    const giversResult = validateGiverRows(read.result.givers);
-    if (!giversResult.ok) {
-      return NextResponse.json({ ok: false, error: giversResult.error }, { status: 400 });
-    }
-    givers = read.result.givers;
-    upload = { filename: read.filename, buffer: read.buffer };
-  }
-
-  if (!reportsCash) body.deposits = [];
-  const depositsResult = validateDeposits(body.deposits, reportingMonth);
-  if (!depositsResult.ok) {
-    return NextResponse.json({ ok: false, error: depositsResult.error }, { status: 400 });
-  }
-  const depositKeys = body.deposits.map((d) => transactionIdKey(d.transactionId));
-  const alreadyReported = depositKeys.length > 0 ? await reportedTransactionKeys(depositKeys) : [];
-  if (alreadyReported.length > 0) {
-    return NextResponse.json(
-      { ok: false, error: `Transaction ID already reported on another form: ${alreadyReported.join(", ")}.` },
-      { status: 409 },
-    );
+  const cash = reportsCash ? parseGivingTotal(field("givingTotal")) : { ok: true as const, minor: 0 };
+  if (!cash.ok) {
+    return NextResponse.json({ ok: false, error: cash.error }, { status: 400 });
   }
 
   const members = nonBlankMembers(parseJson<NewMemberInput[]>(form.get("members"), []));
@@ -160,26 +116,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Keep a giver sheet in the statement vault (migration 0024) beside the bank statements.
-  let vaultPath: string | null = null;
-  if (upload) {
-    const fileHash = computeFileHash(upload.buffer);
-    vaultPath = vaultObjectPath({
-      source: "cash",
-      month: reportingMonth.slice(0, 7),
-      fileHash,
-      filename: upload.filename,
-    });
-    try {
-      await saveStatementFile(vaultPath, upload.buffer, contentTypeFor(upload.filename));
-    } catch (err) {
-      console.error("[cash/submit] vault save failed", err);
-      return NextResponse.json({ ok: false, error: "Could not save the giver list. Please try again." }, { status: 500 });
-    }
-  }
-
-  const totalCashMinor = givers.reduce((sum, g) => sum + g.amountMinor, 0);
-  const depositsTotalMinor = body.deposits.reduce((sum, d) => sum + d.amountMinor, 0);
   const submission: SubmissionInsert = {
     region_id: region.id,
     hub_id: body.hubId,
@@ -189,31 +125,15 @@ export async function POST(req: NextRequest) {
     active_partners: body.summary.activePartners!,
     new_registrations: body.summary.newRegistrations!,
     lapsed: body.summary.lapsed!,
-    total_cash_minor: totalCashMinor,
-    deposits_total_minor: depositsTotalMinor,
+    total_cash_minor: cash.minor,
+    deposits_total_minor: 0,
     currency: "GHS",
-    givers_file_path: vaultPath,
-    givers_file_name: upload?.filename ?? null,
+    givers_file_path: null,
+    givers_file_name: null,
   };
-  const giverInserts: GiverInsert[] = givers.map((g, i) => ({
-    row_index: i,
-    giver_name: g.name.trim() || null,
-    giver_phone: g.phone.trim() || null,
-    amount_minor: g.amountMinor,
-    transaction_ref: g.transactionRef.trim() || null,
-  }));
-  const depositInserts: DepositInsert[] = body.deposits.map((d, i) => ({
-    row_index: i,
-    transaction_id: d.transactionId.trim(),
-    transaction_key: depositKeys[i],
-    channel: d.channel,
-    amount_minor: d.amountMinor,
-    deposited_on: d.depositedOn,
-  }));
-
   let submissionId: string;
   try {
-    submissionId = await insertSubmission(submission, giverInserts, depositInserts);
+    submissionId = await insertSubmission(submission);
   } catch (err) {
     console.error("[cash/submit] insert failed", err);
     return NextResponse.json(
@@ -250,12 +170,7 @@ export async function POST(req: NextRequest) {
       churchId: body.churchId,
       reportingMonth,
       summary: body.summary,
-      givers: giverInserts.length,
-      totalCashMinor,
-      deposits: depositInserts.length,
-      depositsTotalMinor,
-      transactionKeys: depositKeys,
-      vaultPath,
+      totalCashMinor: cash.minor,
       membersAdded,
       membersAlreadyListed: memberCheck?.ok ? memberCheck.alreadyListed : 0,
     }),
@@ -264,8 +179,7 @@ export async function POST(req: NextRequest) {
     {
       ok: true,
       submissionId,
-      totalCashMinor,
-      depositsTotalMinor,
+      totalCashMinor: cash.minor,
       membersAdded,
       membersAlreadyListed: memberCheck?.ok ? memberCheck.alreadyListed : 0,
     },

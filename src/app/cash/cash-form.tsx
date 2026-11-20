@@ -6,18 +6,11 @@ import { useState, useEffect } from "react";
 type Region = { code: string; name: string; momo_required: boolean };
 type Hub = { id: string; label: string };
 type Church = { id: string; name: string };
-type ParsedGiver = { name: string; phone: string; amountMinor: number; transactionRef: string };
-type GiverPreview = { givers: ParsedGiver[]; errors: string[]; totalMinor: number };
-type DepositRow = { transactionId: string; channel: string; amountCedis: string; depositedOn: string };
 type MemberRow = { name: string; whatsappPhone: string; momoPhone: string };
 type MemberIssue = { index: number; issues: { field: string; message: string }[] };
 
-const emptyDeposit = (): DepositRow => ({ transactionId: "", channel: "momo", amountCedis: "", depositedOn: "" });
 const emptyMember = (): MemberRow => ({ name: "", whatsappPhone: "", momoPhone: "" });
-const ghs = (minor: number) => `GHS ${(minor / 100).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const toMinor = (cedis: string) => Math.round(parseFloat(cedis) * 100) || 0;
 const toCount = (raw: string) => (raw.trim() === "" ? null : Number(raw));
-const isBlankDeposit = (d: DepositRow) => !d.transactionId.trim() && !d.amountCedis.trim() && !d.depositedOn;
 const isBlankMember = (m: MemberRow) => !m.name.trim() && !m.whatsappPhone.trim() && !m.momoPhone.trim();
 
 const SUMMARY_FIELDS = [
@@ -28,9 +21,9 @@ const SUMMARY_FIELDS = [
 ] as const;
 
 /**
- * The Monthly Summary Form (Decision 0039): the four monthly numbers are
- * required; new members are optional; cash givers and cash transactions are
- * optional and shown only for Ghana regions.
+ * The Monthly Summary Form (Decisions 0039, 0043): the four monthly numbers
+ * are required; new members are optional; Ghana regions may also give the
+ * church's total BENMP giving for the month.
  */
 export function CashForm() {
   const [regions, setRegions] = useState<Region[]>([]);
@@ -50,11 +43,7 @@ export function CashForm() {
   });
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [memberIssues, setMemberIssues] = useState<MemberIssue[]>([]);
-  const [giverFile, setGiverFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<GiverPreview | null>(null);
-  const [previewError, setPreviewError] = useState("");
-  const [reading, setReading] = useState(false);
-  const [deposits, setDeposits] = useState<DepositRow[]>([]);
+  const [givingTotal, setGivingTotal] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
@@ -103,39 +92,6 @@ export function CashForm() {
     setChurchId("");
   };
 
-  const handleFileChange = async (file: File | null) => {
-    setGiverFile(file);
-    setPreview(null);
-    setPreviewError("");
-    if (!file) return;
-    setReading(true);
-    try {
-      const body = new FormData();
-      body.append("file", file);
-      const res = await fetch("/api/cash/preview", { method: "POST", body });
-      const data = await res.json();
-      if (data.ok) setPreview({ givers: data.givers, errors: data.errors, totalMinor: data.totalMinor });
-      else setPreviewError(data.error ?? "The file could not be read.");
-    } catch {
-      setPreviewError("Network error while reading the file. Please try again.");
-    } finally {
-      setReading(false);
-    }
-  };
-
-  const filledDeposits = deposits.filter((d) => !isBlankDeposit(d));
-  const depositsTotalMinor = filledDeposits.reduce((sum, d) => sum + toMinor(d.amountCedis), 0);
-  // The giver list is optional, but a chosen file must have been read cleanly.
-  const giversBlocking = reportsCash && !!giverFile && !(preview && preview.givers.length > 0 && preview.errors.length === 0);
-
-  const addDeposit = () => setDeposits((prev) => [...prev, emptyDeposit()]);
-  const removeDeposit = (index: number) =>
-    setDeposits((prev) => prev.filter((_, i) => i !== index));
-  const updateDeposit = (index: number, field: keyof DepositRow, value: string) =>
-    setDeposits((prev) =>
-      prev.map((d, i) => (i === index ? { ...d, [field]: value } : d)),
-    );
-
   const addMember = () => setMembers((prev) => [...prev, emptyMember()]);
   const removeMember = (index: number) => {
     setMembers((prev) => prev.filter((_, i) => i !== index));
@@ -177,20 +133,7 @@ export function CashForm() {
         })),
       ),
     );
-    if (reportsCash) {
-      body.append(
-        "deposits",
-        JSON.stringify(
-          filledDeposits.map((d) => ({
-            transactionId: d.transactionId.trim(),
-            channel: d.channel,
-            amountMinor: toMinor(d.amountCedis),
-            depositedOn: d.depositedOn,
-          })),
-        ),
-      );
-      if (giverFile) body.append("file", giverFile);
-    }
+    if (reportsCash) body.append("givingTotal", givingTotal.trim());
 
     try {
       const res = await fetch("/api/cash/submit", { method: "POST", body });
@@ -366,148 +309,27 @@ export function CashForm() {
       </section>
 
       {reportsCash && (
-        <>
-          {/* Section 4: Giver list (uploaded) — Ghana regions, optional */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">
-                Cash Givers <span className="text-sm font-normal text-muted-foreground">(optional)</span>
-              </h2>
-              <a href="/api/cash/template" className="text-sm text-primary underline">
-                Download template
-              </a>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              If your church collected cash this month, upload an Excel or CSV file with one
-              row per giver and the columns Name, Phone, Amount (GHS), and Receipt No (optional).
-            </p>
+        /* Section 4: The church's BENMP giving for the month — Ghana regions, optional */
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-foreground">
+            BENMP Giving <span className="text-sm font-normal text-muted-foreground">(optional)</span>
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            The total your church gave to BENMP this month, however it was given. Leave it blank if there was none.
+          </p>
+          <label className="block max-w-xs">
+            <span className="text-xs text-muted-foreground">Total giving (GHS)</span>
             <input
-              type="file"
-              accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm"
+              type="number"
+              min={0}
+              step="0.01"
+              inputMode="decimal"
+              value={givingTotal}
+              onChange={(e) => setGivingTotal(e.target.value)}
+              className="mt-1 w-full rounded border border-border bg-input px-2 py-1 text-sm"
             />
-            {reading && <p className="text-sm text-muted-foreground">Reading file…</p>}
-            {previewError && (
-              <p className="rounded bg-red-100 p-3 text-sm text-red-800">{previewError}</p>
-            )}
-            {preview && preview.errors.length > 0 && (
-              <div className="rounded bg-red-100 p-3 text-sm text-red-800">
-                <p className="font-medium">Fix these rows in your file, then upload it again:</p>
-                <ul className="mt-1 list-disc pl-5">
-                  {preview.errors.slice(0, 20).map((error) => (
-                    <li key={error}>{error}</li>
-                  ))}
-                </ul>
-                {preview.errors.length > 20 && <p className="mt-1">…and {preview.errors.length - 20} more.</p>}
-              </div>
-            )}
-            {preview && preview.givers.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm tabular-nums text-foreground">
-                  {preview.givers.length} giver{preview.givers.length === 1 ? "" : "s"} · Total {ghs(preview.totalMinor)}
-                </p>
-                <div className="max-h-64 overflow-auto rounded border border-border">
-                  <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-background text-left text-xs text-muted-foreground">
-                      <tr>
-                        <th className="px-2 py-1">Name</th>
-                        <th className="px-2 py-1">Phone</th>
-                        <th className="px-2 py-1 text-right">Amount</th>
-                        <th className="px-2 py-1">Receipt</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {preview.givers.map((g, i) => (
-                        <tr key={i} className="border-t border-border">
-                          <td className="px-2 py-1">{g.name}</td>
-                          <td className="px-2 py-1">{g.phone}</td>
-                          <td className="px-2 py-1 text-right tabular-nums">{ghs(g.amountMinor)}</td>
-                          <td className="px-2 py-1">{g.transactionRef}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </section>
-
-          {/* Section 5: Transactions that carried the month's cash — Ghana regions, optional */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">
-                Cash Transactions <span className="text-sm font-normal text-muted-foreground">(optional)</span>
-              </h2>
-              <span className="text-sm tabular-nums text-muted-foreground">
-                Total: {ghs(depositsTotalMinor)}
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Enter the transaction ID of every MoMo transfer or bank deposit you used to send
-              this month&apos;s cash to BENMP.
-            </p>
-            {deposits.map((deposit, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2">
-                <input
-                  placeholder="Transaction ID"
-                  value={deposit.transactionId}
-                  onChange={(e) => updateDeposit(i, "transactionId", e.target.value)}
-                  required
-                  className="col-span-12 rounded border border-border bg-input px-2 py-1 text-sm sm:col-span-4"
-                />
-                <select
-                  value={deposit.channel}
-                  onChange={(e) => updateDeposit(i, "channel", e.target.value)}
-                  className="col-span-4 rounded border border-border bg-input px-2 py-1 text-sm sm:col-span-2"
-                >
-                  <option value="momo">MoMo</option>
-                  <option value="bank">Bank</option>
-                  <option value="other">Other</option>
-                </select>
-                <input
-                  placeholder="Amount (GHS)"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={deposit.amountCedis}
-                  onChange={(e) => updateDeposit(i, "amountCedis", e.target.value)}
-                  required
-                  className="col-span-4 rounded border border-border bg-input px-2 py-1 text-sm sm:col-span-2"
-                />
-                <input
-                  type="date"
-                  value={deposit.depositedOn}
-                  onChange={(e) => updateDeposit(i, "depositedOn", e.target.value)}
-                  required
-                  className="col-span-3 rounded border border-border bg-input px-2 py-1 text-sm sm:col-span-3"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeDeposit(i)}
-                  aria-label="Remove this transaction"
-                  className="col-span-1 rounded border border-border px-2 py-1 text-sm"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addDeposit}
-              className="rounded border border-border px-3 py-1 text-sm"
-            >
-              + Add transaction
-            </button>
-            {preview && preview.totalMinor > 0 && depositsTotalMinor > 0 && depositsTotalMinor !== preview.totalMinor && (
-              <p className="rounded bg-amber-100 p-3 text-sm text-amber-900">
-                The transactions add up to {ghs(depositsTotalMinor)} but the giver list adds up to{" "}
-                {ghs(preview.totalMinor)}. Check both before submitting — you can still submit if
-                the difference is correct.
-              </p>
-            )}
-          </section>
-        </>
+          </label>
+        </section>
       )}
 
       {result && (
@@ -524,7 +346,7 @@ export function CashForm() {
 
       <button
         type="submit"
-        disabled={submitting || reading || !churchId || giversBlocking}
+        disabled={submitting || !churchId}
         className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
       >
         {submitting ? "Submitting…" : "Submit Monthly Summary"}

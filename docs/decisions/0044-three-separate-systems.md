@@ -1,10 +1,10 @@
-# 0044 — MoMo tracking, hub registrations and hub giving tracking are separate systems
+# 0044 — MoMo, bank statement and Paystack tracking, hub registrations and hub giving tracking are separate systems
 
 _2026-11-20_
 
 **Decided**: three systems that are **not reconciled** with each other:
 
-1. **MoMo tracking** (person to person): statement imports (MoMo, bank, Paystack) and giving per name and number. Office only. The month's givers contact CSV (`GET /api/poc/givers?month=`, download form on `/poc/giving`) lists statement givers only (`Name, Phone, Given (GHS), Gifts`), with no hub, church or form data.
+1. **MoMo, bank statement and Paystack tracking** (person to person): statement imports (MoMo, bank, Paystack) and giving per name and number. Office only. The month's givers contact CSV (`GET /api/poc/givers?month=`, download form on `/poc/giving`) lists statement givers only (`Name, Phone, Given (GHS), Gifts`), with no hub, church or form data.
 2. **Hub registrations**: hubs upload their churches' members (`/hub/upload`, `/hub/partners`, the form's Add New Members); the office messages those registered people.
 3. **Hub giving tracking**: the Monthly Summary Form only (the four numbers, and the church's BENMP giving for Ghana; Decision 0043). The hub's Monthly summary and Overview, and the office Admins tab (blocks, hubs, branches: "Forms submitted", "Giving reported"), take every figure from the forms.
 

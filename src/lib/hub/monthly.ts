@@ -5,7 +5,7 @@
 // loads the hub's churches and their submitted forms.
 //
 // Hub giving tracking is its own system (Decision 0044): every figure here comes
-// from the forms. Statement giving (MoMo tracking) and registered partners (hub
+// from the forms. Statement giving (MoMo, bank statement and Paystack tracking) and registered partners (hub
 // registrations) are not mixed in.
 
 export type HubMonthlyInput = {

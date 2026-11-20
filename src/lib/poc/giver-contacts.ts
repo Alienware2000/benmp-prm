@@ -3,7 +3,7 @@
 // Pure; the office route loads the month's statement payments and the partners
 // they were matched to.
 //
-// MoMo tracking is its own system (Decision 0044): the list is statement giving
+// MoMo, bank statement and Paystack tracking is its own system (Decision 0044): the list is statement giving
 // (MoMo, bank, Paystack) only, person by person, merged by phone so a person
 // appears once. It carries no church or hub, and nothing from the Monthly
 // Summary Form. Ledger rows in the cash group are skipped.

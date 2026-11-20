@@ -1,9 +1,8 @@
 // src/lib/poc/statement-import.ts
 // The statement import pipeline, shared by POST /api/poc/giving/upload and
 // scripts/ingest-statements.ts so a backend run is exactly what the upload screen
-// does: parse → match → vault the original → batch + rows → safe payments → stamp
+// does: parse → match → vault the original → batch + rows → every credit into payments → stamp
 // the file hash. Server-only (service-role key).
-import { normalizePhone } from "../phone";
 import {
   computeFileHash,
   findDuplicateBatch,
@@ -100,35 +99,6 @@ export async function loadPartners(): Promise<PartnerForPaymentMatch[]> {
     offset += pageSize;
   }
   return allRows.map(toPartner);
-}
-
-export async function createPartner(
-  name: string,
-  phone: string | null = null,
-  country = "Unknown",
-): Promise<PartnerForPaymentMatch> {
-  const cleanName = name.trim();
-  if (!cleanName) throw new Error("New partner name is required.");
-  const normalizedPhone = normalizePhone(phone);
-  const rows = await rest<PartnerRow[]>(
-    "partners?select=id,full_name,momo_phone_number,whatsapp_number,church,country",
-    {
-      method: "POST",
-      headers: { Prefer: "return=representation" },
-      body: JSON.stringify([
-        {
-          full_name: cleanName,
-          momo_phone_number: normalizedPhone,
-          country,
-          church: "Unlisted",
-          denomination: "Unlisted",
-          source: "payment_upload_review",
-          status: "active",
-        },
-      ]),
-    },
-  );
-  return toPartner(rows[0]);
 }
 
 export async function insertPayments(
@@ -228,32 +198,14 @@ async function insertImportRows(
           payment_reference: paymentReference(match.row),
           raw_row: match.row.rawRow,
           normalized_row: serializeRow(match.row),
-          match_status: match.status === "auto" ? "promoted" : "needs_review",
+          // Every line is recorded (Decision 0046); the confidence says
+          // whether it was also linked to a known partner.
+          match_status: "promoted",
           match_confidence: match.status === "auto" ? 100 : 0,
-          notes: match.reason,
-          resolved_at:
-            match.status === "auto" ? new Date().toISOString() : null,
+          notes: match.status === "auto" ? match.reason : "Recorded by payer name and number",
+          resolved_at: new Date().toISOString(),
         })),
       ),
-    });
-  }
-}
-
-export async function updateImportRowStatus(
-  paymentReferences: string[],
-  status: "promoted" | "dismissed" | "needs_review",
-  partnerId?: string | null,
-): Promise<void> {
-  const body = JSON.stringify({
-    match_status: status,
-    ...(partnerId !== undefined ? { partner_id: partnerId } : {}),
-    resolved_at: status === "needs_review" ? null : new Date().toISOString(),
-  });
-  for (const list of inListChunks(paymentReferences)) {
-    await rest<void>(`payment_import_rows?payment_reference=in.(${list})`, {
-      method: "PATCH",
-      headers: { Prefer: "return=minimal" },
-      body,
     });
   }
 }
@@ -306,15 +258,19 @@ export type ImportOutcome =
       ok: true;
       importId: string;
       storagePath: string;
-      autoMatched: number;
-      review: PaymentMatchResult[];
+      /** Every credit line, now in `payments`. */
+      recorded: number;
+      /** Of those, linked to a known partner by phone or a unique name. */
+      linked: number;
     };
 
 /**
  * Write a prepared statement: refuse a file already imported for this source,
  * vault the original before any ledger write (if storage fails, nothing is
- * imported), record the batch and every row, insert the safe matches into
- * `payments`, then stamp the file hash. Each row is logged as `statement_row`.
+ * imported), record the batch and every row, insert every credit into
+ * `payments` (Decision 0046: no review queue; a line is the payer's name and
+ * number, linked to a partner when one matches), then stamp the file hash.
+ * Each row is logged as `statement_row`.
  */
 export async function importPreparedStatement(
   prepared: PreparedStatement,
@@ -325,8 +281,7 @@ export async function importPreparedStatement(
   const duplicate = await findDuplicateBatch(source, fileHash, rest);
   if (duplicate) return { ok: false, duplicate };
 
-  const accepted = matches.filter((match) => match.status === "auto");
-  const review = matches.filter((match) => match.status === "review");
+  const linked = matches.filter((match) => match.status === "auto");
   const storagePath = vaultObjectPath({
     source,
     month: statementMonth(parsed.rows),
@@ -349,8 +304,8 @@ export async function importPreparedStatement(
     provider: source,
     filename,
     rowCount: parsed.rows.length,
-    matchedCount: accepted.length,
-    ambiguousCount: review.length,
+    matchedCount: linked.length,
+    ambiguousCount: 0,
     storagePath,
     fileSizeBytes: buffer.byteLength,
     contentType: type,
@@ -358,7 +313,7 @@ export async function importPreparedStatement(
   await insertImportRows(importId, matches);
   await insertPayments(
     buildPaymentRows(
-      accepted.map((match) => ({ row: match.row, partner: match.partner })),
+      matches.map((match) => ({ row: match.row, partner: match.partner })),
     ),
   );
   await stampFileHash(importId, fileHash);
@@ -371,10 +326,10 @@ export async function importPreparedStatement(
         importId,
         reference: paymentReference(match.row),
         amountMinor: match.row.amountMinor,
-        match: match.status,
+        match: match.status === "auto" ? "linked" : "unlinked",
         reason: match.reason,
         partnerId: match.partner?.id ?? null,
-        status: match.status === "auto" ? "promoted" : "needs_review",
+        status: "promoted",
       }),
     );
   }
@@ -382,7 +337,7 @@ export async function importPreparedStatement(
     ok: true,
     importId,
     storagePath,
-    autoMatched: accepted.length,
-    review,
+    recorded: matches.length,
+    linked: linked.length,
   };
 }

@@ -152,7 +152,7 @@ async function main() {
       const inLedger = await referencesAlreadyInLedger(prepared);
       console.log(`■ ${name}  [${file.source}]`);
       console.log(
-        `  ${parsed.rows.length} credits, ${ghs(total)} (${months || "no rows"}) · auto-match ${auto.length} · review ${matches.length - auto.length}` +
+        `  ${parsed.rows.length} credits, ${ghs(total)} (${months || "no rows"}) · linked to a partner ${auto.length} · by name and number only ${matches.length - auto.length}` +
           ` · skipped ${parsed.skipped.length} · rejected ${parsed.rejects.length} · already in ledger ${inLedger}`,
       );
       for (const warning of parsed.warnings ?? [])
@@ -180,7 +180,7 @@ async function main() {
         continue;
       }
       console.log(
-        `  ✓ batch ${outcome.importId}: ${outcome.autoMatched} payments recorded, ${outcome.review.length} in /poc/giving/review\n`,
+        `  ✓ batch ${outcome.importId}: ${outcome.recorded} payments recorded (${outcome.linked} linked to a partner)\n`,
       );
     } catch (error) {
       failures += 1;

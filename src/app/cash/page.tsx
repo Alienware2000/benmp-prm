@@ -13,7 +13,7 @@ export default function CashPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Each church&apos;s report for the month: select your church, fill in
           the monthly summary, and add any new members. Churches in Ghana can
-          also report the month&apos;s cash giving.
+          also report the church&apos;s total BENMP giving.
         </p>
         <div className="mt-6">
           <CashForm />

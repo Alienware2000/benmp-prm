@@ -62,17 +62,17 @@ export function validateSummaryCounts(summary: SubmitPayload["summary"]): Valida
 }
 
 /**
- * The month's cash, typed as one total (Ghana regions only, optional). Blank is
- * no cash; anything given must be a positive amount with at most two decimals.
- * Returns pesewas.
+ * The church's total BENMP giving for the month (Ghana regions only, optional).
+ * Blank is none; anything given must be a positive amount with at most two
+ * decimals. Returns pesewas. Stored in `cash_submissions.total_cash_minor`.
  */
-export function parseCashTotal(raw: string): { ok: true; minor: number } | { ok: false; error: string } {
+export function parseGivingTotal(raw: string): { ok: true; minor: number } | { ok: false; error: string } {
   const value = raw.trim().replace(/,/g, "");
   if (value === "") return { ok: true, minor: 0 };
   if (!/^\d+(\.\d{1,2})?$/.test(value)) {
-    return { ok: false, error: "Enter the cash total as an amount in GHS, e.g. 1250.50." };
+    return { ok: false, error: "Enter the total giving as an amount in GHS, e.g. 1250.50." };
   }
   const minor = Math.round(Number(value) * 100);
-  if (!Number.isSafeInteger(minor)) return { ok: false, error: "The cash total is too large." };
+  if (!Number.isSafeInteger(minor)) return { ok: false, error: "The total giving is too large." };
   return { ok: true, minor };
 }

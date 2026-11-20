@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCashTotal, parseReportingMonth, validateSummaryCounts } from "./validation";
+import { parseGivingTotal, parseReportingMonth, validateSummaryCounts } from "./validation";
 
 describe("parseReportingMonth", () => {
   it("parses a valid YYYY-MM string to the first of the month", () => {
@@ -36,15 +36,15 @@ describe("validateSummaryCounts", () => {
   });
 });
 
-describe("parseCashTotal", () => {
-  it("reads blank as no cash and an amount as pesewas", () => {
-    expect(parseCashTotal("")).toEqual({ ok: true, minor: 0 });
-    expect(parseCashTotal(" 1,250.5 ")).toEqual({ ok: true, minor: 125050 });
-    expect(parseCashTotal("300")).toEqual({ ok: true, minor: 30000 });
+describe("parseGivingTotal", () => {
+  it("reads blank as none and an amount as pesewas", () => {
+    expect(parseGivingTotal("")).toEqual({ ok: true, minor: 0 });
+    expect(parseGivingTotal(" 1,250.5 ")).toEqual({ ok: true, minor: 125050 });
+    expect(parseGivingTotal("300")).toEqual({ ok: true, minor: 30000 });
   });
   it("rejects anything that is not a plain amount", () => {
-    expect(parseCashTotal("-5").ok).toBe(false);
-    expect(parseCashTotal("12.345").ok).toBe(false);
-    expect(parseCashTotal("GHS 40").ok).toBe(false);
+    expect(parseGivingTotal("-5").ok).toBe(false);
+    expect(parseGivingTotal("12.345").ok).toBe(false);
+    expect(parseGivingTotal("GHS 40").ok).toBe(false);
   });
 });

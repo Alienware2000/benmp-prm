@@ -23,7 +23,7 @@ const SUMMARY_FIELDS = [
 /**
  * The Monthly Summary Form (Decisions 0039, 0043): the four monthly numbers
  * are required; new members are optional; Ghana regions may also give the
- * month's cash as one total.
+ * church's total BENMP giving for the month.
  */
 export function CashForm() {
   const [regions, setRegions] = useState<Region[]>([]);
@@ -43,7 +43,7 @@ export function CashForm() {
   });
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [memberIssues, setMemberIssues] = useState<MemberIssue[]>([]);
-  const [cashTotal, setCashTotal] = useState("");
+  const [givingTotal, setGivingTotal] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
@@ -133,7 +133,7 @@ export function CashForm() {
         })),
       ),
     );
-    if (reportsCash) body.append("cashTotal", cashTotal.trim());
+    if (reportsCash) body.append("givingTotal", givingTotal.trim());
 
     try {
       const res = await fetch("/api/cash/submit", { method: "POST", body });
@@ -309,23 +309,23 @@ export function CashForm() {
       </section>
 
       {reportsCash && (
-        /* Section 4: The month's cash, one total — Ghana regions, optional */
+        /* Section 4: The church's BENMP giving for the month — Ghana regions, optional */
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
-            Cash Collected <span className="text-sm font-normal text-muted-foreground">(optional)</span>
+            BENMP Giving <span className="text-sm font-normal text-muted-foreground">(optional)</span>
           </h2>
           <p className="text-sm text-muted-foreground">
-            If your church collected cash this month, enter the total. Leave it blank if there was none.
+            The total your church gave to BENMP this month, however it was given. Leave it blank if there was none.
           </p>
           <label className="block max-w-xs">
-            <span className="text-xs text-muted-foreground">Total cash (GHS)</span>
+            <span className="text-xs text-muted-foreground">Total giving (GHS)</span>
             <input
               type="number"
               min={0}
               step="0.01"
               inputMode="decimal"
-              value={cashTotal}
-              onChange={(e) => setCashTotal(e.target.value)}
+              value={givingTotal}
+              onChange={(e) => setGivingTotal(e.target.value)}
               className="mt-1 w-full rounded border border-border bg-input px-2 py-1 text-sm"
             />
           </label>

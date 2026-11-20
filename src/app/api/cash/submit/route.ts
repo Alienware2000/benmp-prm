@@ -9,7 +9,7 @@ import {
   type SubmissionInsert,
 } from "@/lib/cash/db";
 import {
-  parseCashTotal,
+  parseGivingTotal,
   parseReportingMonth,
   validateSummaryCounts,
   type NewMemberInput,
@@ -37,7 +37,7 @@ function parseJson<T>(raw: FormDataEntryValue | null, fallback: T): T {
  * The Monthly Summary Form (Decisions 0039, 0043). Multipart: `regionCode`,
  * `hubId`, `churchId`, `reportingMonth`, `summary` (JSON, the four required
  * numbers), `members` (JSON, optional new members) and, in Ghana regions only,
- * `cashTotal` (optional, GHS). Everything is checked before anything is written.
+ * `givingTotal` (optional, GHS). Everything is checked before anything is written.
  */
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
   // Cash is reported in the Ghana regions only, and is optional there.
   const reportsCash = region.momo_required;
 
-  const cash = reportsCash ? parseCashTotal(field("cashTotal")) : { ok: true as const, minor: 0 };
+  const cash = reportsCash ? parseGivingTotal(field("givingTotal")) : { ok: true as const, minor: 0 };
   if (!cash.ok) {
     return NextResponse.json({ ok: false, error: cash.error }, { status: 400 });
   }

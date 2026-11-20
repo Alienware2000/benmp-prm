@@ -1,12 +1,14 @@
 // src/lib/poc/giver-contacts.ts
-// Who gave in a month, as a contact list for a broadcast (Decisions 0041, 0044).
-// Pure; the office route loads the month's statement payments and the partners
-// they were matched to.
+// Who gave in a month, as a contact list for a broadcast (Decisions 0041, 0044,
+// 0046). Pure; the office route loads the month's statement payments and any
+// partners they are linked to.
 //
 // MoMo, bank statement and Paystack tracking is its own system (Decision 0044): the list is statement giving
 // (MoMo, bank, Paystack) only, person by person, merged by phone so a person
-// appears once. It carries no church or hub, and nothing from the Monthly
-// Summary Form. Ledger rows in the cash group are skipped.
+// appears once. Every payment counts, linked to a partner or not: the payer's
+// name and number come from the statement, with the partner's as a fallback.
+// It carries no church or hub, and nothing from the Monthly Summary Form.
+// Ledger rows in the cash group are skipped.
 import { normalizePhone } from "../phone";
 import { toPaymentMethodGroup } from "./dashboard-metrics";
 import { toCsv } from "../hub/csv";
@@ -19,7 +21,10 @@ export type GiverContactInput = {
     whatsapp_number: string | null;
   }[];
   payments: {
-    partner_id: string;
+    /** raw_row.matched_partner_id; null when the line matched no partner. */
+    partner_id: string | null;
+    payer_name: string | null;
+    payer_phone_e164: string | null;
     paid_at: string;
     amount_minor: number;
     payment_method: string | null;
@@ -45,25 +50,28 @@ export function buildGiverContacts(
 
   for (const payment of input.payments) {
     if (payment.paid_at.slice(0, 7) !== month) continue;
-    const partner = partners.get(payment.partner_id);
-    if (!partner) continue;
+    const partner = payment.partner_id
+      ? partners.get(payment.partner_id)
+      : undefined;
     const group = toPaymentMethodGroup(payment.payment_method, {
       _payment_method: payment.raw_method,
       source: payment.raw_source,
     });
     if (group === "cash") continue;
     const phone =
-      normalizePhone(partner.whatsapp_number) ??
-      normalizePhone(partner.momo_phone_number) ??
+      normalizePhone(payment.payer_phone_e164) ??
+      normalizePhone(partner?.whatsapp_number) ??
+      normalizePhone(partner?.momo_phone_number) ??
       "";
-    const key = phone || `partner:${partner.id}`;
+    const name = (partner?.full_name ?? payment.payer_name ?? "").trim();
+    const key = phone || `name:${name.toLowerCase()}`;
     const existing = byKey.get(key);
     if (existing) {
       existing.givenMinor += payment.amount_minor;
       existing.gifts += 1;
     } else
       byKey.set(key, {
-        name: partner.full_name.trim(),
+        name,
         phone,
         givenMinor: payment.amount_minor,
         gifts: 1,

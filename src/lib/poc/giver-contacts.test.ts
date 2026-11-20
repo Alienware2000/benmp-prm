@@ -7,12 +7,16 @@ import {
 } from "./giver-contacts";
 
 const pay = (
-  partner_id: string,
+  partner_id: string | null,
   paid_at: string,
   amount_minor: number,
   payment_method: string | null = "mobile_money",
+  payer_name: string | null = null,
+  payer_phone_e164: string | null = null,
 ) => ({
   partner_id,
+  payer_name,
+  payer_phone_e164,
   paid_at,
   amount_minor,
   payment_method,
@@ -64,17 +68,59 @@ const input: GiverContactInput = {
     pay("p4", "2026-10-06T10:00:00Z", 3000, "cash"),
     // Another month.
     pay("p4", "2026-09-30T10:00:00Z", 1000),
+    // Linked to no partner: still a giver, by the statement's name and number.
+    pay(
+      null,
+      "2026-10-11T10:00:00Z",
+      4000,
+      "mobile_money",
+      "ESI ARTHUR",
+      "+233240000009",
+    ),
+    pay(
+      null,
+      "2026-10-12T10:00:00Z",
+      1000,
+      "mobile_money",
+      "ESI ARTHUR",
+      "+233240000009",
+    ),
+    // Same number as Ama's partner record: merges with her.
+    pay(
+      null,
+      "2026-10-13T10:00:00Z",
+      300,
+      "mobile_money",
+      "AMA M",
+      "+233201111111",
+    ),
   ],
 };
 
 describe("buildGiverContacts", () => {
   const contacts = buildGiverContacts(input, "2026-10");
 
-  it("lists each statement giver once, by name, merging records that share a phone", () => {
+  it("lists each statement giver once, linked or not, merging by phone", () => {
     expect(contacts).toEqual([
       { name: "=HYPERLINK(evil)", phone: "", givenMinor: 500, gifts: 1 },
-      { name: "Ama Mensah", phone: "+233201111111", givenMinor: 7500, gifts: 2 },
-      { name: "Kofi Boateng", phone: "+233551234567", givenMinor: 12000, gifts: 2 },
+      {
+        name: "Ama Mensah",
+        phone: "+233201111111",
+        givenMinor: 7800,
+        gifts: 3,
+      },
+      {
+        name: "ESI ARTHUR",
+        phone: "+233240000009",
+        givenMinor: 5000,
+        gifts: 2,
+      },
+      {
+        name: "Kofi Boateng",
+        phone: "+233551234567",
+        givenMinor: 12000,
+        gifts: 2,
+      },
     ]);
   });
 
@@ -88,7 +134,7 @@ describe("giverContactsCsv", () => {
     const csv = giverContactsCsv(buildGiverContacts(input, "2026-10"));
     expect(csv.startsWith("﻿Name,Phone,Given (GHS),Gifts\n")).toBe(true);
     expect(csv).toContain("'=HYPERLINK(evil),,5.00,1");
-    expect(csv).toContain("Ama Mensah,+233201111111,75.00,2");
+    expect(csv).toContain("Ama Mensah,+233201111111,78.00,3");
   });
 
   it("names the file after the month", () => {

@@ -7,7 +7,7 @@ export default function GivingUploadPage() {
   return (
     <PocShell
       title="Upload giving"
-      subtitle="Import the fixed MoMo CSV or Ecobank statement, auto-match safe rows, and review the rest before updating the giving ledger."
+      subtitle="Import a MoMo, bank or Paystack statement. Every credit goes straight into the giving ledger."
     >
       <GivingUploadClient />
     </PocShell>

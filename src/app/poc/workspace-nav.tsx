@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   MessageCircleMore,
   PhoneCall,
-  ClipboardCheck,
   Upload,
 } from "lucide-react";
 import Link from "next/link";
@@ -17,7 +16,6 @@ const TABS = [
   { href: "/poc/admins", label: "Admins", Icon: Building2 },
   { href: "/poc/giving", label: "Giving", Icon: HandCoins },
   { href: "/poc/giving/upload", label: "Upload", Icon: Upload },
-  { href: "/poc/giving/review", label: "Review", Icon: ClipboardCheck },
   { href: "/poc/messages", label: "Messages", Icon: MessageCircleMore },
   { href: "/poc/calls", label: "Calls", Icon: PhoneCall },
 ] as const;

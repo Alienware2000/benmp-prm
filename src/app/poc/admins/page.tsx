@@ -1,22 +1,36 @@
 import Link from "next/link";
 import { loadAdminsInput } from "@/lib/poc/admins-data";
+import { METRICS, resolveMetric, totalsBy } from "@/lib/poc/admins-metrics";
 import {
   buildBlocks,
   computeHubStats,
   resolveMonth,
 } from "@/lib/poc/admins-overview";
-import { MonthPicker, Stat, money, monthLabel, ofTotal } from "./ui";
+import { AdminsSidebar, MetricsPanel, metricHref } from "./metrics";
+import { MonthPicker, money, monthLabel, ofTotal } from "./ui";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Office Admins landing page (Decisions 0036, 0045): the four Monthly Summary
+ * Form numbers across every quadrant, the chosen one charted month by month,
+ * then each quadrant to drill into (quadrant -> hub -> church).
+ */
 export default async function AdminsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string | string[] }>;
+  searchParams: Promise<{
+    month?: string | string[];
+    metric?: string | string[];
+  }>;
 }) {
-  const month = resolveMonth((await searchParams).month);
+  const query = await searchParams;
+  const month = resolveMonth(query.month);
+  const metric = resolveMetric(query.metric);
   const input = await loadAdminsInput(month);
   const blocks = buildBlocks(input.regions, computeHubStats(input));
+  const regionId = new Map(input.regions.map((r) => [r.code, r.id]));
+  const byRegion = totalsBy(input.forms, month, (r) => r.region_id);
 
   return (
     <div className="min-h-screen bg-background px-4 py-8 pb-28 lg:pb-8">
@@ -25,107 +39,129 @@ export default async function AdminsPage({
           <div>
             <h1 className="text-2xl font-bold text-foreground">Admins</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Every hub admin&apos;s report for {monthLabel(month)}. Open a
-              block to see its hubs.
+              Every church&apos;s Monthly Summary Form for {monthLabel(month)},
+              across all quadrants.
             </p>
           </div>
           <MonthPicker month={month} action="/poc/admins" />
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {blocks.map((b) => {
-            const admins = ofTotal(b.adminsSignedIn, b.hubs);
-            const cash = ofTotal(b.cashFiled, b.branches);
-            const card = (
-              <div
-                className={
-                  "h-full rounded-lg border border-border bg-surface p-4 shadow-sm transition " +
-                  (b.setUp && b.hubs > 0
-                    ? "hover:border-brand hover:shadow"
-                    : "opacity-70")
-                }
-              >
-                <div className="flex items-baseline justify-between">
-                  <h2 className="text-lg font-bold text-foreground">
-                    {b.label}
-                  </h2>
-                  {b.setUp && (
-                    <span className="text-xs text-muted-foreground">
-                      {b.hubs} {b.hubs === 1 ? "hub" : "hubs"}
-                    </span>
-                  )}
-                </div>
-                {b.setUp && b.hubs > 0 ? (
-                  <div className="mt-3 space-y-1.5">
-                    <Stat
-                      label="Admins signed in"
-                      value={admins.value}
-                      tone={admins.tone}
-                    />
-                    <Stat
-                      label="Partners"
-                      value={b.partners.toLocaleString("en-US")}
-                    />
-                    <Stat
-                      label="Branches"
-                      value={b.branches.toLocaleString("en-US")}
-                    />
-                    <Stat
-                      label="Forms submitted"
-                      value={cash.value}
-                      tone={cash.tone}
-                    />
-                    <Stat
-                      label="Giving reported"
-                      value={money(b.givingMinor)}
-                    />
-                  </div>
-                ) : (
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Not set up yet. Its hubs and branches have not been added.
-                  </p>
-                )}
-              </div>
-            );
-            return b.setUp && b.hubs > 0 && b.regionCode ? (
-              <Link
-                key={b.label}
-                href={`/poc/admins/${b.regionCode.toLowerCase()}?month=${month}`}
-              >
-                {card}
-              </Link>
-            ) : (
-              <div key={b.label}>{card}</div>
-            );
-          })}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_13rem]">
+          <div className="min-w-0 space-y-6">
+            <MetricsPanel
+              forms={input.forms}
+              month={month}
+              months={input.months}
+              metric={metric}
+              base="/poc/admins"
+              churches={input.churches.length}
+            />
 
-          {/* The public form branches use to file the "Forms submitted" above. */}
-          <div className="flex h-full flex-col rounded-lg border border-dashed border-brand/50 bg-surface p-4 shadow-sm">
-            <h2 className="text-lg font-bold text-foreground">
-              Monthly Summary Form
-            </h2>
-            <p className="mt-2 flex-1 text-sm text-muted-foreground">
-              Where each church reports its four numbers and its BENMP giving
-              for the month. Open it to file a report, or copy the link to send
-              to a branch.
-            </p>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <a
-                href="/cash"
-                target="_blank"
-                rel="noopener"
-                className="rounded bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90"
-              >
-                Open form
-              </a>
-              <Link
-                href="/poc/cash/monitoring"
-                className="text-sm font-semibold text-brand hover:underline"
-              >
-                Filed reports
-              </Link>
-            </div>
+            <section>
+              <h2 className="mb-2 text-base font-bold text-foreground">
+                By quadrant
+              </h2>
+              <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+                <table className="w-full min-w-[760px] text-sm">
+                  <thead className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3">Quadrant</th>
+                      <th className="px-4 py-3 text-right">Hubs</th>
+                      <th className="px-4 py-3 text-right">Forms</th>
+                      {METRICS.map((m) => (
+                        <th
+                          key={m.key}
+                          className={
+                            "px-4 py-3 text-right " +
+                            (m.key === metric ? "text-foreground" : "")
+                          }
+                        >
+                          {m.label}
+                        </th>
+                      ))}
+                      <th className="px-4 py-3 text-right">Giving reported</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {blocks.map((b) => {
+                      const id = b.regionCode
+                        ? regionId.get(b.regionCode)
+                        : undefined;
+                      const t = id ? byRegion.get(id) : undefined;
+                      const forms = ofTotal(b.cashFiled, b.branches);
+                      const open = b.setUp && b.hubs > 0;
+                      return (
+                        <tr
+                          key={b.label}
+                          className={
+                            "border-b border-border last:border-0 " +
+                            (open ? "" : "text-muted-foreground")
+                          }
+                        >
+                          <td className="px-4 py-3 font-semibold">
+                            {open ? (
+                              <Link
+                                href={metricHref(
+                                  `/poc/admins/${b.regionCode!.toLowerCase()}`,
+                                  month,
+                                  metric,
+                                )}
+                                className="text-brand hover:underline"
+                              >
+                                {b.label}
+                              </Link>
+                            ) : (
+                              <>
+                                {b.label}{" "}
+                                <span className="text-xs font-normal">
+                                  (not set up)
+                                </span>
+                              </>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums">
+                            {b.hubs}
+                          </td>
+                          <td
+                            className={
+                              "px-4 py-3 whitespace-nowrap text-right tabular-nums " +
+                              (forms.tone === "warn"
+                                ? "text-red-700"
+                                : forms.tone === "good"
+                                  ? "text-emerald-700"
+                                  : "")
+                            }
+                          >
+                            {forms.value}
+                          </td>
+                          {METRICS.map((m) => (
+                            <td
+                              key={m.key}
+                              className={
+                                "px-4 py-3 text-right tabular-nums " +
+                                (m.key === metric ? "font-semibold" : "")
+                              }
+                            >
+                              {(t?.[m.key] ?? 0).toLocaleString("en-US")}
+                            </td>
+                          ))}
+                          <td className="px-4 py-3 text-right tabular-nums">
+                            {money(t?.givingMinor ?? 0)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
+
+          <AdminsSidebar
+            month={month}
+            metric={metric}
+            setUp={new Set(input.regions.map((r) => r.code))}
+          />
         </div>
       </div>
     </div>

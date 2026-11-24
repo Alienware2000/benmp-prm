@@ -7,6 +7,7 @@
  * PostgREST.
  */
 
+import { pageAll } from "./paging";
 import {
   reconcile,
   type ReconciliationResult,
@@ -33,6 +34,8 @@ export type DbPayment = {
   paid_at: string | null;
   status: string | null;
   raw_row?: Record<string, unknown> | null;
+  /** `raw_row->>matched_partner_id`, selected on its own to keep the read small. */
+  matched_partner_id?: string | null;
 };
 
 export function mapRegistrations(rows: DbRegistration[]): RegistrationRow[] {
@@ -47,9 +50,11 @@ export function mapPayments(rows: DbPayment[]): PaymentRow[] {
     reference: p.reference,
     payerName: p.payer_name,
     payerPhone: p.payer_phone_e164,
-    ...(typeof p.raw_row?.matched_partner_id === "string"
-      ? { matchedPartnerId: p.raw_row.matched_partner_id }
-      : {}),
+    ...(typeof p.matched_partner_id === "string"
+      ? { matchedPartnerId: p.matched_partner_id }
+      : typeof p.raw_row?.matched_partner_id === "string"
+        ? { matchedPartnerId: p.raw_row.matched_partner_id }
+        : {}),
     amountMinor: Number(p.amount_minor),
     currency: p.currency ?? "GHS",
     paidAt: p.paid_at ?? "",
@@ -110,14 +115,9 @@ export function supabaseRestFetcher(): Fetcher {
  * all rows using offset/limit.
  */
 export async function fetchAll<T>(fetcher: Fetcher, baseQuery: string): Promise<T[]> {
-  const pageSize = 1000;
-  const allRows: T[] = [];
-  for (let offset = 0; ; offset += pageSize) {
-    const rows = await fetcher<T>(`${baseQuery}&limit=${pageSize}&offset=${offset}`);
-    allRows.push(...rows);
-    if (rows.length < pageSize) break;
-  }
-  return allRows;
+  return pageAll((offset, limit) =>
+    fetcher<T>(`${baseQuery}&limit=${limit}&offset=${offset}`),
+  );
 }
 
 export type DbOptOut = { phone_e164: string | null };
@@ -322,7 +322,7 @@ export async function loadReconciliation(
     ),
     fetchAll<DbPayment>(
       fetcher,
-      "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at,status,raw_row&status=eq.Successful&order=paid_at.desc",
+      "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at,status,matched_partner_id:raw_row->>matched_partner_id&status=eq.Successful&order=paid_at.desc,id.asc",
     ),
   ]);
   return reconcile(mapRegistrations(partners), mapPayments(pays));

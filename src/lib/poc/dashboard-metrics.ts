@@ -10,6 +10,7 @@
  * Partners with no country (NULL/empty) are counted as Unknown.
  */
 
+import { pageAll } from "./paging";
 import { ghanaLastNineKey } from "./payment-upload";
 
 // ---------------------------------------------------------------------------
@@ -260,34 +261,24 @@ export type DashboardPaymentRow = {
 };
 async function fetchAllPartners(): Promise<DashboardPartnerRow[]> {
   if (!SUPABASE_URL || !KEY) return [];
-  const out: DashboardPartnerRow[] = [];
-  for (let offset = 0; ; offset += 1000) {
+  return pageAll(async (offset, limit) => {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/partners?select=id,country,last_contribution_date,momo_phone_number,whatsapp_number&order=id.asc&limit=1000&offset=${offset}`,
+      `${SUPABASE_URL}/rest/v1/partners?select=id,country,last_contribution_date,momo_phone_number,whatsapp_number&order=id.asc&limit=${limit}&offset=${offset}`,
       { headers: restHeaders(), cache: "no-store" },
     );
-    if (!res.ok) break;
-    const rows = (await res.json()) as DashboardPartnerRow[];
-    out.push(...rows);
-    if (rows.length < 1000) break;
-  }
-  return out;
+    return res.ok ? ((await res.json()) as DashboardPartnerRow[]) : [];
+  });
 }
 
 async function fetchAllPayments(): Promise<DashboardPaymentRow[]> {
   if (!SUPABASE_URL || !KEY) return [];
-  const out: DashboardPaymentRow[] = [];
-  for (let offset = 0; ; offset += 1000) {
+  return pageAll(async (offset, limit) => {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/payments?select=reference,payer_phone_e164,amount_minor,currency,paid_at,status,payment_method,raw_row&status=eq.Successful&order=paid_at.desc&limit=1000&offset=${offset}`,
+      `${SUPABASE_URL}/rest/v1/payments?select=reference,payer_phone_e164,amount_minor,currency,paid_at,status,payment_method,raw_row&status=eq.Successful&order=paid_at.desc,id.asc&limit=${limit}&offset=${offset}`,
       { headers: restHeaders(), cache: "no-store" },
     );
-    if (!res.ok) break;
-    const rows = (await res.json()) as DashboardPaymentRow[];
-    out.push(...rows);
-    if (rows.length < 1000) break;
-  }
-  return out;
+    return res.ok ? ((await res.json()) as DashboardPaymentRow[]) : [];
+  });
 }
 
 // ---------------------------------------------------------------------------

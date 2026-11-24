@@ -196,11 +196,12 @@ describe("fetchAllRows", () => {
     expect(await fetchAllRows(fetcher, "partners?select=id")).toEqual([]);
   });
 
-  it("makes exactly the pages needed on an exact multiple of the cap", async () => {
+  it("stops after the first parallel round that reaches the end, on an exact multiple of the cap", async () => {
     const { fetcher, calls } = fakeRest(2000);
     expect(await fetchAllRows(fetcher, "partners?select=id")).toHaveLength(2000);
-    // 2 full pages, then a third that returns nothing and ends the loop.
-    expect(calls).toHaveLength(3);
+    // The first page, then one round of up to 6 pages fetched together
+    // (src/lib/poc/paging.ts); the empty ones end the loop.
+    expect(calls.length).toBeLessThanOrEqual(7);
   });
 });
 

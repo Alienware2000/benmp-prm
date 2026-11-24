@@ -12,6 +12,7 @@
  * row->domain mapping are pure and unit-tested; only the fetch is I/O.
  */
 
+import { pageAll } from "./paging";
 import { normalizePhone } from "../phone";
 import type { Fetcher } from "./db";
 import { fetchAll, memoWithTtl, supabaseRestFetcher } from "./db";
@@ -289,15 +290,10 @@ export async function fetchAllRows<T>(
   const path = basePath.includes("order=")
     ? basePath
     : `${basePath}&order=${orderBy}`;
-  const all: T[] = [];
-  for (let offset = 0; offset < MAX_ROWS; offset += PAGE_LIMIT) {
-    const batch = await fetcher<T>(
-      `${path}&limit=${PAGE_LIMIT}&offset=${offset}`,
-    );
-    all.push(...batch);
-    if (batch.length < PAGE_LIMIT) break;
-  }
-  return all;
+  return pageAll(
+    (offset, limit) => fetcher<T>(`${path}&limit=${limit}&offset=${offset}`),
+    { pageSize: PAGE_LIMIT, maxRows: MAX_ROWS },
+  );
 }
 
 /**

@@ -6,8 +6,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { headlineAnswers, formatGhs } from "@/lib/poc/answers";
-import { loadReconciliationCached } from "@/lib/poc/cached-data";
-import { getDashboardTiles } from "@/lib/poc/dashboard-metrics";
+import {
+  getDashboardTilesCached,
+  loadReconciliationCached,
+} from "@/lib/poc/cached-data";
 import { giverInsightGroups } from "@/lib/poc/giver-insights";
 import {
   filterReconciliationByPeriod,
@@ -101,12 +103,14 @@ export default async function PocPage({
   const sp = await searchParams;
   const from = (sp.from ?? "").slice(0, 10);
   const to = (sp.to ?? "").slice(0, 10);
-  const completeResult = await loadReconciliationCached();
-  const tiles = await getDashboardTiles();
+  const [completeResult, tiles, admins] = await Promise.all([
+    loadReconciliationCached(),
+    getDashboardTilesCached(),
+    loadAdmins(),
+  ]);
   const availablePeriod = reportingPeriod(completeResult);
   const result = filterReconciliationByPeriod(completeResult, { from, to });
   const period = reportingPeriod(result);
-  const admins = await loadAdmins();
   const rawInsightGroups = giverInsightGroups(result, { limit: 20 });
   const insightGroups = {
     top: filterOutAdmins(rawInsightGroups.top, admins),

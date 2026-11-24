@@ -3,6 +3,7 @@
  * mirroring src/lib/poc/db.ts. RLS has no anon policies on the hub tables, so
  * everything goes through these helpers.
  */
+import { pageAll } from "../poc/paging";
 import type { HubAccountRecord } from "./auth";
 import { normalizeNameKey, type ExistingPartner } from "./ingest";
 import { isSensibleName } from "../poc/directory";
@@ -688,12 +689,9 @@ type DeletablePartnerRow = DeletablePartner & Record<string, unknown>;
 
 /** All pages of a PostgREST read (it silently caps at 1,000 rows). */
 async function restAll<T>(path: string): Promise<T[]> {
-  const out: T[] = [];
-  for (let offset = 0; ; offset += 1000) {
-    const rows = await rest<T[]>(`${path}&limit=1000&offset=${offset}`);
-    out.push(...rows);
-    if (rows.length < 1000) return out;
-  }
+  return pageAll((offset, limit) =>
+    rest<T[]>(`${path}&limit=${limit}&offset=${offset}`),
+  );
 }
 
 /**

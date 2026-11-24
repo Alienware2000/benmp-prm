@@ -1,4 +1,5 @@
 // src/app/api/poc/giving/executive-summary/route.ts
+import { pageAll } from "@/lib/poc/paging";
 import { NextRequest, NextResponse } from "next/server";
 import { buildExecutiveSummary } from "@/lib/poc/executive-summary";
 
@@ -12,23 +13,16 @@ function headers() {
 }
 
 async function fetchAll<T>(path: string): Promise<T[]> {
-  const all: T[] = [];
-  let offset = 0;
-  while (true) {
+  return pageAll(async (offset, limit) => {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${path}&limit=1000&offset=${offset}`,
+      `${SUPABASE_URL}/rest/v1/${path}&limit=${limit}&offset=${offset}`,
       { headers: headers(), cache: "no-store" },
     );
     if (!res.ok) {
       throw new Error(`fetchAll failed: ${path} -> ${res.status} ${res.statusText}`);
     }
-    const rows = (await res.json()) as T[];
-    if (!rows || rows.length === 0) break;
-    all.push(...rows);
-    if (rows.length < 1000) break;
-    offset += 1000;
-  }
-  return all;
+    return ((await res.json()) as T[]) ?? [];
+  });
 }
 
 export async function GET(req: NextRequest) {
@@ -46,7 +40,7 @@ export async function GET(req: NextRequest) {
         paid_at: string;
         payer_phone_e164: string | null;
       }>(
-        "payments?select=amount_minor,payment_method,raw_row,paid_at,payer_phone_e164&status=eq.Successful&order=paid_at.desc",
+        "payments?select=amount_minor,payment_method,raw_row,paid_at,payer_phone_e164&status=eq.Successful&order=paid_at.desc,id.asc",
       ),
       fetchAll<{
         id: string;

@@ -11,7 +11,7 @@ import {
   Crumbs,
   MonthPicker,
   dateLabel,
-  money,
+  usd,
   monthLabel,
   ofTotal,
 } from "../../ui";
@@ -163,7 +163,7 @@ export default async function AdminsHubPage({
                             </td>
                           ))}
                           <td className="px-4 py-3 text-right tabular-nums">
-                            {t ? money(t.givingMinor) : ""}
+                            {t ? usd(t.givenUsdCents) : ""}
                           </td>
                         </tr>
                       );

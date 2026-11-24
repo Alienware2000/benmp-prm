@@ -13,7 +13,7 @@ const form = (
   region_id: string,
   month: string,
   counts: [number, number, number, number],
-  total_cash_minor = 0,
+  given_usd_cents = 0,
 ): FormRow => ({
   church_id,
   hub_id,
@@ -23,7 +23,7 @@ const form = (
   active_partners: counts[1],
   new_registrations: counts[2],
   lapsed: counts[3],
-  total_cash_minor,
+  given_usd_cents,
   status: "submitted",
 });
 
@@ -42,7 +42,7 @@ describe("Admins four numbers (Decision 0045)", () => {
       newRegistrations: 3,
       lapsed: 4,
       forms: 3,
-      givingMinor: 42500,
+      givenUsdCents: 42500,
     });
   });
 

@@ -5,6 +5,11 @@ export function money(minor: number): string {
   return `GHS ${formatGhs(minor)}`;
 }
 
+/** US dollars from cents (the form's amount given, Decision 0047). */
+export function usd(cents: number): string {
+  return `$${(cents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
 export function monthLabel(month: string): string {
   return new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-GB", {
     month: "long",

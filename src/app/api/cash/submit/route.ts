@@ -2,15 +2,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   deleteSubmission,
+  insertMemberMarks,
   insertSubmission,
   listAllRegions,
+  listChurchMembers,
+  removeMembers,
+  restoreRemovedBy,
   submissionExistsForMonth,
   validateChain,
   type SubmissionInsert,
 } from "@/lib/cash/db";
 import {
-  parseGivingTotal,
+  parseGivenUsd,
   parseReportingMonth,
+  validateMemberMarks,
   validateSummaryCounts,
   type NewMemberInput,
   type SubmitPayload,
@@ -34,10 +39,12 @@ function parseJson<T>(raw: FormDataEntryValue | null, fallback: T): T {
 }
 
 /**
- * The Monthly Summary Form (Decisions 0039, 0043). Multipart: `regionCode`,
+ * The Monthly Summary Form (Decisions 0039, 0043, 0047). Multipart: `regionCode`,
  * `hubId`, `churchId`, `reportingMonth`, `summary` (JSON, the four required
- * numbers), `members` (JSON, optional new members) and, in Ghana regions only,
- * `givingTotal` (optional, GHS). Everything is checked before anything is written.
+ * numbers), `givenUsd` (required, the month's giving in US dollars), `marks`
+ * (JSON `[{ partnerId, status }]`, one for every member on the church's list:
+ * active | new | lapsed | remove) and `members` (JSON, optional new members).
+ * Everything is checked before anything is written.
  */
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -96,13 +103,26 @@ export async function POST(req: NextRequest) {
   if (!region) {
     return NextResponse.json({ ok: false, error: "Region not found." }, { status: 400 });
   }
-  // Cash is reported in the Ghana regions only, and is optional there.
+  // Ghana regions also collect a MoMo number for new members (Decision 0026).
   const reportsCash = region.momo_required;
 
-  const cash = reportsCash ? parseGivingTotal(field("givingTotal")) : { ok: true as const, minor: 0 };
-  if (!cash.ok) {
-    return NextResponse.json({ ok: false, error: cash.error }, { status: 400 });
+  const given = parseGivenUsd(field("givenUsd"));
+  if (!given.ok) {
+    return NextResponse.json({ ok: false, error: given.error }, { status: 400 });
   }
+
+  const churchMembers = await listChurchMembers(body.churchId);
+  const marks = validateMemberMarks(
+    parseJson<unknown>(form.get("marks"), []),
+    churchMembers.map((m) => m.id),
+  );
+  if (!marks.ok) {
+    return NextResponse.json(
+      { ok: false, error: marks.error, unmarked: marks.unmarked ?? [] },
+      { status: 400 },
+    );
+  }
+  const removals = [...marks.marks].filter(([, s]) => s === "remove").map(([id]) => id);
 
   const members = nonBlankMembers(parseJson<NewMemberInput[]>(form.get("members"), []));
   const memberCheck =
@@ -125,7 +145,8 @@ export async function POST(req: NextRequest) {
     active_partners: body.summary.activePartners!,
     new_registrations: body.summary.newRegistrations!,
     lapsed: body.summary.lapsed!,
-    total_cash_minor: cash.minor,
+    total_cash_minor: 0,
+    given_usd_cents: given.cents,
     deposits_total_minor: 0,
     currency: "GHS",
     givers_file_path: null,
@@ -142,8 +163,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // New members last: if adding them fails, the form is taken back out so the
-  // church can submit again instead of hitting "already submitted".
+  // Marks, then removals (stamped, never deleted). If anything after the form
+  // fails, the removals are restored and the form taken back out (its marks go
+  // with it), so the church can submit again instead of hitting "already submitted".
+  const undo = async () => {
+    await restoreRemovedBy(submissionId).catch(() => {});
+    await deleteSubmission(submissionId).catch(() => {});
+  };
+  try {
+    await insertMemberMarks(submissionId, marks.marks);
+    if (removals.length > 0) await removeMembers(removals, submissionId);
+  } catch (err) {
+    console.error("[cash/submit] saving member marks failed", err);
+    await undo();
+    return NextResponse.json(
+      { ok: false, error: "Could not save the member marks. Nothing was saved; please submit again." },
+      { status: 500 },
+    );
+  }
+
+  // New members last.
   let membersAdded = 0;
   if (memberCheck?.ok && memberCheck.add.length > 0) {
     try {
@@ -155,7 +194,7 @@ export async function POST(req: NextRequest) {
       membersAdded = memberCheck.add.length;
     } catch (err) {
       console.error("[cash/submit] adding new members failed", err);
-      await deleteSubmission(submissionId).catch(() => {});
+      await undo();
       return NextResponse.json(
         { ok: false, error: "Could not add the new members. Nothing was saved; please submit again." },
         { status: 500 },
@@ -170,7 +209,11 @@ export async function POST(req: NextRequest) {
       churchId: body.churchId,
       reportingMonth,
       summary: body.summary,
-      totalCashMinor: cash.minor,
+      givenUsdCents: given.cents,
+      marks: Object.fromEntries(
+        ["active", "new", "lapsed", "remove"].map((k) => [k, [...marks.marks.values()].filter((v) => v === k).length]),
+      ),
+      removed: removals,
       membersAdded,
       membersAlreadyListed: memberCheck?.ok ? memberCheck.alreadyListed : 0,
     }),
@@ -179,7 +222,8 @@ export async function POST(req: NextRequest) {
     {
       ok: true,
       submissionId,
-      totalCashMinor: cash.minor,
+      givenUsdCents: given.cents,
+      membersRemoved: removals.length,
       membersAdded,
       membersAlreadyListed: memberCheck?.ok ? memberCheck.alreadyListed : 0,
     },

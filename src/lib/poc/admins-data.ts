@@ -4,6 +4,8 @@
  * do. Only the selected month's Monthly Summary Forms are read.
  */
 
+import { memoWithTtl } from "./db";
+import { pageAll } from "./paging";
 import type { AdminsInput } from "./admins-overview";
 import { formsInMonth, type FormRow } from "./admins-metrics";
 import { monthsEndingAt } from "../hub/monthly";
@@ -13,21 +15,31 @@ const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 async function fetchAll<T>(path: string): Promise<T[]> {
   if (!SUPABASE_URL || !KEY) throw new Error("Supabase is not configured.");
-  const all: T[] = [];
-  for (let offset = 0; ; offset += 1000) {
+  return pageAll(async (offset, limit) => {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${path}&limit=1000&offset=${offset}`,
+      `${SUPABASE_URL}/rest/v1/${path}&limit=${limit}&offset=${offset}`,
       {
-        headers: { apikey: KEY, Authorization: `Bearer ${KEY}` },
+        headers: { apikey: KEY!, Authorization: `Bearer ${KEY}` },
         cache: "no-store",
       },
     );
     if (!res.ok) throw new Error(`Fetch failed: ${path} -> ${res.status}`);
-    const rows = (await res.json()) as T[];
-    all.push(...rows);
-    if (rows.length < 1000) return all;
-  }
+    return (await res.json()) as T[];
+  });
 }
+
+/**
+ * Every partner's hub and church, only to count them per hub and church. The
+ * whole table (18k+ rows) is the slowest read on the tab, and the counts only
+ * move when a hub uploads, so it is kept in server memory for five minutes.
+ */
+const loadPartnersForCounts = memoWithTtl(
+  () =>
+    fetchAll<AdminsInput["partners"][number]>(
+      "partners?select=id,hub_id,church_id,country&order=id.asc",
+    ),
+  5 * 60_000,
+);
 
 /** How many months the Admins charts show, ending at the chosen month. */
 export const CHART_MONTHS = 12;
@@ -55,9 +67,7 @@ export async function loadAdminsInput(
       fetchAll<AdminsInput["churches"][number]>(
         "hub_churches?select=id,name,hub_id,leader_name&order=id.asc",
       ),
-      fetchAll<AdminsInput["partners"][number]>(
-        "partners?select=id,hub_id,church_id,country&order=id.asc",
-      ),
+      loadPartnersForCounts(),
       fetchAll<FormRow>(
         `cash_submissions?select=church_id,hub_id,region_id,reporting_month,total_registered,active_partners,new_registrations,lapsed,total_cash_minor,status` +
           `&reporting_month=gte.${months[0]}-01&reporting_month=lte.${month}-01&order=id.asc`,

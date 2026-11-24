@@ -1,4 +1,5 @@
 // src/app/api/poc/partners/by-church/route.ts
+import { pageAll } from "@/lib/poc/paging";
 import { NextResponse } from "next/server";
 import {
   aggregatePartnersByChurch,
@@ -18,18 +19,11 @@ function headers() {
 }
 
 async function fetchAll<T>(path: string): Promise<T[]> {
-  const all: T[] = [];
-  let offset = 0;
-  while (true) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}&limit=1000&offset=${offset}`, { headers: headers(), cache: "no-store" });
+  return pageAll(async (offset, limit) => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}&limit=${limit}&offset=${offset}`, { headers: headers(), cache: "no-store" });
     if (!res.ok) throw new Error(`Fetch failed: ${path} → ${res.status}`);
-    const rows = (await res.json()) as T[];
-    if (!rows || rows.length === 0) break;
-    all.push(...rows);
-    if (rows.length < 1000) break;
-    offset += 1000;
-  }
-  return all;
+    return ((await res.json()) as T[]) ?? [];
+  });
 }
 
 export async function GET() {

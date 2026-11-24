@@ -3,6 +3,7 @@
 // scripts/ingest-statements.ts so a backend run is exactly what the upload screen
 // does: parse → match → vault the original → batch + rows → every credit into payments → stamp
 // the file hash. Server-only (service-role key).
+import { pageAll } from "./paging";
 import {
   computeFileHash,
   findDuplicateBatch,
@@ -86,18 +87,11 @@ function toPartner(row: PartnerRow): PartnerForPaymentMatch {
 }
 
 export async function loadPartners(): Promise<PartnerForPaymentMatch[]> {
-  const allRows: PartnerRow[] = [];
-  let offset = 0;
-  const pageSize = 1000;
-  while (true) {
-    const rows = await rest<PartnerRow[]>(
-      `partners?select=id,full_name,momo_phone_number,whatsapp_number,church,country&order=full_name.asc&limit=${pageSize}&offset=${offset}`,
-    );
-    if (!rows || rows.length === 0) break;
-    allRows.push(...rows);
-    if (rows.length < pageSize) break;
-    offset += pageSize;
-  }
+  const allRows = await pageAll(async (offset, limit) =>
+    (await rest<PartnerRow[]>(
+      `partners?select=id,full_name,momo_phone_number,whatsapp_number,church,country&order=full_name.asc,id.asc&limit=${limit}&offset=${offset}`,
+    )) ?? [],
+  );
   return allRows.map(toPartner);
 }
 

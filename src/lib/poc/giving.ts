@@ -12,6 +12,7 @@
  * this moves into SQL.
  */
 
+import { mapConcurrent } from "./paging";
 import { normalizePhone } from "../phone";
 import { isStatementRow } from "../reconcile";
 import type { Fetcher } from "./db";
@@ -29,6 +30,8 @@ export type DbGivingPayment = {
   currency: string | null;
   paid_at: string | null;
   raw_row?: Record<string, unknown> | null;
+  /** `raw_row->>matched_partner_id`, selected on its own to keep the read small. */
+  matched_partner_id?: string | null;
 };
 
 export type GivingEntry = {
@@ -71,14 +74,19 @@ export type GivingFilters = {
 export function toEntries(
   payments: DbGivingPayment[],
   branchByPhone: Map<string, { branch: string; name: string; country: string }>,
-  branchByPartnerId: Map<string, { branch: string; name: string; country: string }> = new Map(),
+  branchByPartnerId: Map<
+    string,
+    { branch: string; name: string; country: string }
+  > = new Map(),
 ): GivingEntry[] {
   return payments.map((p) => {
     const phone = normalizePhone(p.payer_phone_e164);
     const matchedPartnerId =
-      typeof p.raw_row?.matched_partner_id === "string"
-        ? p.raw_row.matched_partner_id
-        : null;
+      typeof p.matched_partner_id === "string"
+        ? p.matched_partner_id
+        : typeof p.raw_row?.matched_partner_id === "string"
+          ? p.raw_row.matched_partner_id
+          : null;
     const match =
       (phone ? branchByPhone.get(phone) : undefined) ??
       (matchedPartnerId ? branchByPartnerId.get(matchedPartnerId) : undefined);
@@ -193,6 +201,13 @@ export function sortByDateDesc(entries: GivingEntry[]): GivingEntry[] {
  * Phone -> partner details for the numbers in this ledger. The directory is queried in
  * bounded chunks so a giving page never has to download the complete partner table.
  */
+/** Lists of at most 100, so each `in.(…)` filter keeps the URL short. */
+function chunk100<T>(items: T[]): T[][] {
+  return Array.from({ length: Math.ceil(items.length / 100) }, (_, i) =>
+    items.slice(i * 100, i * 100 + 100),
+  );
+}
+
 export async function loadPartnersForGivingPhones(
   phones: string[],
   fetcher: Fetcher = supabaseRestFetcher(),
@@ -211,10 +226,10 @@ export async function loadPartnersForGivingPhones(
 
   // A typical statement contains a few hundred distinct numbers. Query only those
   // partners rather than paging the complete 25k+ standing directory on every visit.
-  for (let index = 0; index < unique.length; index += 100) {
-    const chunk = unique.slice(index, index + 100);
+  const phoneChunks = chunk100(unique);
+  for (const matches of await mapConcurrent(phoneChunks, (chunk) => {
     const list = chunk.map((phone) => encodeURIComponent(phone)).join(",");
-    const matches = await fetcher<{
+    return fetcher<{
       full_name: string | null;
       whatsapp_number: string | null;
       church: string | null;
@@ -222,8 +237,8 @@ export async function loadPartnersForGivingPhones(
     }>(
       `partners?select=full_name,whatsapp_number,church,country&whatsapp_number=in.(${list})&limit=1000`,
     );
+  }))
     rows.push(...matches);
-  }
 
   const map = new Map<
     string,
@@ -254,17 +269,18 @@ export async function loadPartnersForGivingMatchedIds(
     church: string | null;
     country: string | null;
   }> = [];
-  for (let index = 0; index < unique.length; index += 100) {
-    const chunk = unique.slice(index, index + 100);
+  for (const matches of await mapConcurrent(chunk100(unique), (chunk) => {
     const list = chunk.map((id) => encodeURIComponent(id)).join(",");
-    const matches = await fetcher<{
+    return fetcher<{
       id: string;
       full_name: string | null;
       church: string | null;
       country: string | null;
-    }>(`partners?select=id,full_name,church,country&id=in.(${list})&limit=1000`);
+    }>(
+      `partners?select=id,full_name,church,country&id=in.(${list})&limit=1000`,
+    );
+  }))
     rows.push(...matches);
-  }
 
   return new Map(
     rows.map((row) => [
@@ -283,7 +299,7 @@ export async function loadGivingLedger(
 ): Promise<GivingEntry[]> {
   const payments = await fetchAll<DbGivingPayment>(
     fetcher,
-    "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at,raw_row&status=eq.Successful&order=paid_at.desc",
+    "payments?select=reference,payer_name,payer_phone_e164,amount_minor,currency,paid_at,matched_partner_id:raw_row->>matched_partner_id&status=eq.Successful&order=paid_at.desc,id.asc",
   );
   const [branchByPhone, branchByPartnerId] = await Promise.all([
     loadPartnersForGivingPhones(
@@ -292,11 +308,7 @@ export async function loadGivingLedger(
     ),
     loadPartnersForGivingMatchedIds(
       payments
-        .map((payment) =>
-          typeof payment.raw_row?.matched_partner_id === "string"
-            ? payment.raw_row.matched_partner_id
-            : "",
-        )
+        .map((payment) => payment.matched_partner_id ?? "")
         .filter(Boolean),
       fetcher,
     ),

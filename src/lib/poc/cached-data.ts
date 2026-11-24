@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { messagingRuntimeConfiguration } from "../messaging/runtime-configuration";
-import { loadReconciliation } from "./db";
+import { loadReconciliation, memoWithTtl } from "./db";
+import { getDashboardTiles } from "./dashboard-metrics";
 import { countDirectoryPartners } from "./directory";
 import {
   countLegacyGhanaContacts,
@@ -14,9 +15,20 @@ import { loadGivingLedger } from "./giving";
  * short shared cache is preferable to re-reading thousands of rows on every tab change.
  * Import and edit routes can invalidate the `poc-giving` tag when those flows are added.
  */
-export const loadReconciliationCached = unstable_cache(
+/**
+ * In server memory, not the Next.js data cache: the result (every registered
+ * partner plus every payment) passed that cache's 2 MB item limit after the
+ * October 2026 import, so it was silently re-read on every page load. Up to two
+ * minutes stale per server instance, as before.
+ */
+export const loadReconciliationCached = memoWithTtl(
   () => loadReconciliation(),
-  ["poc-reconciliation-v2"],
+  120_000,
+);
+
+export const getDashboardTilesCached = unstable_cache(
+  () => getDashboardTiles(),
+  ["poc-dashboard-tiles-v1"],
   { revalidate: 120, tags: ["poc-giving"] },
 );
 

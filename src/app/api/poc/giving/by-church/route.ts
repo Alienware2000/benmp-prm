@@ -1,4 +1,5 @@
 // src/app/api/poc/giving/by-church/route.ts
+import { pageAll } from "@/lib/poc/paging";
 import { NextRequest, NextResponse } from "next/server";
 import { aggregateMoneyByChurch } from "@/lib/poc/money-by-church";
 
@@ -12,18 +13,10 @@ function headers() {
 }
 
 async function fetchAll<T>(path: string): Promise<T[]> {
-  const all: T[] = [];
-  let offset = 0;
-  while (true) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}&limit=1000&offset=${offset}`, { headers: headers(), cache: "no-store" });
-    if (!res.ok) break;
-    const rows = await res.json() as T[];
-    if (!rows || rows.length === 0) break;
-    all.push(...rows);
-    if (rows.length < 1000) break;
-    offset += 1000;
-  }
-  return all;
+  return pageAll(async (offset, limit) => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}&limit=${limit}&offset=${offset}`, { headers: headers(), cache: "no-store" });
+    return res.ok ? ((await res.json()) as T[]) ?? [] : [];
+  });
 }
 
 export async function GET(req: NextRequest) {
@@ -35,7 +28,7 @@ export async function GET(req: NextRequest) {
   try {
     const [payments, partners, churches, hubs, regions] = await Promise.all([
       fetchAll<{ amount_minor: number; payment_method: string | null; raw_row: Record<string, unknown> | null; paid_at: string }>(
-        "payments?select=amount_minor,payment_method,raw_row,paid_at&status=eq.Successful&order=paid_at.desc"
+        "payments?select=amount_minor,payment_method,raw_row,paid_at&status=eq.Successful&order=paid_at.desc,id.asc"
       ),
       fetchAll<{ id: string; hub_id: string | null; church_id: string | null; country: string | null }>(
         "partners?select=id,hub_id,church_id,country"

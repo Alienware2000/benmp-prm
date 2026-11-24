@@ -85,3 +85,14 @@ export function metricSeries(
     return { month, value: t[metric], forms: t.forms };
   });
 }
+
+/** Every month's totals (oldest first) for the Admins charts: the four numbers and the dollars given. */
+export function monthlyTotals(
+  rows: FormRow[],
+  months: string[],
+): ({ month: string } & FormTotals)[] {
+  return months.map((month) => ({
+    month,
+    ...sumForms(formsInMonth(rows, month)),
+  }));
+}

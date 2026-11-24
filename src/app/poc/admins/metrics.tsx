@@ -23,13 +23,13 @@ export const metricHref = (base: string, month: string, metric: MetricKey) =>
   `${base}?month=${month}&metric=${metric}`;
 
 /** Fixed series colours for the four numbers (reference palette, slots 1-4 in order). */
-const SERIES: Record<MetricKey, string> = {
+export const SERIES: Record<MetricKey, string> = {
   totalRegistered: "#2a78d6",
   activePartners: "#eb6834",
   newRegistrations: "#1baf7a",
   lapsed: "#eda100",
 };
-const usdShort = (cents: number) =>
+export const usdShort = (cents: number) =>
   `$${Math.round(cents / 100).toLocaleString("en-US")}`;
 
 /**
@@ -168,7 +168,7 @@ export function MetricsPanel({
  * month, one fixed colour per number, one axis (all four are head counts). The
  * emphasised number stays full strength; the others are softened.
  */
-function GroupedColumnChart({
+export function GroupedColumnChart({
   data,
   selected,
   emphasis,
@@ -176,7 +176,8 @@ function GroupedColumnChart({
 }: {
   data: ({ month: string; forms: number } & Record<MetricKey, number>)[];
   selected: string;
-  emphasis: MetricKey;
+  /** The number drawn at full strength; omitted, all four are. */
+  emphasis?: MetricKey;
   hrefFor: (month: string) => string;
 }) {
   const W = 720;
@@ -253,7 +254,7 @@ function GroupedColumnChart({
                     key={m.key}
                     d={roundedTop(x0 + k * (barW + gap), y(v), barW, h, 3)}
                     fill={SERIES[m.key]}
-                    opacity={m.key === emphasis ? 1 : 0.45}
+                    opacity={!emphasis || m.key === emphasis ? 1 : 0.45}
                   />
                 ) : null;
               })}
@@ -270,7 +271,7 @@ function GroupedColumnChart({
               >
                 {shortMonth(d.month)}
               </text>
-              <g className="pointer-events-none opacity-0 transition-opacity group-hover:opacity-100">
+              <g className="pointer-events-none opacity-0 transition-opacity group-hover:opacity-100 print:hidden">
                 <rect
                   x={tipX}
                   y={2}
@@ -315,7 +316,7 @@ function GroupedColumnChart({
 }
 
 /** Server-rendered single-series column chart with a hover tooltip per month. */
-function ColumnChart({
+export function ColumnChart({
   data,
   selected,
   label,
@@ -418,7 +419,7 @@ function ColumnChart({
                   {format(d.value)}
                 </text>
               )}
-              <g className="pointer-events-none opacity-0 transition-opacity group-hover:opacity-100">
+              <g className="pointer-events-none opacity-0 transition-opacity group-hover:opacity-100 print:hidden">
                 <rect
                   x={tipX}
                   y={2}

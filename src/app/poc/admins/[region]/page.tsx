@@ -61,7 +61,15 @@ export default async function AdminsRegionPage({
                   {monthLabel(month)}. Open a hub to see its churches.
                 </p>
               </div>
-              <MonthPicker month={month} action={base} />
+              <div className="flex flex-wrap items-center gap-3">
+                <MonthPicker month={month} action={base} />
+                <Link
+                  href={`${base}/report?month=${month}`}
+                  className="rounded border border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand/5"
+                >
+                  Quadrant report (PDF)
+                </Link>
+              </div>
             </div>
 
             <MetricsPanel

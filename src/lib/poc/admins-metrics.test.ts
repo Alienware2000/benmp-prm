@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   metricSeries,
+  monthlyTotals,
   resolveMetric,
   sumForms,
   totalsBy,
@@ -69,5 +70,21 @@ describe("Admins four numbers (Decision 0045)", () => {
     expect(resolveMetric(["newRegistrations"])).toBe("newRegistrations");
     expect(resolveMetric("nonsense")).toBe("totalRegistered");
     expect(resolveMetric(undefined)).toBe("totalRegistered");
+  });
+
+  it("gives every month's four numbers and dollars for the two charts", () => {
+    const t = monthlyTotals(rows, ["2026-09", "2026-10"]);
+    expect(
+      t.map((m) => [
+        m.month,
+        m.totalRegistered,
+        m.lapsed,
+        m.givenUsdCents,
+        m.forms,
+      ]),
+    ).toEqual([
+      ["2026-09", 38, 2, 0, 1],
+      ["2026-10", 70, 4, 42500, 3],
+    ]);
   });
 });

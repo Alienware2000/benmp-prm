@@ -1,5 +1,8 @@
 // src/lib/cash/db.ts
 import { normalizePhone } from "../phone";
+import { inListChunks } from "../poc/in-list";
+import { pageAll } from "../poc/paging";
+import type { MemberMark } from "./validation";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -69,6 +72,77 @@ export async function listChurchesInHub(hubId: string): Promise<ChurchOption[]> 
   );
 }
 
+// --- The church's members, for marking on the form (Decision 0047) ---
+
+export type ChurchMember = { id: string; name: string };
+
+/**
+ * The church's members by name, alphabetically, leaving out anyone removed on an
+ * earlier form. Names only: the form is public, so no phone numbers.
+ */
+export async function listChurchMembers(churchId: string): Promise<ChurchMember[]> {
+  const church = encodeURIComponent(churchId);
+  const rows = await pageAll((offset, limit) =>
+    rest<{ id: string; full_name: string }[]>(
+      `partners?church_id=eq.${church}&removed_at=is.null&select=id,full_name` +
+        `&order=full_name.asc,id.asc&limit=${limit}&offset=${offset}`,
+    ),
+  );
+  return rows.map((r) => ({ id: r.id, name: r.full_name.trim() }));
+}
+
+/** Keep the form's mark for each member. */
+export async function insertMemberMarks(
+  submissionId: string,
+  marks: Map<string, MemberMark>,
+): Promise<void> {
+  const rows = [...marks].map(([partner_id, status]) => ({
+    submission_id: submissionId,
+    partner_id,
+    status,
+  }));
+  for (let i = 0; i < rows.length; i += 500) {
+    await rest<void>("cash_submission_members", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify(rows.slice(i, i + 500)),
+    });
+  }
+}
+
+/**
+ * Take members marked "remove" off the church's list. Nobody is deleted: the
+ * partner is stamped with when and by which form, and the hub can restore them.
+ */
+export async function removeMembers(
+  partnerIds: string[],
+  submissionId: string,
+): Promise<void> {
+  const body = JSON.stringify({
+    removed_at: new Date().toISOString(),
+    removed_via_submission: submissionId,
+  });
+  for (const list of inListChunks(partnerIds)) {
+    await rest<void>(`partners?id=in.(${list})&removed_at=is.null`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body,
+    });
+  }
+}
+
+/** Undo `removeMembers` for one form, e.g. when a later step of the submission fails. */
+export async function restoreRemovedBy(submissionId: string): Promise<void> {
+  await rest<void>(
+    `partners?removed_via_submission=eq.${encodeURIComponent(submissionId)}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ removed_at: null, removed_via_submission: null }),
+    },
+  );
+}
+
 // --- Chain integrity validation ---
 
 export async function validateChain(
@@ -101,6 +175,8 @@ export type SubmissionInsert = {
   new_registrations: number;
   lapsed: number;
   total_cash_minor: number;
+  /** The month's giving as a US-dollar equivalent, in cents (Decision 0047). */
+  given_usd_cents: number;
   deposits_total_minor: number;
   currency: string;
   givers_file_path: string | null;

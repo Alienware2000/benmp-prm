@@ -11,6 +11,7 @@ import {
   getRegionMomoRequired,
 } from "@/lib/hub/db";
 import { PartnersTable } from "./partners-table";
+import { RemovedList } from "./removed-list";
 
 export const dynamic = "force-dynamic";
 
@@ -32,11 +33,13 @@ export default async function HubPartnersPage() {
     );
   }
   const collectsPledge = await getRegionCollectsPledge(session.regionCode);
-  const [partners, uploads, momoRequired] = await Promise.all([
+  const [everyone, uploads, momoRequired] = await Promise.all([
     getHubPartners(session.hubId, collectsPledge),
     getHubUploads(session.hubId),
     getRegionMomoRequired(session.regionCode),
   ]);
+  const partners = everyone.filter((p) => !p.removed_at);
+  const removed = everyone.filter((p) => p.removed_at);
 
   return (
     <div className="space-y-4">
@@ -55,6 +58,16 @@ export default async function HubPartnersPage() {
           uploads={uploads}
           showMomo={momoRequired}
           showPledge={collectsPledge}
+        />
+      )}
+      {removed.length > 0 && (
+        <RemovedList
+          removed={removed.map((p) => ({
+            id: p.id,
+            name: p.full_name,
+            church: p.church,
+            removedAt: p.removed_at!,
+          }))}
         />
       )}
     </div>

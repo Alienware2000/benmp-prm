@@ -7,7 +7,7 @@ import {
   resolveMonth,
 } from "@/lib/poc/admins-overview";
 import { AdminsSidebar, MetricsPanel, metricHref } from "./metrics";
-import { MonthPicker, money, monthLabel, ofTotal } from "./ui";
+import { MonthPicker, monthLabel, ofTotal, usd } from "./ui";
 
 export const dynamic = "force-dynamic";
 
@@ -146,7 +146,7 @@ export default async function AdminsPage({
                             </td>
                           ))}
                           <td className="px-4 py-3 text-right tabular-nums">
-                            {money(t?.givingMinor ?? 0)}
+                            {usd(t?.givenUsdCents ?? 0)}
                           </td>
                         </tr>
                       );

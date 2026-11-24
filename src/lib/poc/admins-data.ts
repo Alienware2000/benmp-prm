@@ -69,7 +69,7 @@ export async function loadAdminsInput(
       ),
       loadPartnersForCounts(),
       fetchAll<FormRow>(
-        `cash_submissions?select=church_id,hub_id,region_id,reporting_month,total_registered,active_partners,new_registrations,lapsed,total_cash_minor,status` +
+        `cash_submissions?select=church_id,hub_id,region_id,reporting_month,total_registered,active_partners,new_registrations,lapsed,given_usd_cents,status` +
           `&reporting_month=gte.${months[0]}-01&reporting_month=lte.${month}-01&order=id.asc`,
       ),
     ]);

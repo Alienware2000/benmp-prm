@@ -6,11 +6,7 @@ import {
   hubSessionSecret,
   verifyHubSessionToken,
 } from "@/lib/hub/session";
-import {
-  getHubMonthlyInput,
-  getHubSummary,
-  getRegionMomoRequired,
-} from "@/lib/hub/db";
+import { getHubMonthlyInput, getHubSummary } from "@/lib/hub/db";
 import {
   buildHubMonth,
   buildMonthTrail,
@@ -25,8 +21,8 @@ export const dynamic = "force-dynamic";
 /** Months shown in the month-by-month table, ending at the chosen month. */
 const TRAIL_MONTHS = 6;
 
-const ghs = (minor: number) =>
-  `GHS ${(minor / 100).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const usd = (cents: number) =>
+  `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const monthLabel = (month: string) =>
   new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-GB", {
     month: "long",
@@ -55,10 +51,9 @@ const COUNT_LABELS: {
 const count = (n: number) => n.toLocaleString("en-US");
 
 /**
- * Hub Monthly summary (Decisions 0038, 0039, 0044): for a chosen month, which of
- * the hub's churches have submitted the Monthly Summary Form, the sums of its
- * four numbers and, for Ghana hubs (the only ones whose form asks for it), the
- * BENMP giving the churches reported. Everything comes from the forms. Scoped
+ * Hub Monthly summary (Decisions 0038, 0039, 0044, 0047): for a chosen month,
+ * which of the hub's churches have submitted the Monthly Summary Form, the sums
+ * of its four numbers, and the giving (US dollars) the churches reported. Everything comes from the forms. Scoped
  * to the signed-in hub by the session.
  */
 export default async function HubSummaryPage({
@@ -73,13 +68,12 @@ export default async function HubSummaryPage({
   );
   const month = resolveMonth((await searchParams).month);
   const months = monthsEndingAt(month, TRAIL_MONTHS);
-  const [summary, input, reportsGiving] = session
+  const [summary, input] = session
     ? await Promise.all([
         getHubSummary(session.hubId),
         getHubMonthlyInput(session.hubId, months[0]),
-        getRegionMomoRequired(session.regionCode),
       ])
-    : [null, null, false];
+    : [null, null];
 
   if (!session || !summary || !input) {
     return (
@@ -94,16 +88,12 @@ export default async function HubSummaryPage({
   const trail = buildMonthTrail(input, months).reverse();
   const churches = m.filed.length + m.notFiled.length;
   const tiles = [
-    ...(reportsGiving
-      ? [
-          {
-            label: "BENMP giving reported",
-            value: ghs(m.givingMinor),
-            note: "From the churches' monthly summary forms",
-            icon: HandCoins,
-          },
-        ]
-      : []),
+    {
+      label: "Giving reported (USD)",
+      value: usd(m.givenUsdCents),
+      note: "From the churches' monthly summary forms",
+      icon: HandCoins,
+    },
     {
       label: "Summary forms submitted",
       value: `${m.filed.length} of ${churches}`,
@@ -149,11 +139,7 @@ export default async function HubSummaryPage({
         </form>
       </div>
 
-      <div
-        className={
-"grid grid-cols-2 gap-3"
-        }
-      >
+      <div className={"grid grid-cols-2 gap-3"}>
         {tiles.map(({ label, value, note, icon: Icon }) => (
           <div
             key={label}
@@ -194,7 +180,7 @@ export default async function HubSummaryPage({
         </div>
       </section>
 
-      <SubmittedTable rows={m.filed} reportsGiving={reportsGiving} />
+      <SubmittedTable rows={m.filed} />
       <NotSubmittedTable rows={m.notFiled} />
 
       <section>
@@ -206,9 +192,7 @@ export default async function HubSummaryPage({
             <thead className="border-b border-border text-left text-xs uppercase text-muted-foreground">
               <tr>
                 <th className="px-3 py-3">Month</th>
-                {reportsGiving && (
-                  <th className="px-3 py-3 text-right">Giving</th>
-                )}
+                <th className="px-3 py-3 text-right">Giving</th>
                 {COUNT_LABELS.map(({ key, short }) => (
                   <th
                     key={key}
@@ -237,11 +221,9 @@ export default async function HubSummaryPage({
                       {monthLabel(row.month)}
                     </Link>
                   </td>
-                  {reportsGiving && (
-                    <td className="px-3 py-3 whitespace-nowrap text-right font-semibold tabular-nums">
-                      {ghs(row.givingMinor)}
-                    </td>
-                  )}
+                  <td className="px-3 py-3 whitespace-nowrap text-right font-semibold tabular-nums">
+                    {usd(row.givenUsdCents)}
+                  </td>
                   {COUNT_LABELS.map(({ key }) => (
                     <td
                       key={key}
@@ -268,13 +250,7 @@ export default async function HubSummaryPage({
   );
 }
 
-function SubmittedTable({
-  rows,
-  reportsGiving,
-}: {
-  rows: ChurchMonthRow[];
-  reportsGiving: boolean;
-}) {
+function SubmittedTable({ rows }: { rows: ChurchMonthRow[] }) {
   return (
     <section>
       <h2 className="mb-2 text-base font-bold text-emerald-700">
@@ -295,11 +271,9 @@ function SubmittedTable({
                     {short}
                   </th>
                 ))}
-                {reportsGiving && (
-                  <th className="hidden px-3 py-3 text-right sm:table-cell">
-                    Giving
-                  </th>
-                )}
+                <th className="hidden px-3 py-3 text-right sm:table-cell">
+                  Giving
+                </th>
                 <th className="hidden px-3 py-3 sm:table-cell">Submitted</th>
               </tr>
             </thead>
@@ -322,11 +296,9 @@ function SubmittedTable({
                       {count(row.counts?.[key] ?? 0)}
                     </td>
                   ))}
-                  {reportsGiving && (
-                    <td className="hidden px-3 py-3 whitespace-nowrap text-right tabular-nums sm:table-cell">
-                      {ghs(row.givingMinor)}
-                    </td>
-                  )}
+                  <td className="hidden px-3 py-3 whitespace-nowrap text-right tabular-nums sm:table-cell">
+                    {usd(row.givenUsdCents)}
+                  </td>
                   <td className="hidden px-3 py-3 whitespace-nowrap text-muted-foreground sm:table-cell">
                     {dayLabel(row.filedAt)}
                   </td>

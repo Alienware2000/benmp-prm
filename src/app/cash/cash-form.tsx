@@ -1,13 +1,22 @@
 // src/app/cash/cash-form.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type Region = { code: string; name: string; momo_required: boolean };
 type Hub = { id: string; label: string };
 type Church = { id: string; name: string };
 type MemberRow = { name: string; whatsappPhone: string; momoPhone: string };
 type MemberIssue = { index: number; issues: { field: string; message: string }[] };
+type ChurchMember = { id: string; name: string };
+type Mark = "active" | "new" | "lapsed" | "remove";
+
+const MARKS: { value: Mark; label: string }[] = [
+  { value: "active", label: "Active" },
+  { value: "new", label: "New" },
+  { value: "lapsed", label: "Lapsed" },
+  { value: "remove", label: "Remove" },
+];
 
 const emptyMember = (): MemberRow => ({ name: "", whatsappPhone: "", momoPhone: "" });
 const toCount = (raw: string) => (raw.trim() === "" ? null : Number(raw));
@@ -21,9 +30,10 @@ const SUMMARY_FIELDS = [
 ] as const;
 
 /**
- * The Monthly Summary Form (Decisions 0039, 0043): the four monthly numbers
- * are required; new members are optional; Ghana regions may also give the
- * church's total BENMP giving for the month.
+ * The Monthly Summary Form (Decisions 0039, 0043, 0047): the four monthly
+ * numbers and the amount given (US dollars) are required; every member on the
+ * church's list is marked Active, New, Lapsed or Remove, and new members can be
+ * added in the same section.
  */
 export function CashForm() {
   const [regions, setRegions] = useState<Region[]>([]);
@@ -43,7 +53,11 @@ export function CashForm() {
   });
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [memberIssues, setMemberIssues] = useState<MemberIssue[]>([]);
-  const [givingTotal, setGivingTotal] = useState("");
+  const [givenUsd, setGivenUsd] = useState("");
+  const [churchMembers, setChurchMembers] = useState<ChurchMember[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [marks, setMarks] = useState<Record<string, Mark>>({});
+  const [unmarked, setUnmarked] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
@@ -78,18 +92,60 @@ export function CashForm() {
       .catch(() => {});
   }, [hubId]);
 
+  // The members section follows the church chosen above: choosing a church loads
+  // its own list and clears any marks made for the previous one. A late answer
+  // for a church no longer selected is ignored.
+  const membersFor = useRef("");
+  const handleChurchChange = (id: string) => {
+    setChurchId(id);
+    setMarks({});
+    setUnmarked(new Set());
+    setChurchMembers([]);
+    membersFor.current = id;
+    if (!id) {
+      setLoadingMembers(false);
+      return;
+    }
+    setLoadingMembers(true);
+    fetch(`/api/cash/members?churchId=${encodeURIComponent(id)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (membersFor.current === id && d.ok) setChurchMembers(d.members);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (membersFor.current === id) setLoadingMembers(false);
+      });
+  };
+
+  const markedCount = churchMembers.filter((m) => marks[m.id]).length;
+  const setMark = (id: string, mark: Mark) => {
+    setMarks((prev) => ({ ...prev, [id]: mark }));
+    setUnmarked((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+  const markAllUnmarked = (mark: Mark) =>
+    setMarks((prev) => {
+      const next = { ...prev };
+      for (const m of churchMembers) next[m.id] ??= mark;
+      return next;
+    });
+
   const handleRegionChange = (code: string) => {
     setRegionCode(code);
     setHubs([]);
     setHubId("");
     setChurches([]);
-    setChurchId("");
+    handleChurchChange("");
   };
 
   const handleHubChange = (id: string) => {
     setHubId(id);
     setChurches([]);
-    setChurchId("");
+    handleChurchChange("");
   };
 
   const addMember = () => setMembers((prev) => [...prev, emptyMember()]);
@@ -133,7 +189,15 @@ export function CashForm() {
         })),
       ),
     );
-    if (reportsCash) body.append("givingTotal", givingTotal.trim());
+    body.append("givenUsd", givenUsd.trim());
+    body.append(
+      "marks",
+      JSON.stringify(
+        churchMembers
+          .filter((m) => marks[m.id])
+          .map((m) => ({ partnerId: m.id, status: marks[m.id] })),
+      ),
+    );
 
     try {
       const res = await fetch("/api/cash/submit", { method: "POST", body });
@@ -143,12 +207,17 @@ export function CashForm() {
           data.membersAdded > 0
             ? ` ${data.membersAdded} new member${data.membersAdded === 1 ? "" : "s"} added to your church.`
             : "";
+        const removed =
+          data.membersRemoved > 0
+            ? ` ${data.membersRemoved} member${data.membersRemoved === 1 ? "" : "s"} taken off your list (your hub admin can restore them).`
+            : "";
         const listed =
           data.membersAlreadyListed > 0
             ? ` ${data.membersAlreadyListed} ${data.membersAlreadyListed === 1 ? "was" : "were"} already on your list.`
             : "";
-        setResult({ ok: true, message: `Monthly summary received.${added}${listed} Reference: ${data.submissionId}` });
+        setResult({ ok: true, message: `Monthly summary received.${added}${removed}${listed} Reference: ${data.submissionId}` });
       } else {
+        if (Array.isArray(data.unmarked)) setUnmarked(new Set(data.unmarked as string[]));
         if (Array.isArray(data.memberIssues)) {
           // Server indexes count the filled rows only; map them back to the rows on screen.
           const filledIndexes = members.flatMap((m, i) => (isBlankMember(m) ? [] : [i]));
@@ -200,7 +269,7 @@ export function CashForm() {
           </select>
           <select
             value={churchId}
-            onChange={(e) => setChurchId(e.target.value)}
+            onChange={(e) => handleChurchChange(e.target.value)}
             required
             disabled={!hubId}
             className="rounded border border-border bg-input px-3 py-2 text-sm disabled:opacity-50"
@@ -241,13 +310,105 @@ export function CashForm() {
             </label>
           ))}
         </div>
+        <label className="block max-w-xs">
+          <span className="text-xs text-muted-foreground">Amount given this month (US dollar equivalent)</span>
+          <div className="mt-1 flex items-center rounded border border-border bg-input">
+            <span className="pl-2 text-sm text-muted-foreground">$</span>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              inputMode="decimal"
+              required
+              value={givenUsd}
+              onChange={(e) => setGivenUsd(e.target.value)}
+              className="w-full bg-transparent px-2 py-1 text-sm outline-none"
+            />
+          </div>
+          <span className="mt-1 block text-xs text-muted-foreground">
+            Everything your church gave to BENMP this month, converted to US dollars. Enter 0 if nothing was given.
+          </span>
+        </label>
       </section>
 
-      {/* Section 3: New members for the church's list */}
+      {/* Section 3: Every member marked, and new members added */}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-semibold text-foreground">
+            Members <span className="text-sm font-normal text-red-700">(mark every member)</span>
+          </h2>
+          {churchMembers.length > 0 && (
+            <span className="text-sm tabular-nums text-muted-foreground">
+              {markedCount} of {churchMembers.length} marked
+            </span>
+          )}
+        </div>
+        {!churchId ? (
+          <p className="text-sm text-muted-foreground">Choose your church above to see its members.</p>
+        ) : loadingMembers ? (
+          <p className="text-sm text-muted-foreground">Loading members…</p>
+        ) : churchMembers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No members are on this church&apos;s list yet. Add them below.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Mark each person for this month. Remove takes them off your church&apos;s list; your hub admin can
+              restore anyone removed by mistake.
+            </p>
+            <div className="flex flex-wrap gap-2 text-sm">
+              <button
+                type="button"
+                onClick={() => markAllUnmarked("active")}
+                className="rounded border border-border px-3 py-1"
+              >
+                Mark the rest Active
+              </button>
+            </div>
+            <ul className="divide-y divide-border rounded border border-border">
+              {churchMembers.map((m) => (
+                <li
+                  key={m.id}
+                  className={
+                    "flex flex-wrap items-center justify-between gap-2 px-3 py-2 " +
+                    (unmarked.has(m.id) ? "bg-red-50" : "")
+                  }
+                >
+                  <span className="min-w-0 text-sm">{m.name}</span>
+                  <span role="radiogroup" aria-label={`Mark ${m.name}`} className="flex gap-1">
+                    {MARKS.map(({ value, label }) => {
+                      const on = marks[m.id] === value;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          role="radio"
+                          aria-checked={on}
+                          onClick={() => setMark(m.id, value)}
+                          className={
+                            "rounded border px-2 py-0.5 text-xs " +
+                            (on
+                              ? value === "remove"
+                                ? "border-red-700 bg-red-700 text-white"
+                                : "border-primary bg-primary text-primary-foreground"
+                              : "border-border text-foreground")
+                          }
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        <h3 className="pt-2 text-base font-semibold text-foreground">
           Add New Members <span className="text-sm font-normal text-muted-foreground">(optional)</span>
-        </h2>
+        </h3>
         <p className="text-sm text-muted-foreground">
           People who joined your church this month. They are added to your church&apos;s
           partner list. Give each person&apos;s full name (at least two names) and WhatsApp
@@ -308,30 +469,6 @@ export function CashForm() {
         </button>
       </section>
 
-      {reportsCash && (
-        /* Section 4: The church's BENMP giving for the month — Ghana regions, optional */
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
-            BENMP Giving <span className="text-sm font-normal text-muted-foreground">(optional)</span>
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            The total your church gave to BENMP this month, however it was given. Leave it blank if there was none.
-          </p>
-          <label className="block max-w-xs">
-            <span className="text-xs text-muted-foreground">Total giving (GHS)</span>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              inputMode="decimal"
-              value={givingTotal}
-              onChange={(e) => setGivingTotal(e.target.value)}
-              className="mt-1 w-full rounded border border-border bg-input px-2 py-1 text-sm"
-            />
-          </label>
-        </section>
-      )}
-
       {result && (
         <div
           className={
@@ -346,11 +483,17 @@ export function CashForm() {
 
       <button
         type="submit"
-        disabled={submitting || !churchId}
+        disabled={submitting || !churchId || loadingMembers || markedCount < churchMembers.length}
         className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
       >
         {submitting ? "Submitting…" : "Submit Monthly Summary"}
       </button>
+      {churchId && !loadingMembers && markedCount < churchMembers.length && (
+        <p className="text-xs text-muted-foreground">
+          Mark the remaining {churchMembers.length - markedCount} member
+          {churchMembers.length - markedCount === 1 ? "" : "s"} to submit.
+        </p>
+      )}
     </form>
   );
 }

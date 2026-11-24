@@ -13,7 +13,7 @@ import {
   Crumbs,
   MonthPicker,
   dateLabel,
-  money,
+  usd,
   monthLabel,
   ofTotal,
 } from "../ui";
@@ -138,7 +138,7 @@ export default async function AdminsRegionPage({
                           )}
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums">
-                          {money(h.givingMinor)}
+                          {usd(h.givenUsdCents)}
                         </td>
                       </tr>
                     );

@@ -14,7 +14,7 @@ describe("isPublicPath", () => {
   });
 
   it("lets a branch fill in the cash form without logging in", () => {
-    for (const p of ["/cash", "/api/cash/submit"]) {
+    for (const p of ["/cash", "/api/cash/members", "/api/cash/submit"]) {
       expect(isPublicPath(p), p).toBe(true);
     }
   });

@@ -28,14 +28,14 @@ export type FormRow = {
   new_registrations: number;
   lapsed: number;
   /** The church's BENMP giving for the month (Decision 0043). */
-  total_cash_minor: number;
+  given_usd_cents: number;
   status: string;
 };
 
 export type FormTotals = SummaryCounts & {
   /** How many forms were added up. */
   forms: number;
-  givingMinor: number;
+  givenUsdCents: number;
 };
 
 /** "totalRegistered" etc. from a query value; total registered by default. */
@@ -48,13 +48,13 @@ export const formsInMonth = (rows: FormRow[], month: string) =>
   rows.filter((r) => r.reporting_month.slice(0, 7) === month);
 
 export function sumForms(rows: FormRow[]): FormTotals {
-  const totals: FormTotals = { ...zeroCounts(), forms: 0, givingMinor: 0 };
+  const totals: FormTotals = { ...zeroCounts(), forms: 0, givenUsdCents: 0 };
   for (const r of rows) {
     totals.totalRegistered += r.total_registered;
     totals.activePartners += r.active_partners;
     totals.newRegistrations += r.new_registrations;
     totals.lapsed += r.lapsed;
-    totals.givingMinor += r.total_cash_minor;
+    totals.givenUsdCents += r.given_usd_cents;
     totals.forms += 1;
   }
   return totals;

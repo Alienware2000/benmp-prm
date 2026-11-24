@@ -64,8 +64,8 @@ function input(): AdminsInput {
       { id: "p7", hub_id: null, church_id: null, country: "Ghana" },
     ],
     cashSubmissions: [
-      { church_id: "c-lion", total_cash_minor: 45000, status: "submitted" },
-      { church_id: "c-nai", total_cash_minor: 8000, status: "submitted" },
+      { church_id: "c-lion", given_usd_cents: 45000, status: "submitted" },
+      { church_id: "c-nai", given_usd_cents: 8000, status: "submitted" },
     ],
   };
 }
@@ -94,7 +94,7 @@ describe("office Admins tab (Decision 0036)", () => {
     for (const label of ["UD NA", "UI", "First Love", "UJ"]) {
       expect(byLabel[label].setUp).toBe(false);
       expect(byLabel[label].hubs).toBe(0);
-      expect(byLabel[label].givingMinor).toBe(0);
+      expect(byLabel[label].givenUsdCents).toBe(0);
     }
     expect(byLabel["UD GH"].setUp).toBe(true);
   });
@@ -121,7 +121,7 @@ describe("office Admins tab (Decision 0036)", () => {
       partners: 5, // p1-p5; p7 has no hub
       branches: 3,
       cashFiled: 1,
-      givingMinor: 45000, // what Lion of Judah reported on its form
+      givenUsdCents: 45000, // what Lion of Judah reported on its form
     });
   });
 
@@ -134,9 +134,9 @@ describe("office Admins tab (Decision 0036)", () => {
       partners: 4,
       branches: 2,
       cashFiled: 1,
-      givingMinor: 45000,
+      givenUsdCents: 45000,
     });
-    expect(computeHubStats(input()).get("hk")!.givingMinor).toBe(8000);
+    expect(computeHubStats(input()).get("hk")!.givenUsdCents).toBe(8000);
   });
 
   it("lists a region's hubs in login order (hub number, then name)", () => {
@@ -157,7 +157,7 @@ describe("office Admins tab (Decision 0036)", () => {
         name: "Abura",
         pastor: "",
         partners: 1,
-        givingMinor: 0,
+        givenUsdCents: 0,
         cashFiled: false,
       },
       {
@@ -165,7 +165,7 @@ describe("office Admins tab (Decision 0036)", () => {
         name: "Lion of Judah",
         pastor: "Bishop Paschal",
         partners: 2,
-        givingMinor: 45000,
+        givenUsdCents: 45000,
         cashFiled: true,
       },
     ]);

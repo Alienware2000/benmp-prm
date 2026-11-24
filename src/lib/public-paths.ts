@@ -22,6 +22,7 @@ export function isPublicPath(pathname: string): boolean {
     pathname === "/api/cash/regions" ||
     pathname === "/api/cash/hubs" ||
     pathname === "/api/cash/churches" ||
+    pathname === "/api/cash/members" ||
     pathname === "/api/cash/submit"
   );
 }

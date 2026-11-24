@@ -9,13 +9,13 @@ import {
 const report = (
   church_id: string,
   reporting_month: string,
-  total_cash_minor: number,
+  given_usd_cents: number,
   counts: [number, number, number, number],
   submitted_at = "2026-11-02T09:00:00Z",
 ) => ({
   church_id,
   reporting_month,
-  total_cash_minor,
+  given_usd_cents,
   submitted_at,
   total_registered: counts[0],
   active_partners: counts[1],
@@ -41,7 +41,7 @@ describe("buildHubMonth", () => {
   const m = buildHubMonth(input, "2026-10");
 
   it("splits churches into submitted and not submitted, alphabetically, with what each reported", () => {
-    expect(m.filed.map((r) => [r.name, r.givingMinor, r.counts])).toEqual([
+    expect(m.filed.map((r) => [r.name, r.givenUsdCents, r.counts])).toEqual([
       [
         "Agape",
         30000,
@@ -65,7 +65,7 @@ describe("buildHubMonth", () => {
       newRegistrations: 3,
       lapsed: 1,
     });
-    expect(m.givingMinor).toBe(42500);
+    expect(m.givenUsdCents).toBe(42500);
   });
 
   it("uses the reporting month, not the date the form was filed", () => {
@@ -87,7 +87,7 @@ describe("month by month", () => {
     expect(buildMonthTrail(input, ["2026-10", "2026-09"])).toEqual([
       {
         month: "2026-09",
-        givingMinor: 25000,
+        givenUsdCents: 25000,
         filed: 1,
         churches: 3,
         summaryTotals: {
@@ -99,7 +99,7 @@ describe("month by month", () => {
       },
       {
         month: "2026-10",
-        givingMinor: 42500,
+        givenUsdCents: 42500,
         filed: 2,
         churches: 3,
         summaryTotals: {

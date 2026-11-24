@@ -3,6 +3,7 @@
  * mirroring src/lib/poc/db.ts. RLS has no anon policies on the hub tables, so
  * everything goes through these helpers.
  */
+import { inListChunks } from "../poc/in-list";
 import { pageAll } from "../poc/paging";
 import type { HubAccountRecord } from "./auth";
 import { normalizeNameKey, type ExistingPartner } from "./ingest";
@@ -410,6 +411,8 @@ export type HubPartnerRow = {
   whatsapp_number: string;
   church: string | null;
   created_at: string;
+  /** Set when a Monthly Summary Form marked them Remove (Decision 0047). */
+  removed_at: string | null;
   /** Present only when the hub's region collects pledges (Decision 0030). */
   pledged_amount_minor?: number | null;
 };
@@ -428,7 +431,7 @@ export async function getHubPartners(
   for (let offset = 0; ; offset += page) {
     const rows = await rest<HubPartnerRow[]>(
       `partners?hub_id=eq.${encodeURIComponent(hubId)}` +
-        `&select=id,full_name,momo_phone_number,whatsapp_number,church,created_at` +
+        `&select=id,full_name,momo_phone_number,whatsapp_number,church,created_at,removed_at` +
         (withPledge ? ",pledged_amount_minor" : "") +
         `&order=created_at.desc,id.asc&limit=${page}&offset=${offset}`,
     );
@@ -436,6 +439,46 @@ export async function getHubPartners(
     if (rows.length < page) break;
   }
   return out;
+}
+
+/**
+ * Put back members a Monthly Summary Form removed (Decision 0047). Only this
+ * hub's own partners, and only ones that are removed; each is audited.
+ */
+export async function restoreHubPartners(
+  hubId: string,
+  partnerIds: string[],
+): Promise<number> {
+  const hub = encodeURIComponent(hubId);
+  let restored = 0;
+  for (const list of inListChunks(partnerIds)) {
+    const rows = await rest<{ id: string; removed_via_submission: string | null }[]>(
+      `partners?hub_id=eq.${hub}&id=in.(${list})&removed_at=not.is.null&select=id,removed_via_submission`,
+    );
+    if (rows.length === 0) continue;
+    await rest<void>(
+      `partners?hub_id=eq.${hub}&id=in.(${rows.map((r) => r.id).join(",")})`,
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ removed_at: null, removed_via_submission: null }),
+      },
+    );
+    await rest<void>("audit_log", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify(
+        rows.map((r) => ({
+          action: "hub_partner_restore",
+          entity_table: "partners",
+          entity_id: r.id,
+          after_data: { hub_id: hubId, removed_via_submission: r.removed_via_submission },
+        })),
+      ),
+    });
+    restored += rows.length;
+  }
+  return restored;
 }
 
 /** The hub's country label, stamped onto partners it uploads. */
@@ -710,7 +753,7 @@ export async function getHubMonthlyInput(
     ),
     restAll<HubMonthlyInput["reports"][number]>(
       `cash_submissions?hub_id=eq.${hub}&reporting_month=gte.${fromMonth}-01` +
-        `&select=church_id,reporting_month,total_cash_minor,submitted_at,total_registered,active_partners,new_registrations,lapsed&order=reporting_month.asc,id.asc`,
+        `&select=church_id,reporting_month,given_usd_cents,submitted_at,total_registered,active_partners,new_registrations,lapsed&order=reporting_month.asc,id.asc`,
     ),
   ]);
   return { churches, reports };

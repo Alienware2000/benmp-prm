@@ -40,7 +40,7 @@ export type AdminHubMeta = HubMeta & { leader_name: string | null };
 export type AccountMeta = { hub_id: string; last_login_at: string | null };
 export type CashSubmissionMeta = {
   church_id: string;
-  total_cash_minor: number;
+  given_usd_cents: number;
   status: string;
 };
 
@@ -66,7 +66,7 @@ export type HubStats = {
   /** Churches that submitted the month's form. */
   cashFiled: number;
   /** BENMP giving reported on those forms. */
-  givingMinor: number;
+  givenUsdCents: number;
 };
 
 export type AdminBlock = {
@@ -78,7 +78,7 @@ export type AdminBlock = {
   partners: number;
   branches: number;
   cashFiled: number;
-  givingMinor: number;
+  givenUsdCents: number;
 };
 
 export type BranchRow = {
@@ -87,7 +87,7 @@ export type BranchRow = {
   pastor: string;
   partners: number;
   /** Giving the church reported on the month's form; 0 when not filed. */
-  givingMinor: number;
+  givenUsdCents: number;
   cashFiled: boolean;
 };
 
@@ -117,7 +117,7 @@ export function computeHubStats(input: AdminsInput): Map<string, HubStats> {
       partners: 0,
       branches: 0,
       cashFiled: 0,
-      givingMinor: 0,
+      givenUsdCents: 0,
     });
   }
   for (const c of input.churches) {
@@ -127,7 +127,7 @@ export function computeHubStats(input: AdminsInput): Map<string, HubStats> {
     const form = formByChurch.get(c.id);
     if (form) {
       s.cashFiled += 1;
-      s.givingMinor += form.total_cash_minor;
+      s.givenUsdCents += form.given_usd_cents;
     }
   }
   for (const p of input.partners) {
@@ -165,7 +165,7 @@ export function buildBlocks(
       partners: sum(hubs, (h) => h.partners),
       branches: sum(hubs, (h) => h.branches),
       cashFiled: sum(hubs, (h) => h.cashFiled),
-      givingMinor: sum(hubs, (h) => h.givingMinor),
+      givenUsdCents: sum(hubs, (h) => h.givenUsdCents),
     };
   });
 }
@@ -218,7 +218,7 @@ export function buildHubReport(
         name: c.name,
         pastor: c.leader_name ?? "",
         partners: partnersByChurch.get(c.id) ?? 0,
-        givingMinor: cash?.total_cash_minor ?? 0,
+        givenUsdCents: cash?.given_usd_cents ?? 0,
         cashFiled: Boolean(cash),
       };
     })

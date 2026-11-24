@@ -345,7 +345,8 @@ Fields:
 - `active_partners int` (manual count)
 - `new_registrations int`
 - `lapsed int`
-- `total_cash_minor bigint` (computed sum of giver amounts)
+- `total_cash_minor bigint` (legacy: giver-sheet total, then the Ghana-only cedi total of Decision 0043; 0 from migration 0027)
+- `given_usd_cents bigint` (migration 0027, Decision 0047: the month's giving as a US-dollar equivalent, required of every church)
 - `deposits_total_minor bigint` (sum of the reported transfers, migration 0025)
 - `givers_file_path text`, `givers_file_name text` (the uploaded giver sheet in the `statement-vault` bucket, `cash/<YYYY-MM>/<sha256>-<filename>`; null for typed submissions before 0025)
 - `currency text` default `GHS`
@@ -378,6 +379,21 @@ Constraint:
 - `unique (submission_id, transaction_ref)` — no duplicate receipt refs within a submission (Postgres treats NULLs as distinct, so empty refs don't conflict).
 
 RLS: both tables have public insert, staff-only select, staff-only update (finance/admin/super_admin). Migration: `0021_cash_submissions.sql`.
+
+### `cash_submission_members`
+
+Purpose (migration 0027, Decision 0047): how the form marked each member of the church that month.
+
+- `id uuid primary key`
+- `submission_id uuid references cash_submissions` (cascade delete)
+- `partner_id uuid references partners` (cascade delete)
+- `status text` (`active` | `new` | `lapsed` | `remove`)
+- `created_at timestamptz`
+- `unique (submission_id, partner_id)`
+
+RLS: public insert, staff-only select.
+
+`partners` gains (migration 0027): `removed_at timestamptz` and `removed_via_submission uuid references cash_submissions` (set null on delete). Set when a form marks the member Remove: they drop off the church's list on the form; the hub can restore them. Nobody is deleted.
 
 ### `cash_submission_deposits`
 
